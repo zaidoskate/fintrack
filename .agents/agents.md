@@ -42,3 +42,8 @@ Si el código que vas a escribir contradice algo documentado, **detente y pregú
 - **Formato de fecha:** ISO 8601 (`YYYY-MM-DD`) en toda la capa de API; formato `dd/mm/aaaa` solo en la UI.
 - **State management:** server state (datos de GAS) solo vía TanStack Query — nunca duplicado en `useState`. Client state (UI-only) vía Zustand o `useState` local.
 - **Linting:** el código debe pasar ESLint + Prettier sin warnings antes de considerarse terminado.
+---
+
+## Convenciones de Next.js
+
+Para patrones actualizados y buenas prácticas específicas del framework Next.js (App Router, Server Components, APIs vigentes), consulta también `AGENTS.md` en la raíz del repo, generado y mantenido por la propia herramienta de Next.js.
