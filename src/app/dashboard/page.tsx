@@ -1,44 +1,254 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+'use client';
 
 /**
- * /dashboard — punto de entrada protegido.
- * Verifica sesión con getUser() (nunca getSession — agents.md convención de auth).
- * Si no hay sesión, el middleware ya redirige; esta verificación es defensiva.
- * La UI del dashboard se construye en Fase 3.
+ * Dashboard principal — Feature 1: Dashboard de Tarjetas (FR-09 a FR-14, FR-31).
+ * Consume useTarjetas() + useComprasMSI() — NFR-06b.
+ * Agrega CRUD completo de Tarjetas (Caveman style).
  */
-export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect('/login');
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useTarjetas, useComprasMSI, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta } from '@/lib/hooks';
+import { TarjetaCard } from '@/components/dashboard/TarjetaCard';
+import { TarjetaFormModal } from '@/components/dashboard/TarjetaFormModal';
+import { GlassCard } from '@/components/ui';
+import { Plus, HelpCircle } from 'lucide-react';
+import type { TarjetaConEstado } from '@/lib/types';
+import type { NuevaTarjetaInput } from '@/lib/api-inputs';
+
+export default function DashboardPage() {
+  const { data: tarjetas, isLoading: loadT, error: errT } = useTarjetas();
+  const { data: comprasMSI = [], isLoading: loadM } = useComprasMSI();
+  
+  const { mutate: crear, isPending: creating } = useCrearTarjeta();
+  const { mutate: actualizar, isPending: updating } = useActualizarTarjeta();
+  const { mutate: eliminar } = useEliminarTarjeta();
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingCard, setEditingCard] = useState<TarjetaConEstado | null>(null);
+  
+  const [showFlags, setShowFlags] = useState(true);
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+
+  const isLoading = loadT || loadM;
+  const isPending = creating || updating;
+
+  const handleOpenModal = (tarjeta?: TarjetaConEstado) => {
+    setEditingCard(tarjeta || null);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setEditingCard(null);
+  };
+
+  const handleSubmit = (data: Partial<NuevaTarjetaInput>) => {
+    if (editingCard) {
+      actualizar({ id: editingCard.id, campos: data }, {
+        onSuccess: () => handleCloseModal()
+      });
+    } else {
+      crear(data as NuevaTarjetaInput, {
+        onSuccess: () => handleCloseModal()
+      });
+    }
+  };
 
   return (
-    <main
-      className="min-h-screen flex items-center justify-center"
-      style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-      <div className="text-center">
-        <h1
-          style={{
-            fontSize: 'var(--font-size-2xl)',
-            fontWeight: 'var(--font-weight-bold)',
-            letterSpacing: 'var(--letter-spacing-tight)',
-            marginBottom: '0.5rem',
-          }}>
-          FinTrack
+    <main>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1 style={{
+          fontFamily: 'var(--font-display)',
+          fontWeight: 500,
+          fontSize: '26px',
+          letterSpacing: '-0.02em',
+          color: 'var(--text-primary)',
+        }}>
+          Tus tarjetas
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-base)' }}>
-          Sesión activa como {user.email}
-        </p>
-        <p
-          style={{
-            color: 'var(--text-disabled)',
-            fontSize: 'var(--font-size-sm)',
-            marginTop: '1rem',
-          }}>
-          Dashboard — Fase 3 (próxima sesión)
-        </p>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => setInfoModalOpen(true)}
+            style={{
+              background: 'none', border: 'none', color: 'var(--text-muted)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center'
+            }}
+            aria-label="Info de banderas de gasto"
+          >
+            <HelpCircle size={18} />
+          </button>
+          
+          <button
+            onClick={() => setShowFlags(!showFlags)}
+            style={{
+              background: showFlags ? 'var(--brand)' : 'rgba(255,255,255,0.1)',
+              border: 'none',
+              borderRadius: '20px',
+              width: '40px',
+              height: '22px',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background 0.3s'
+            }}
+            aria-label="Activar banderas de gasto"
+          >
+            <motion.div
+              animate={{ x: showFlags ? 18 : 2 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              style={{
+                width: '18px',
+                height: '18px',
+                background: '#fff',
+                borderRadius: '50%',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                position: 'absolute',
+                top: '2px',
+                left: 0
+              }}
+            />
+          </button>
+        </div>
       </div>
+
+      {isLoading && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {[1, 2].map((i) => (
+            <div
+              key={i}
+              style={{
+                height: '200px',
+                borderRadius: '22px',
+                background: 'var(--surface-glass)',
+                border: '1px solid var(--border-glass)',
+                animation: 'pulse 1.5s ease-in-out infinite',
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {errT && (
+        <GlassCard glow="rojo" style={{ padding: '20px' }}>
+          <p style={{ color: 'var(--credito-rojo)', fontSize: '14px' }}>
+            Error al cargar tarjetas: {errT.message}
+          </p>
+        </GlassCard>
+      )}
+
+      {!isLoading && !errT && tarjetas && (
+        <>
+          {tarjetas.length === 0 ? (
+            <GlassCard style={{ padding: '40px 24px', textAlign: 'center', marginBottom: '20px' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+                Aún no tienes tarjetas. Agrega una para comenzar.
+              </p>
+            </GlassCard>
+          ) : (
+            tarjetas.map((t) => (
+              <TarjetaCard
+                key={t.id}
+                tarjeta={t}
+                comprasMSI={comprasMSI.filter((m) => m.tarjetaId === t.id)}
+                showFlags={showFlags}
+                onEdit={handleOpenModal}
+                onDelete={(id) => eliminar(id)}
+              />
+            ))
+          )}
+
+          {/* Botón Agregar Tarjeta */}
+          <GlassCard
+            as="button"
+            onClick={() => handleOpenModal()}
+            style={{
+              width: '100%',
+              padding: '24px',
+              borderStyle: 'dashed',
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontSize: '15px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <Plus size={18} />
+              <span>Agregar tarjeta</span>
+            </div>
+          </GlassCard>
+        </>
+      )}
+
+      {/* Modal CRUD */}
+      <TarjetaFormModal
+        isOpen={modalOpen}
+        onClose={handleCloseModal}
+        onSubmit={handleSubmit}
+        initialData={editingCard || undefined}
+        isPending={isPending}
+      />
+
+      {/* Modal de Información de Banderas */}
+      <AnimatePresence>
+        {infoModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+              background: 'rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <div style={{ position: 'absolute', inset: 0 }} onClick={() => setInfoModalOpen(false)} />
+            
+            <GlassCard style={{ width: '100%', maxWidth: '380px', padding: '24px', zIndex: 1, position: 'relative' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--text-primary)', marginBottom: '20px' }}>
+                Banderas de Gasto
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--credito-verde)' }} />
+                  <div><strong>Rango ideal (0% - 30%)</strong><br/>Uso óptimo de la tarjeta.</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--credito-amarillo)' }} />
+                  <div><strong>Controla tus gastos (30% - 80%)</strong><br/>Precaución al endeudarte más.</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--credito-rojo)' }} />
+                  <div><strong>Cuidado (&gt;80%)</strong><br/>Alto nivel de deuda.</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setInfoModalOpen(false)}
+                style={{
+                  width: '100%', marginTop: '24px', padding: '12px', borderRadius: '10px',
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)',
+                  color: 'var(--text-primary)', cursor: 'pointer'
+                }}
+              >
+                Entendido
+              </button>
+            </GlassCard>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 0.7; }
+        }
+      `}</style>
     </main>
   );
 }
