@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useTarjetas, useComprasMSI, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta } from '@/lib/hooks';
 import { TarjetaCard } from '@/components/dashboard/TarjetaCard';
 import { TarjetaFormModal } from '@/components/dashboard/TarjetaFormModal';
+import { MovimientosTarjetaModal } from '@/components/dashboard/MovimientosTarjetaModal';
 import { GlassCard } from '@/components/ui';
 import { Plus, HelpCircle } from 'lucide-react';
 import type { TarjetaConEstado } from '@/lib/types';
@@ -26,6 +27,7 @@ export default function DashboardPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<TarjetaConEstado | null>(null);
+  const [viewingCard, setViewingCard] = useState<TarjetaConEstado | null>(null);
   
   const [showFlags, setShowFlags] = useState(true);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
@@ -154,6 +156,7 @@ export default function DashboardPage() {
                 showFlags={showFlags}
                 onEdit={handleOpenModal}
                 onDelete={(id) => eliminar(id)}
+                onViewDetails={(t) => setViewingCard(t)}
               />
             ))
           )}
@@ -187,6 +190,12 @@ export default function DashboardPage() {
         onSubmit={handleSubmit}
         initialData={editingCard || undefined}
         isPending={isPending}
+      />
+
+      {/* Modal Detalles */}
+      <MovimientosTarjetaModal
+        tarjeta={viewingCard}
+        onClose={() => setViewingCard(null)}
       />
 
       {/* Modal de Información de Banderas */}
