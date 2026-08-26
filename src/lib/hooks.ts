@@ -37,6 +37,20 @@ import type {
   NuevaMetaInput,
   NuevaCompraMSIInput,
 } from '@/lib/api-inputs';
+import { db } from '@/lib/offline/db';
+
+async function handleOfflineError(action: string, payload: any, err: any) {
+  if (err?.message === 'Failed to fetch' || !navigator.onLine) {
+    await db.outbox.add({
+      action,
+      payload,
+      createdAt: new Date().toISOString()
+    });
+    console.warn(`[Offline] Acción ${action} guardada en outbox.`);
+  } else {
+    throw err;
+  }
+}
 
 // ── Query Keys (centralizadas para invalidaciones coherentes) ─────────────────
 export const QK = {
@@ -97,10 +111,41 @@ export function useMovimientos(filtros?: FiltrosMovimientos) {
 export function useCrearMovimiento() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: crearMovimiento,
-    onSuccess: () => {
+    mutationFn: async (payload: NuevoMovimientoInput) => {
+      try {
+        return await crearMovimiento(payload);
+      } catch (err) {
+        await handleOfflineError('crearMovimiento', payload, err);
+        return payload as unknown as Movimiento; // Retorno optimista ficticio
+      }
+    },
+    // Optimista
+    onMutate: async (newMov) => {
+      await qc.cancelQueries({ queryKey: QK.movimientos() });
+      const prev = qc.getQueryData<Movimiento[]>(QK.movimientos());
+      qc.setQueryData<Movimiento[]>(QK.movimientos(), (old) => {
+        const fakeMov: Movimiento = {
+          id: `temp-${Date.now()}`,
+          fecha: newMov.fecha || new Date().toISOString().split('T')[0],
+          hora: newMov.hora || new Date().toTimeString().slice(0,5),
+          tipo: newMov.tipo,
+          monto: newMov.monto,
+          categoria: newMov.categoria || 'Sin categoría',
+          comercio: newMov.comercio || '',
+          metodoPago: newMov.metodoPago || 'Efectivo'
+        };
+        return old ? [fakeMov, ...old] : [fakeMov];
+      });
+      return { prev };
+    },
+    onError: (err, newMov, context) => {
+      if (err.message !== 'Failed to fetch' && navigator.onLine && context?.prev) {
+        qc.setQueryData(QK.movimientos(), context.prev);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['movimientos'] });
-      qc.invalidateQueries({ queryKey: QK.tarjetas }); // recalcula termómetro
+      qc.invalidateQueries({ queryKey: QK.tarjetas }); 
     },
   });
 }

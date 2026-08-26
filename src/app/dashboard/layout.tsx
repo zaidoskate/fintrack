@@ -7,6 +7,7 @@ import { DashboardNav } from '@/components/dashboard/DashboardNav';
 import { PageTransition } from '@/components/dashboard/PageTransition';
 import { LogOut } from 'lucide-react';
 import { FabRegistro } from '@/components/dashboard/FabRegistro';
+import { SyncIndicator } from '@/components/ui/SyncIndicator';
 
 /**
  * Layout del dashboard — envuelve todas las rutas protegidas con:
@@ -28,6 +29,7 @@ export default async function DashboardLayout({
   return (
     <QueryProvider>
       <div style={{ position: 'relative', minHeight: '100vh' }}>
+        <SyncIndicator />
         <AmbientBackground />
 
         <div
