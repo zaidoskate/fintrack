@@ -1,5 +1,6 @@
 import { signIn } from '@/app/auth/actions';
 import { AmbientBackground } from '@/components/ui';
+import { AuthSubmitButton } from '@/components/ui/AuthSubmitButton';
 
 /**
  * Página de inicio de sesión — Glass Ledger.
@@ -92,17 +93,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               />
             </div>
 
-            <button
-              type="submit"
-              style={{
-                width: '100%', padding: '13px', borderRadius: '12px', border: 'none',
-                background: 'var(--brand)', color: '#1a0a0b',
-                fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '15px',
-                cursor: 'pointer', marginTop: '4px',
-              }}
-            >
-              Entrar
-            </button>
+            <AuthSubmitButton label="Entrar" />
           </form>
 
           <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '14px', color: 'var(--text-secondary)' }}>

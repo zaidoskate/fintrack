@@ -6,7 +6,7 @@
  * Agrega CRUD completo de Tarjetas (Caveman style).
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTarjetas, useComprasMSI, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta } from '@/lib/hooks';
 import { TarjetaCard } from '@/components/dashboard/TarjetaCard';
@@ -31,6 +31,21 @@ export default function DashboardPage() {
   
   const [showFlags, setShowFlags] = useState(true);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('fintrack_show_flags');
+    if (saved !== null) {
+      setShowFlags(saved === 'true');
+    }
+  }, []);
+
+  const toggleFlags = () => {
+    setShowFlags((prev) => {
+      const next = !prev;
+      localStorage.setItem('fintrack_show_flags', String(next));
+      return next;
+    });
+  };
 
   const isLoading = loadT || loadM;
   const isPending = creating || updating;
@@ -83,7 +98,7 @@ export default function DashboardPage() {
           </button>
           
           <button
-            onClick={() => setShowFlags(!showFlags)}
+            onClick={toggleFlags}
             style={{
               background: showFlags ? 'var(--brand)' : 'rgba(255,255,255,0.1)',
               border: 'none',

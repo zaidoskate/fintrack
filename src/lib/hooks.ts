@@ -47,6 +47,11 @@ async function handleOfflineError(action: string, payload: any, err: any) {
       createdAt: new Date().toISOString()
     });
     console.warn(`[Offline] Acción ${action} guardada en outbox.`);
+    
+    // Despachar evento para que SyncIndicator muestre el toast
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offline-action', { detail: action }));
+    }
   } else {
     throw err;
   }
