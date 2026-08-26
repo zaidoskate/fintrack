@@ -125,6 +125,20 @@ En cada feature, el patrón de trabajo con Antigravity:
 
 ---
 
+## Fase 3.5 — Tarjetas de Débito, UI Updates y Desglose (COMPLETADA)
+**Duración estimada: 1 sesión**
+
+Esta fase surgió como un pivote para mejorar el alcance del producto antes de llegar al modo offline.
+
+**Entregables:**
+- Migración de base de datos en Supabase (campo `tipo` en tarjetas).
+- Corrección de bugs visuales de Safari en iOS 15+.
+- Soporte para tarjetas de Débito (con Saldo Actual en vez de Límite).
+- Vista de desglose cronológico de movimientos por tarjeta.
+- Botón rápido para registrar el pago de una Tarjeta de Crédito directamente desde su desglose.
+
+---
+
 ## Fase 4 — Offline-first: Service Worker + IndexedDB + Background Sync
 **Duración estimada: 2-3 sesiones (la fase más delicada técnicamente)**
 
@@ -204,10 +218,12 @@ Ideas priorizadas para después del MVP (no bloquean el lanzamiento):
 
 ## Checklist maestro (vista rápida)
 
-- [ ] Fase 0 — Repo + Sheet de prueba + Vercel creado
-- [ ] Fase 1 — Backend GAS: 5 endpoints funcionando y validados manualmente
-- [ ] Fase 2 — Scaffold frontend + design system + capa de API tipada
-- [ ] Fase 3 — 4 features funcionando online (Tarjetas, Analítica, Metas, Registro)
+- [x] Fase 0 — Repo + Vercel creado
+- [x] Fase 1 — Backend GAS (RETIRADO)
+- [x] Fase 1.5 — Backend Supabase + Auth (COMPLETADO)
+- [x] Fase 2 — Scaffold frontend + design system + capa de API tipada
+- [x] Fase 3 — 4 features funcionando online (Tarjetas, Analítica, Metas, Registro)
+- [x] Fase 3.5 — Tarjetas de Débito, UI Updates y Desglose
 - [ ] Fase 4 — Offline-first verificado (3 pruebas manuales pasando)
 - [ ] Fase 5 — CI/CD activo con branch protection
 - [ ] Fase 6 — Deploy a producción y validado en dispositivo real
