@@ -3,9 +3,11 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useMotionConfig } from '@/lib/motion/variants';
 import { GlassCard } from '@/components/ui';
-import { useMovimientos, useCrearMovimiento } from '@/lib/hooks';
+import { useMovimientos, useCrearMovimiento, useEliminarMovimiento } from '@/lib/hooks';
 import type { TarjetaConEstado, Movimiento } from '@/lib/types';
 import { useState, useMemo } from 'react';
+import { Edit2, Trash2 } from 'lucide-react';
+import { RegistroForm } from './RegistroForm';
 
 const fmt = new Intl.NumberFormat('es-MX', {
   style: 'currency',
@@ -31,8 +33,10 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
   );
   
   const { mutate: crearMovimiento, isPending } = useCrearMovimiento();
+  const { mutate: eliminarMov } = useEliminarMovimiento();
   const [payMode, setPayMode] = useState(false);
   const [payAmount, setPayAmount] = useState('');
+  const [editingMov, setEditingMov] = useState<Movimiento | null>(null);
 
   const handlePaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,8 +110,14 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
               </button>
             </div>
 
-            {tarjeta.tipo === 'Crédito' && (
-              <div style={{ marginBottom: '20px' }}>
+            {editingMov ? (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <RegistroForm initialData={editingMov} onClose={() => setEditingMov(null)} />
+              </div>
+            ) : (
+              <>
+                {tarjeta.tipo === 'Crédito' && (
+                  <div style={{ marginBottom: '20px' }}>
                 <AnimatePresence mode="wait">
                   {!payMode ? (
                     <motion.button
@@ -205,13 +215,35 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
                             {fmtFecha(mov.fecha)} · {mov.tipo === 'Ingreso' ? 'Ingreso' : mov.categoria}
                           </div>
                         </div>
-                        <div style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 600,
-                          fontSize: '15px',
-                          color: mov.tipo === 'Ingreso' ? 'var(--credito-verde)' : 'var(--text-primary)',
-                        }}>
-                          {mov.tipo === 'Ingreso' ? '+' : '-'}{fmt.format(mov.monto)}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 600,
+                            fontSize: '15px',
+                            color: mov.tipo === 'Ingreso' ? 'var(--credito-verde)' : 'var(--text-primary)',
+                            textAlign: 'right'
+                          }}>
+                            {mov.tipo === 'Ingreso' ? '+' : '-'}{fmt.format(mov.monto)}
+                          </div>
+                          
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={() => setEditingMov(mov)}
+                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                              aria-label="Editar"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if(window.confirm('¿Eliminar este movimiento?')) eliminarMov(mov.id);
+                              }}
+                              style={{ background: 'none', border: 'none', color: 'var(--credito-rojo)', cursor: 'pointer', padding: '4px', opacity: 0.8 }}
+                              aria-label="Eliminar"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -219,7 +251,9 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
                 </div>
               ))}
             </div>
-          </GlassCard>
+          </>
+        )}
+      </GlassCard>
         </motion.div>
       )}
     </AnimatePresence>

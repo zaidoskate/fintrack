@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { GlassCard, GlassSelect } from '@/components/ui';
 import {
-  useCrearMovimiento, useCrearCompraMSI, useTarjetas, QK,
+  useCrearMovimiento, useEditarMovimiento, useCrearCompraMSI, useTarjetas, QK,
 } from '@/lib/hooks';
 import type { Movimiento } from '@/lib/types';
 
@@ -31,18 +31,19 @@ const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN',
 
 interface RegistroFormProps {
   onClose?: () => void;
+  initialData?: Movimiento;
 }
 
-export function RegistroForm({ onClose }: RegistroFormProps) {
+export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
   const qc = useQueryClient();
   const { data: tarjetas = [] } = useTarjetas();
 
   /* ── Estado del formulario ─────────────────────────────────────── */
-  const [tipo,       setTipo]      = useState<'Gasto' | 'Ingreso'>('Gasto');
-  const [monto,      setMonto]     = useState('');
-  const [categoria,  setCat]       = useState(CATEGORIAS[0]);
-  const [comercio,   setCom]       = useState('');
-  const [metodo,     setMetodo]    = useState('Efectivo');
+  const [tipo,       setTipo]      = useState<'Gasto' | 'Ingreso'>(initialData?.tipo || 'Gasto');
+  const [monto,      setMonto]     = useState(initialData?.monto.toString() || '');
+  const [categoria,  setCat]       = useState(initialData?.categoria || CATEGORIAS[0]);
+  const [comercio,   setCom]       = useState(initialData?.comercio || '');
+  const [metodo,     setMetodo]    = useState(initialData?.metodoPago || 'Efectivo');
   const [esMeses,    setEsMeses]   = useState(false);
   const [meses,      setMeses]     = useState(3);
   const [error,      setError]     = useState<string | null>(null);
@@ -55,6 +56,7 @@ export function RegistroForm({ onClose }: RegistroFormProps) {
 
   /* ── Mutations ────────────────────────────────────────────────── */
   const { mutate: crearMov } = useCrearMovimiento();
+  const { mutate: editarMov } = useEditarMovimiento();
   const { mutate: crearMSI } = useCrearCompraMSI();
 
   /* ── Submit ───────────────────────────────────────────────────── */
@@ -104,24 +106,31 @@ export function RegistroForm({ onClose }: RegistroFormProps) {
     const prev = qc.getQueryData<Movimiento[]>(QK.movimientos());
 
     // Actualización optimista inmediata
-    qc.setQueryData<Movimiento[]>(QK.movimientos(), (old = []) =>
-      [optimisticMov, ...old],
-    );
+    qc.setQueryData<Movimiento[]>(QK.movimientos(), (old = []) => {
+      if (initialData) {
+        return old.map(m => m.id === initialData.id ? optimisticMov : m);
+      }
+      return [optimisticMov, ...old];
+    });
 
-    crearMov(
-      { tipo, monto: montoNum, categoria, comercio: comercio || 'N/A', metodoPago: metodo },
-      {
-        onSuccess: () => {
-          setExito(true);
-          setTimeout(() => { setExito(false); resetForm(); onClose?.(); }, 1200);
-        },
-        onError: (err) => {
-          // Rollback
-          if (prev) qc.setQueryData(QK.movimientos(), prev);
-          setError(err.message);
-        },
+    const payload = { tipo, monto: montoNum, categoria, comercio: comercio || 'N/A', metodoPago: metodo };
+    const mutationOpts = {
+      onSuccess: () => {
+        setExito(true);
+        setTimeout(() => { setExito(false); resetForm(); onClose?.(); }, 1200);
       },
-    );
+      onError: (err: Error) => {
+        // Rollback
+        if (prev) qc.setQueryData(QK.movimientos(), prev);
+        setError(err.message);
+      },
+    };
+
+    if (initialData) {
+      editarMov({ id: initialData.id, campos: payload }, mutationOpts);
+    } else {
+      crearMov(payload, mutationOpts);
+    }
   };
 
   const resetForm = () => {
@@ -150,7 +159,7 @@ export function RegistroForm({ onClose }: RegistroFormProps) {
   return (
     <GlassCard style={{ padding: '24px 24px 32px', overflow: 'visible' }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--text-primary)', marginBottom: '20px' }}>
-        {esMeses ? 'Compra a MSI' : 'Nuevo registro'}
+        {initialData ? 'Editar movimiento' : esMeses ? 'Compra a MSI' : 'Nuevo registro'}
       </h2>
 
       {error && (
@@ -220,8 +229,8 @@ export function RegistroForm({ onClose }: RegistroFormProps) {
           />
         </div>
 
-        {/* Checkbox MSI — solo si método es tarjeta de crédito y tipo Gasto (FR-26) */}
-        {tipo === 'Gasto' && esTarjeta && (
+        {/* Checkbox MSI — solo si método es tarjeta de crédito y tipo Gasto y NO estamos editando (FR-26) */}
+        {tipo === 'Gasto' && esTarjeta && !initialData && (
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'pointer' }}>
             <input
               type="checkbox" checked={esMeses}
@@ -266,7 +275,7 @@ export function RegistroForm({ onClose }: RegistroFormProps) {
         {/* Botones */}
         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
           <button type="submit" style={{ ...btnPrimary, flex: 1 }}>
-            {esMeses ? `Registrar ${meses} meses` : `Registrar ${tipo.toLowerCase()}`}
+            {initialData ? 'Guardar cambios' : esMeses ? `Registrar ${meses} meses` : `Registrar ${tipo.toLowerCase()}`}
           </button>
           {onClose && (
             <button type="button" onClick={onClose} style={btnSecondary}>Cancelar</button>

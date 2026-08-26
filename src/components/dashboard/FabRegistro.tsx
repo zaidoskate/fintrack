@@ -1,12 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus } from 'lucide-react';
 import { RegistroForm } from '@/components/dashboard/RegistroForm';
 
 export function FabRegistro() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    const reset = () => {
+      setIsHidden(false);
+      clearTimeout(timeout);
+      // Solo esconder si no está abierto
+      timeout = setTimeout(() => setIsHidden(true), 5000);
+    };
+
+    window.addEventListener('touchstart', reset, { passive: true });
+    window.addEventListener('mousemove', reset, { passive: true });
+    window.addEventListener('scroll', reset, { passive: true });
+    reset();
+
+    return () => {
+      window.removeEventListener('touchstart', reset);
+      window.removeEventListener('mousemove', reset);
+      window.removeEventListener('scroll', reset);
+      clearTimeout(timeout);
+    };
+  }, []);
 
   return (
     <>
@@ -47,9 +70,20 @@ export function FabRegistro() {
 
       {/* FAB Button */}
       <motion.button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (isHidden && !isOpen) {
+            setIsHidden(false);
+          } else {
+            setIsOpen(!isOpen);
+          }
+        }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
+        animate={{ 
+          y: isHidden && !isOpen ? 45 : 0,
+          opacity: isHidden && !isOpen ? 0.6 : 1,
+        }}
+        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         style={{
           position: 'fixed',
           bottom: '28px',

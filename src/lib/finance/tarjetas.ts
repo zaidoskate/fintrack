@@ -190,28 +190,40 @@ export function calcularEstadoTarjeta(
   }
 
   // Cuotas MSI activas hoy para esta tarjeta (Architecture.md §5)
-  const gastosMSI = comprasMSI
-    .filter((msi) => {
-      if (msi.tarjeta_id !== tarjeta.id) return false;
-      const primerCargo = new Date(msi.fecha_primer_cargo + 'T00:00:00');
-      const ultimaCuota = new Date(msi.fecha_ultima_cuota + 'T00:00:00');
-      return hoy >= primerCargo && hoy <= ultimaCuota;
-    })
-    .reduce((sum, msi) => sum + Number(msi.cuota_mensual), 0);
+  let gastosMSIMes = 0;
+  let saldoCongeladoMSI = 0;
+
+  comprasMSI.forEach((msi) => {
+    if (msi.tarjeta_id !== tarjeta.id) return;
+    const primerCargo = new Date(msi.fecha_primer_cargo + 'T00:00:00');
+    const ultimaCuota = new Date(msi.fecha_ultima_cuota + 'T00:00:00');
+    
+    if (hoy >= primerCargo && hoy <= ultimaCuota) {
+      gastosMSIMes += Number(msi.cuota_mensual);
+      
+      // Calcular cuántas cuotas restan por cobrar para deducir del disponible
+      const mesDiff = (hoy.getFullYear() - primerCargo.getFullYear()) * 12 + (hoy.getMonth() - primerCargo.getMonth());
+      const cuotasCobradas = Math.max(0, Math.min(Number(msi.meses_totales), mesDiff + 1));
+      const cuotasRestantes = Number(msi.meses_totales) - cuotasCobradas;
+      saldoCongeladoMSI += cuotasRestantes * Number(msi.cuota_mensual);
+    }
+  });
 
   // Gastos totales = (Gastos del mes + Cuotas MSI) - Pagos realizados a la tarjeta
-  const deudaTotal = (gastosDelPeriodo + gastosMSI) - pagosDelPeriodo;
+  const deudaTotal = (gastosDelPeriodo + gastosMSIMes) - pagosDelPeriodo;
   
   // Si los pagos superan la deuda, el periodo actual queda en 0 (saldo a favor se reflejará en el disponible)
   const gastosPeriodoActual = Math.round(Math.max(0, deudaTotal) * 100) / 100;
   
   const limite = Number(tarjeta.limite);
-  // El disponible real suma el saldo a favor si los pagos > deudaTotal
+  // El disponible real resta la deuda total del mes y el saldo congelado a meses
   const saldoAFavor = deudaTotal < 0 ? Math.abs(deudaTotal) : 0;
-  const disponible = Math.round((limite - gastosPeriodoActual + saldoAFavor) * 100) / 100;
+  const disponible = Math.round((limite - gastosPeriodoActual + saldoAFavor - saldoCongeladoMSI) * 100) / 100;
   
+  // El porcentaje de uso debe reflejar el uso total del límite (incluyendo MSI congelado)
+  const usoTotalLínea = gastosPeriodoActual + saldoCongeladoMSI;
   const porcentajeUso = limite > 0
-    ? Math.round((gastosPeriodoActual / limite) * 1000) / 10
+    ? Math.round((usoTotalLínea / limite) * 1000) / 10
     : 0;
 
   const { estadoTermometro, etiquetaEstado } = clasificarEstado(porcentajeUso);
