@@ -92,7 +92,7 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
           
           <GlassCard
             as="div"
-            style={{ width: '100%', maxWidth: '420px', padding: '24px', zIndex: 1, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+            style={{ width: '100%', maxWidth: '420px', padding: '24px', zIndex: 1, maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
             {...modalTransition}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -184,7 +184,14 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
               </div>
             )}
 
-            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '10px', minHeight: 0 }}>
+            <div style={{ 
+              overflowY: 'auto', 
+              flex: 1, 
+              paddingRight: '10px', 
+              minHeight: 0,
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch'
+            }}>
               {isLoading && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Cargando movimientos...</div>}
               {!isLoading && movimientos.length === 0 && (
                 <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No hay movimientos registrados.</div>
