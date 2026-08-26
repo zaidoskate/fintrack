@@ -38,9 +38,8 @@ export async function getTarjetas(): Promise<TarjetaConEstado[]> {
     supabase
       .from('movimientos')
       .select('id, fecha, hora, tipo, monto, metodo_pago, categoria, comercio')
-      .eq('tipo', 'Gasto')
       .order('fecha', { ascending: false })
-      .limit(1000)           // techo razonable para el cálculo de periodos
+      .limit(2000)           // techo razonable para el cálculo de saldos y periodos
       .returns<MovimientoRow[]>(),
 
     supabase
@@ -64,9 +63,10 @@ export async function getTarjetas(): Promise<TarjetaConEstado[]> {
 
 export interface NuevaTarjetaInput {
   nombre: string;
+  tipo: 'Crédito' | 'Débito';
   limite: number;
-  diaCorte: number;
-  diaPago: number;
+  diaCorte: number | null;
+  diaPago: number | null;
 }
 
 /** Crea una tarjeta para el usuario autenticado. */
@@ -80,6 +80,7 @@ export async function crearTarjeta(input: NuevaTarjetaInput): Promise<TarjetaRow
     .insert({
       user_id:   user.id,
       nombre:    input.nombre,
+      tipo:      input.tipo,
       limite:    input.limite,
       dia_corte: input.diaCorte,
       dia_pago:  input.diaPago,
@@ -101,6 +102,7 @@ export async function actualizarTarjeta(
     .from('tarjetas')
     .update({
       ...(campos.nombre    !== undefined && { nombre: campos.nombre }),
+      ...(campos.tipo      !== undefined && { tipo: campos.tipo }),
       ...(campos.limite    !== undefined && { limite: campos.limite }),
       ...(campos.diaCorte  !== undefined && { dia_corte: campos.diaCorte }),
       ...(campos.diaPago   !== undefined && { dia_pago: campos.diaPago }),

@@ -34,17 +34,20 @@ interface TarjetaCardProps {
   showFlags?: boolean;
   onEdit?: (tarjeta: TarjetaConEstado) => void;
   onDelete?: (tarjetaId: string) => void;
+  onViewDetails?: (tarjeta: TarjetaConEstado) => void;
 }
 
-export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onDelete }: TarjetaCardProps) {
+export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onDelete, onViewDetails }: TarjetaCardProps) {
   const [msiOpen, setMsiOpen] = useState(false);
   const msiActivas = comprasMSI.filter((m) => m.mesesRestantes > 0);
+  const esCredito = tarjeta.tipo === 'Crédito';
 
   return (
     <GlassCard
-      glow={!showFlags ? 'none' : tarjeta.estadoTermometro === 'verde' ? 'none' : tarjeta.estadoTermometro}
+      glow={(!showFlags || !esCredito) ? 'none' : tarjeta.estadoTermometro === 'verde' ? 'none' : tarjeta.estadoTermometro}
       as="article"
-      style={{ padding: '24px', marginBottom: '20px' }}
+      style={{ padding: '24px', marginBottom: '20px', cursor: onViewDetails ? 'pointer' : 'default' }}
+      onClick={() => onViewDetails?.(tarjeta)}
     >
       {/* Cabecera: nombre + chip decorativo */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
@@ -59,7 +62,7 @@ export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onD
         <div style={{ display: 'flex', gap: '8px' }}>
           {onEdit && (
             <button
-              onClick={() => onEdit(tarjeta)}
+              onClick={(e) => { e.stopPropagation(); onEdit(tarjeta); }}
               aria-label="Editar tarjeta"
               style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
             >
@@ -68,7 +71,8 @@ export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onD
           )}
           {onDelete && (
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 if (confirm(`¿Eliminar la tarjeta ${tarjeta.nombre}?`)) {
                   onDelete(tarjeta.id);
                 }
@@ -103,7 +107,7 @@ export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onD
             color: 'var(--text-muted)',
             marginBottom: '4px',
           }}>
-            Disponible
+            {esCredito ? 'Disponible' : 'Saldo actual'}
           </div>
           <div style={{
             fontFamily: 'var(--font-mono)',
@@ -116,7 +120,7 @@ export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onD
           </div>
         </div>
 
-        {showFlags && (
+        {showFlags && esCredito && (
           <StatusPill
             mode="thermometer"
             variant={tarjeta.estadoTermometro}
@@ -125,57 +129,60 @@ export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onD
         )}
       </div>
 
-      {/* Barra de uso del límite (termómetro visual) */}
-      <div style={{ marginTop: '20px' }}>
-        <div style={{
-          height: '4px',
-          borderRadius: '2px',
-          background: 'rgba(255,255,255,0.08)',
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            height: '100%',
-            width: `${Math.min(tarjeta.porcentajeUso, 100)}%`,
-            background: tarjeta.estadoTermometro === 'verde'
-              ? 'var(--credito-verde)'
-              : tarjeta.estadoTermometro === 'amarillo'
-              ? 'var(--credito-amarillo)'
-              : 'var(--credito-rojo)',
-            borderRadius: '2px',
-            transition: 'width 0.6s ease',
-          }} />
-        </div>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginTop: '6px',
-          fontSize: '11px',
-          color: 'var(--text-muted)',
-        }}>
-          <span>{tarjeta.porcentajeUso.toFixed(1)}% del límite</span>
-          <span>Pago: {fmtFecha(tarjeta.proximoPago)} ({tarjeta.diasParaPago}d)</span>
-        </div>
-      </div>
+      {/* Solo Crédito: Termómetro visual y Desglose */}
+      {esCredito && (
+        <>
+          <div style={{ marginTop: '20px' }}>
+            <div style={{
+              height: '4px',
+              borderRadius: '2px',
+              background: 'rgba(255,255,255,0.08)',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%',
+                width: `${Math.min(tarjeta.porcentajeUso, 100)}%`,
+                background: tarjeta.estadoTermometro === 'verde'
+                  ? 'var(--credito-verde)'
+                  : tarjeta.estadoTermometro === 'amarillo'
+                  ? 'var(--credito-amarillo)'
+                  : 'var(--credito-rojo)',
+                borderRadius: '2px',
+                transition: 'width 0.6s ease',
+              }} />
+            </div>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginTop: '6px',
+              fontSize: '11px',
+              color: 'var(--text-muted)',
+            }}>
+              <span>{tarjeta.porcentajeUso.toFixed(1)}% del límite</span>
+              <span>Pago: {tarjeta.proximoPago ? fmtFecha(tarjeta.proximoPago) : ''} ({tarjeta.diasParaPago}d)</span>
+            </div>
+          </div>
 
-      {/* Gastos y MSI desglosados */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        marginTop: '14px',
-        padding: '12px 0 0',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        fontSize: '12px',
-        color: 'var(--text-secondary)',
-      }}>
-        <span>Gastado: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmt.format(tarjeta.gastosPeriodoActual)}</strong></span>
-        <span>Límite: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmt.format(tarjeta.limite)}</strong></span>
-      </div>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: '14px',
+            padding: '12px 0 0',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+          }}>
+            <span>Gastado: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmt.format(tarjeta.gastosPeriodoActual)}</strong></span>
+            <span>Límite: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmt.format(tarjeta.limite)}</strong></span>
+          </div>
+        </>
+      )}
 
       {/* Sección MSI expandible — FR-31 */}
       {msiActivas.length > 0 && (
         <div style={{ marginTop: '14px' }}>
           <button
-            onClick={() => setMsiOpen((v) => !v)}
+            onClick={(e) => { e.stopPropagation(); setMsiOpen((v) => !v); }}
             style={{
               display: 'flex',
               alignItems: 'center',

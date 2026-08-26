@@ -137,17 +137,57 @@ export function calcularEstadoTarjeta(
   comprasMSI: CompraMSIRow[],
   hoy: Date = new Date(),
 ): TarjetaConEstado {
-  const periodo = getPeriodoVigente(tarjeta.dia_corte, hoy);
+  // === LÓGICA PARA TARJETA DE DÉBITO ===
+  if (tarjeta.tipo === 'Débito') {
+    // Para débito, el 'limite' actúa como el Saldo Inicial
+    let saldo = Number(tarjeta.limite) || 0;
+    
+    // Sumar todos los ingresos y restar todos los gastos históricos
+    for (const mov of movimientos) {
+      if (mov.metodo_pago.toLowerCase() !== tarjeta.nombre.toLowerCase()) continue;
+      if (mov.tipo === 'Ingreso') {
+        saldo += Number(mov.monto);
+      } else if (mov.tipo === 'Gasto') {
+        saldo -= Number(mov.monto);
+      }
+    }
 
-  // Gastos de movimientos normales dentro del periodo y con la tarjeta correcta
-  const gastosMovimientos = movimientos
-    .filter((mov) => {
-      if (mov.tipo !== 'Gasto') return false;
-      if (mov.metodo_pago.toLowerCase() !== tarjeta.nombre.toLowerCase()) return false;
-      const fecha = new Date(mov.fecha + 'T00:00:00');
-      return fecha >= periodo.inicio && fecha <= periodo.fin;
-    })
-    .reduce((sum, mov) => sum + Number(mov.monto), 0);
+    return {
+      id:                  tarjeta.id,
+      nombre:              tarjeta.nombre,
+      tipo:                'Débito',
+      limite:              Number(tarjeta.limite) || 0,
+      diaCorte:            null,
+      diaPago:             null,
+      gastosPeriodoActual: 0,
+      disponible:          Math.round(saldo * 100) / 100, // Este es el "Saldo Actual"
+      porcentajeUso:       0,
+      estadoTermometro:    'verde',
+      etiquetaEstado:      'Saldo disponible',
+      proximoCorte:        null,
+      proximoPago:         null,
+      diasParaPago:        null,
+    };
+  }
+
+  // === LÓGICA PARA TARJETA DE CRÉDITO ===
+  const periodo = getPeriodoVigente(tarjeta.dia_corte || 1, hoy);
+
+  // Gastos e Ingresos del periodo actual para la tarjeta
+  let gastosDelPeriodo = 0;
+  let pagosDelPeriodo = 0;
+
+  for (const mov of movimientos) {
+    if (mov.metodo_pago.toLowerCase() !== tarjeta.nombre.toLowerCase()) continue;
+    const fecha = new Date(mov.fecha + 'T00:00:00');
+    if (fecha >= periodo.inicio && fecha <= periodo.fin) {
+      if (mov.tipo === 'Gasto') {
+        gastosDelPeriodo += Number(mov.monto);
+      } else if (mov.tipo === 'Ingreso') {
+        pagosDelPeriodo += Number(mov.monto);
+      }
+    }
+  }
 
   // Cuotas MSI activas hoy para esta tarjeta (Architecture.md §5)
   const gastosMSI = comprasMSI
@@ -159,9 +199,17 @@ export function calcularEstadoTarjeta(
     })
     .reduce((sum, msi) => sum + Number(msi.cuota_mensual), 0);
 
-  const gastosPeriodoActual = Math.round((gastosMovimientos + gastosMSI) * 100) / 100;
+  // Gastos totales = (Gastos del mes + Cuotas MSI) - Pagos realizados a la tarjeta
+  const deudaTotal = (gastosDelPeriodo + gastosMSI) - pagosDelPeriodo;
+  
+  // Si los pagos superan la deuda, el periodo actual queda en 0 (saldo a favor se reflejará en el disponible)
+  const gastosPeriodoActual = Math.round(Math.max(0, deudaTotal) * 100) / 100;
+  
   const limite = Number(tarjeta.limite);
-  const disponible = Math.round((limite - gastosPeriodoActual) * 100) / 100;
+  // El disponible real suma el saldo a favor si los pagos > deudaTotal
+  const saldoAFavor = deudaTotal < 0 ? Math.abs(deudaTotal) : 0;
+  const disponible = Math.round((limite - gastosPeriodoActual + saldoAFavor) * 100) / 100;
+  
   const porcentajeUso = limite > 0
     ? Math.round((gastosPeriodoActual / limite) * 1000) / 10
     : 0;
@@ -169,11 +217,12 @@ export function calcularEstadoTarjeta(
   const { estadoTermometro, etiquetaEstado } = clasificarEstado(porcentajeUso);
 
   const proxCorte = periodo.proximoCorte;
-  const proxPago  = calcProximoPago(proxCorte, tarjeta.dia_pago);
+  const proxPago  = calcProximoPago(proxCorte, tarjeta.dia_pago || 1);
 
   return {
     id:                  tarjeta.id,
     nombre:              tarjeta.nombre,
+    tipo:                'Crédito',
     limite,
     diaCorte:            tarjeta.dia_corte,
     diaPago:             tarjeta.dia_pago,

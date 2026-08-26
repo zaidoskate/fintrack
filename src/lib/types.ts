@@ -10,9 +10,10 @@ export interface TarjetaRow {
   id: string;
   user_id: string;
   nombre: string;
-  limite: number;
-  dia_corte: number;
-  dia_pago: number;
+  tipo: 'Crédito' | 'Débito';
+  limite: number;       // Para Débito esto es el Saldo Inicial
+  dia_corte: number | null;
+  dia_pago: number | null;
   created_at: string;
 }
 
@@ -60,17 +61,18 @@ export interface CompraMSIRow {
 export interface TarjetaConEstado {
   id: string;
   nombre: string;
-  limite: number;
-  diaCorte: number;
-  diaPago: number;
+  tipo: 'Crédito' | 'Débito';
+  limite: number;        // Límite o Saldo inicial
+  diaCorte: number | null;
+  diaPago: number | null;
   gastosPeriodoActual: number;
-  disponible: number;
-  porcentajeUso: number;
-  estadoTermometro: 'verde' | 'amarillo' | 'rojo';
+  disponible: number;    // Límite disponible (Crédito) o Saldo actual (Débito)
+  porcentajeUso: number; // 0 para Débito
+  estadoTermometro: 'verde' | 'amarillo' | 'rojo'; // 'verde' para Débito siempre
   etiquetaEstado: string;
-  proximoCorte: string;  // YYYY-MM-DD
-  proximoPago: string;   // YYYY-MM-DD
-  diasParaPago: number;
+  proximoCorte: string | null;  // YYYY-MM-DD
+  proximoPago: string | null;   // YYYY-MM-DD
+  diasParaPago: number | null;
 }
 
 /** Movimiento normalizado para la UI */
