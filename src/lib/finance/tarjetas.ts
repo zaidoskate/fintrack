@@ -115,13 +115,9 @@ function clasificarEstado(porcentajeUso: number): {
     return { estadoTermometro: 'verde', etiquetaEstado: 'Rango ideal' };
   }
   if (porcentajeUso < UMBRAL_ROJO) {
-    return { estadoTermometro: 'amarillo', etiquetaEstado: 'Aún puedes gastar' };
+    return { estadoTermometro: 'amarillo', etiquetaEstado: 'Controla tus gastos' };
   }
-  // H2: usar exactamente las etiquetas definidas por el usuario
-  if (porcentajeUso >= 100) {
-    return { estadoTermometro: 'rojo', etiquetaEstado: 'Te excediste' };
-  }
-  return { estadoTermometro: 'rojo', etiquetaEstado: 'Límite casi alcanzado' };
+  return { estadoTermometro: 'rojo', etiquetaEstado: 'Cuidado' };
 }
 
 // ── Cálculo principal del estado de una tarjeta (Architecture.md §5) ─────────
