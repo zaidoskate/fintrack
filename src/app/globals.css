@@ -1,232 +1,192 @@
 @import "tailwindcss";
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   FinTrack Design System — Tailwind v4
-   Fuente: docs/UX_UI_Heuristics.md H4 + API_Contract.md §3
-   Regla de oro (H4): credito-* y categoria-* son paletas COMPLETAMENTE
-   separadas. Verde/amarillo/rojo SOLO se usan en el termómetro de crédito.
-   Los gráficos de gasto NUNCA usan colores de semáforo.
-───────────────────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   FinTrack — Design System "Glass Ledger" v1.0
+   Fuente de verdad: docs/design/glass-ledger-mockup.html
+   Regla H4 (UX_UI_Heuristics.md): las paletas credito-* y categoria-* son
+   COMPLETAMENTE SEPARADAS. El rojo de alerta (#EF4444) nunca debe confundirse
+   con el coral de marca (#FA686F) — son tokens distintos sin uso cruzado.
+══════════════════════════════════════════════════════════════════════════════ */
 
-/* ── Tokens de base (modo claro / oscuro) ──────────────────────────────────── */
+/* ── Variables CSS base (compartidas entre @theme y CSS propio) ─────────────── */
 :root {
-  /* Superficies */
-  --bg-base:        #0d0f14;   /* fondo global — casi negro azulado */
-  --bg-surface:     #14171f;   /* cards, paneles */
-  --bg-elevated:    #1c2030;   /* dropdowns, modals, hover states */
-  --bg-subtle:      #242840;   /* separadores, inputs inactivos */
+  /* Marca — extraídos literalmente de la maqueta */
+  --brand:        #FA686F;
+  --brand-dim:    rgba(250, 104, 111, 0.35);
+  --brand-deep:   #7A2530;
 
-  /* Texto */
-  --text-primary:   #f0f2f8;
-  --text-secondary: #8b93ae;
-  --text-disabled:  #4a5168;
-  --text-inverse:   #0d0f14;
+  /* Superficies Glass Ledger */
+  --bg-base:      #0F0A0B;
+  --surface-glass: rgba(255, 255, 255, 0.06);
+  --border-glass:  rgba(255, 255, 255, 0.12);
 
-  /* Borde */
-  --border-base:    #2a2f45;
-  --border-focus:   #6366f1;   /* indigo para focus rings */
+  /* Texto — de la maqueta */
+  --text-primary:   #F5F5F7;
+  --text-secondary: rgba(245, 245, 247, 0.6);
+  --text-muted:     rgba(245, 245, 247, 0.4);
+
+  /* ── PALETA SEMÁNTICA TERMÓMETRO (H4: exclusiva, nunca mezclar con marca) ─ */
+  --credito-verde:    #34D399;
+  --credito-amarillo: #FBBF24;
+  --credito-rojo:     #EF4444;   /* ← DISTINTO de --brand #FA686F */
+
+  /* Fondos semitransparentes para pills/badges del termómetro */
+  --credito-verde-bg:    rgba(52, 211, 153, 0.15);
+  --credito-amarillo-bg: rgba(251, 191, 36, 0.15);
+  --credito-rojo-bg:     rgba(239, 68, 68, 0.15);
+
+  /* Glows para card::before (extraídos de .card-amber::before y .card-rojo::before) */
+  --credito-verde-glow:    #34D399;
+  --credito-amarillo-glow: #FBBF24;
+  --credito-rojo-glow:     #EF4444;
+
+  /* Sincronización (H1: visibilidad del estado) */
+  --sync-pending:   #FBBF24;   /* ámbar — reutiliza amarillo del termómetro */
+  --sync-error:     #EF4444;   /* rojo — mismo token que credito-rojo */
+  --sync-ok:        #34D399;   /* verde */
+
+  /* Borde focus ring */
+  --border-focus:  rgba(250, 104, 111, 0.6);
 }
 
-/* ── @theme — Tailwind v4: todos los tokens como utilidades ────────────────── */
+/* ── @theme — Tailwind v4: exposición como utilidades ──────────────────────── */
 @theme {
 
-  /* ── 1. PALETA SEMÁNTICA — TERMÓMETRO DE CRÉDITO ────────────────────────── */
-  /* H4: estos colores significan EXCLUSIVAMENTE estado de uso de crédito.     */
-  /* Nunca usarlos para categorías de gasto, etiquetas, gráficos genéricos.    */
+  /* ── 1. COLORES DE MARCA ───────────────────────────────────────────────── */
+  --color-brand:        #FA686F;
+  --color-brand-dim:    rgba(250, 104, 111, 0.35);
+  --color-brand-deep:   #7A2530;
 
-  /* Verde — "Rango ideal" (≤ 30% uso) */
-  --color-credito-verde-50:   #f0fdf4;
-  --color-credito-verde-100:  #dcfce7;
-  --color-credito-verde-200:  #bbf7d0;
-  --color-credito-verde-400:  #4ade80;
-  --color-credito-verde-500:  #22c55e;  /* ← color principal de texto/icon */
-  --color-credito-verde-600:  #16a34a;
-  --color-credito-verde-900:  #052e16;
-  /* Bg semitransparente para chips/badges */
-  --color-credito-verde-bg:   color-mix(in oklch, #22c55e 12%, transparent);
-  --color-credito-verde-ring: color-mix(in oklch, #22c55e 35%, transparent);
+  /* ── 2. SUPERFICIES ───────────────────────────────────────────────────── */
+  --color-bg-base:      #0F0A0B;
+  --color-surface-glass: rgba(255, 255, 255, 0.06);
+  --color-border-glass:  rgba(255, 255, 255, 0.12);
 
-  /* Amarillo — "Aún puedes gastar" (31–70% uso) */
-  --color-credito-amarillo-50:  #fffbeb;
-  --color-credito-amarillo-100: #fef3c7;
-  --color-credito-amarillo-200: #fde68a;
-  --color-credito-amarillo-400: #fbbf24;
-  --color-credito-amarillo-500: #f59e0b;  /* ← color principal */
-  --color-credito-amarillo-600: #d97706;
-  --color-credito-amarillo-900: #451a03;
-  --color-credito-amarillo-bg:  color-mix(in oklch, #f59e0b 12%, transparent);
-  --color-credito-amarillo-ring:color-mix(in oklch, #f59e0b 35%, transparent);
+  /* ── 3. TEXTO ──────────────────────────────────────────────────────────── */
+  --color-text-primary:   #F5F5F7;
+  --color-text-secondary: rgba(245, 245, 247, 0.6);
+  --color-text-muted:     rgba(245, 245, 247, 0.4);
 
-  /* Rojo — "Te excediste" / "Límite casi alcanzado" (≥ 71% uso) */
-  /* Tono: urgente pero informativo, no alarmista (H4 + §1.3) */
-  --color-credito-rojo-50:   #fff1f2;
-  --color-credito-rojo-100:  #ffe4e6;
-  --color-credito-rojo-200:  #fecdd3;
-  --color-credito-rojo-400:  #fb7185;
-  --color-credito-rojo-500:  #f43f5e;  /* ← color principal — rose, no rojo puro */
-  --color-credito-rojo-600:  #e11d48;
-  --color-credito-rojo-900:  #4c0519;
-  --color-credito-rojo-bg:   color-mix(in oklch, #f43f5e 12%, transparent);
-  --color-credito-rojo-ring: color-mix(in oklch, #f43f5e 35%, transparent);
+  /* ── 4. PALETA TERMÓMETRO DE CRÉDITO (H4 — EXCLUSIVA) ─────────────────── */
+  /* Verde — "Rango ideal" (≤ 30%) */
+  --color-credito-verde:    #34D399;
+  --color-credito-verde-bg: rgba(52, 211, 153, 0.15);
 
-  /* ── 2. PALETA DE CATEGORÍAS DE GASTO ───────────────────────────────────── */
-  /* H4: tonos azul/violeta/teal/cian — ninguno comparte matiz con credito-*. */
-  /* Máx. 8 categorías distintas + fallback neutro.                            */
+  /* Amarillo — "Aún puedes gastar" (31–70%) */
+  --color-credito-amarillo:    #FBBF24;
+  --color-credito-amarillo-bg: rgba(251, 191, 36, 0.15);
 
-  --color-categoria-comida:       #818cf8;  /* indigo-400 */
-  --color-categoria-transporte:   #38bdf8;  /* sky-400 */
-  --color-categoria-entretenimiento: #c084fc; /* purple-400 */
-  --color-categoria-salud:        #2dd4bf;  /* teal-400 */
-  --color-categoria-ropa:         #f472b6;  /* pink-400 — fuera de semáforo */
-  --color-categoria-conveniencia: #a78bfa;  /* violet-400 */
-  --color-categoria-servicios:    #67e8f9;  /* cyan-300 */
-  --color-categoria-ahorro:       #4ade80;  /* green-400 — permitido SOLO en
-                                               gráficos de metas/ahorro,
-                                               nunca en termómetro */
-  --color-categoria-otro:         #94a3b8;  /* slate-400 — fallback neutro */
-  /* Ingreso — separado de categorías de gasto */
-  --color-ingreso:                #34d399;  /* emerald-400 */
+  /* Rojo — "Te excediste" / "Límite casi alcanzado" (≥ 71%) */
+  /* CRÍTICO: #EF4444 ≠ brand #FA686F — distintos hue, propósito y contexto */
+  --color-credito-rojo:    #EF4444;
+  --color-credito-rojo-bg: rgba(239, 68, 68, 0.15);
 
-  /* ── 3. PALETA DE MARCA (Base neutral azul-oscura) ──────────────────────── */
-  --color-base-50:   #f0f2f8;
-  --color-base-100:  #dde2f0;
-  --color-base-200:  #c0c8e0;
-  --color-base-300:  #95a0c3;
-  --color-base-400:  #6b79a8;
-  --color-base-500:  #4d5b8e;
-  --color-base-600:  #3b4677;
-  --color-base-700:  #2e3660;
-  --color-base-800:  #1c2030;  /* ← bg-elevated */
-  --color-base-900:  #14171f;  /* ← bg-surface */
-  --color-base-950:  #0d0f14;  /* ← bg-base */
+  /* ── 5. PALETA CATEGORÍAS DE GASTO (H4 — nunca usar colores semáforo aquí) */
+  --color-categoria-comida:          #818cf8;  /* indigo-400 */
+  --color-categoria-transporte:      #38bdf8;  /* sky-400 */
+  --color-categoria-entretenimiento: #c084fc;  /* purple-400 */
+  --color-categoria-salud:           #2dd4bf;  /* teal-400 */
+  --color-categoria-ropa:            #f472b6;  /* pink-400 */
+  --color-categoria-conveniencia:    #a78bfa;  /* violet-400 */
+  --color-categoria-servicios:       #67e8f9;  /* cyan-300 */
+  --color-categoria-otro:            #94a3b8;  /* slate-400 — fallback */
+  --color-ingreso:                   #34d399;  /* emerald-400 — solo en contexto de ingreso */
 
-  /* Acento primario — indigo vibrante */
-  --color-acento:          #6366f1;
-  --color-acento-hover:    #4f46e5;
-  --color-acento-muted:    color-mix(in oklch, #6366f1 20%, transparent);
-  --color-acento-ring:     color-mix(in oklch, #6366f1 40%, transparent);
+  /* ── 6. TIPOGRAFÍA ─────────────────────────────────────────────────────── */
+  /* Fuentes cargadas vía next/font/google en layout.tsx */
+  --font-display: var(--font-space-grotesk), 'Space Grotesk', ui-sans-serif, system-ui;
+  --font-sans:    var(--font-inter), 'Inter', ui-sans-serif, system-ui;
+  --font-mono:    var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace;
 
-  /* Superficies mapeadas como utilidades */
-  --color-surface:          #14171f;
-  --color-elevated:         #1c2030;
-  --color-subtle:           #242840;
+  /* Escala — extraída de la maqueta (valores literales) */
+  --font-size-2xs: 0.6875rem;  /* 11px — disponible-label uppercase */
+  --font-size-xs:  0.75rem;    /* 12px — pills */
+  --font-size-sm:  0.875rem;   /* 14px — subtítulo, texto secundario */
+  --font-size-base: 1rem;      /* 16px — UI general */
+  --font-size-md:  1rem;       /* 16px — card-name */
+  --font-size-lg:  1.25rem;    /* 20px — brand-name */
+  --font-size-xl:  1.375rem;   /* 22px — disponible-monto */
+  --font-size-2xl: 1.625rem;   /* 26px — h1 de sección */
+  --font-size-3xl: 2rem;       /* 32px — montos hero */
 
-  /* ── 4. TIPOGRAFÍA ──────────────────────────────────────────────────────── */
-  /* Stack: Inter para UI, Geist Mono para montos/números financieros */
-  --font-sans:  "Inter", "Geist Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono:  "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
-
-  /* Escala de tamaño (base 16px) */
-  --font-size-2xs:  0.625rem;   /* 10px — etiquetas micro */
-  --font-size-xs:   0.75rem;    /* 12px — badges, captions */
-  --font-size-sm:   0.875rem;   /* 14px — texto secundario */
-  --font-size-base: 1rem;       /* 16px — cuerpo */
-  --font-size-md:   1.125rem;   /* 18px — subtítulos */
-  --font-size-lg:   1.25rem;    /* 20px — títulos de card */
-  --font-size-xl:   1.5rem;     /* 24px — títulos de sección */
-  --font-size-2xl:  2rem;       /* 32px — montos grandes / hero */
-  --font-size-3xl:  2.5rem;     /* 40px — disponible en tarjeta (h1 visual) */
-
-  /* Peso de fuente */
+  /* Pesos */
   --font-weight-normal:   400;
   --font-weight-medium:   500;
   --font-weight-semibold: 600;
   --font-weight-bold:     700;
-  --font-weight-extrabold:800;
 
-  /* Interlineado */
-  --line-height-tight:  1.2;
-  --line-height-snug:   1.375;
-  --line-height-normal: 1.5;
-  --line-height-relaxed:1.625;
+  /* Letter-spacing de la maqueta */
+  --tracking-display:  -0.02em;   /* Space Grotesk headlines */
+  --tracking-mono:      0.08em;   /* JetBrains Mono card-number */
+  --tracking-label:     0.06em;   /* disponible-label uppercase */
+  --tracking-badge:     0em;
 
-  /* Tracking */
-  --letter-spacing-tight:  -0.02em;
-  --letter-spacing-normal:  0em;
-  --letter-spacing-wide:    0.04em;
-  --letter-spacing-widest:  0.1em;   /* para etiquetas tipo badge */
+  /* ── 7. ESPACIADO (escala 4pt) ─────────────────────────────────────────── */
+  --spacing-1:  0.25rem;    /* 4px */
+  --spacing-2:  0.5rem;     /* 8px */
+  --spacing-3:  0.75rem;    /* 12px */
+  --spacing-4:  1rem;       /* 16px */
+  --spacing-5:  1.25rem;    /* 20px */
+  --spacing-6:  1.5rem;     /* 24px */  /* card padding */
+  --spacing-7:  1.75rem;    /* 28px */
+  --spacing-8:  2rem;       /* 32px */  /* header margin-bottom */
+  --spacing-10: 2.5rem;     /* 40px */
+  --spacing-12: 3rem;       /* 48px */
+  --spacing-16: 4rem;       /* 64px */
+  --spacing-20: 5rem;       /* 80px */  /* body padding-bottom (FAB) */
 
-  /* ── 5. ESPACIADO ───────────────────────────────────────────────────────── */
-  /* Escala 4-pt, nombres semánticos sobre los numéricos de Tailwind */
-  --spacing-px:   1px;
-  --spacing-0-5:  0.125rem;   /* 2px */
-  --spacing-1:    0.25rem;    /* 4px */
-  --spacing-1-5:  0.375rem;   /* 6px */
-  --spacing-2:    0.5rem;     /* 8px */
-  --spacing-3:    0.75rem;    /* 12px */
-  --spacing-4:    1rem;       /* 16px */
-  --spacing-5:    1.25rem;    /* 20px */
-  --spacing-6:    1.5rem;     /* 24px */
-  --spacing-8:    2rem;       /* 32px */
-  --spacing-10:   2.5rem;     /* 40px */
-  --spacing-12:   3rem;       /* 48px */
-  --spacing-16:   4rem;       /* 64px */
-  --spacing-20:   5rem;       /* 80px */
-  --spacing-24:   6rem;       /* 96px */
+  /* ── 8. BORDER RADIUS — de la maqueta ────────────────────────────────── */
+  --radius-chip:  0.3125rem;  /* 5px — chip de tarjeta */
+  --radius-logo:  0.75rem;    /* 12px — logo */
+  --radius-card:  1.375rem;   /* 22px — .card border-radius */
+  --radius-pill:  9999px;     /* 100px — .pill border-radius */
 
-  /* ── 6. BORDER RADIUS ───────────────────────────────────────────────────── */
-  --radius-sm:   0.25rem;    /* 4px — inputs pequeños */
-  --radius-md:   0.5rem;     /* 8px — chips, badges */
-  --radius-lg:   0.75rem;    /* 12px — cards */
-  --radius-xl:   1rem;       /* 16px — cards principales, sheets */
-  --radius-2xl:  1.5rem;     /* 24px — modals, bottom sheets */
-  --radius-full: 9999px;     /* círculos, pills */
+  /* ── 9. SOMBRAS — de la maqueta ───────────────────────────────────────── */
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --shadow-fab:  0 8px 24px rgba(250, 104, 111, 0.35);   /* = brand-dim */
 
-  /* ── 7. SOMBRAS ─────────────────────────────────────────────────────────── */
-  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --shadow-md:  0 4px 12px 0 rgb(0 0 0 / 0.5);
-  --shadow-lg:  0 8px 24px 0 rgb(0 0 0 / 0.6);
-  --shadow-xl:  0 16px 48px 0 rgb(0 0 0 / 0.7);
-  /* Glow para el estado activo del termómetro */
-  --shadow-credito-verde:    0 0 12px 0 color-mix(in oklch, #22c55e 30%, transparent);
-  --shadow-credito-amarillo: 0 0 12px 0 color-mix(in oklch, #f59e0b 30%, transparent);
-  --shadow-credito-rojo:     0 0 12px 0 color-mix(in oklch, #f43f5e 30%, transparent);
+  /* ── 10. BACKDROP FILTER (Glass Ledger signature) ─────────────────────── */
+  --backdrop-glass: blur(24px) saturate(160%);
 
-  /* ── 8. DURACIÓN DE ANIMACIONES ────────────────────────────────────────── */
-  --duration-instant:  50ms;
-  --duration-fast:    150ms;   /* hover, focus transitions */
-  --duration-base:    250ms;   /* transiciones de UI estándar */
-  --duration-slow:    400ms;   /* microinteracciones (barras de progreso) */
-  --duration-enter:   300ms;   /* mounting animations */
-  --duration-exit:    200ms;   /* unmounting animations */
+  /* ── 11. BLOBS (AmbientBackground) ────────────────────────────────────── */
+  /* Coral blob: top -120px / left -100px / 420×420px / blur 90px / opacity 0.35 */
+  /* Deep blob:  bottom -160px / right -140px / 460×460px / blur 90px / opacity 0.40 */
 
-  /* Curvas de easing */
-  --ease-out:    cubic-bezier(0.0, 0.0, 0.2, 1);
-  --ease-in:     cubic-bezier(0.4, 0.0, 1, 1);
-  --ease-inout:  cubic-bezier(0.4, 0.0, 0.2, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);  /* rebote sutil para barras */
+  /* ── 12. ANIMACIONES ──────────────────────────────────────────────────── */
+  --duration-fast:   150ms;
+  --duration-base:   250ms;
+  --duration-slow:   400ms;
+  --ease-out:   cubic-bezier(0.0, 0.0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* ── 9. BREAKPOINTS (mobile-first) ─────────────────────────────────────── */
+  /* ── 13. Z-INDEX ──────────────────────────────────────────────────────── */
+  --z-blob:     0;
+  --z-content:  1;
+  --z-sticky:   10;
+  --z-dropdown: 100;
+  --z-modal:    200;
+  --z-toast:    300;
+  --z-fab:      2;   /* igual que la maqueta */
+
+  /* ── 14. BREAKPOINTS ──────────────────────────────────────────────────── */
   --breakpoint-sm:  480px;
   --breakpoint-md:  768px;
   --breakpoint-lg:  1024px;
-  --breakpoint-xl:  1280px;
-
-  /* ── 10. Z-INDEX ────────────────────────────────────────────────────────── */
-  --z-base:     0;
-  --z-raised:   10;
-  --z-dropdown: 100;
-  --z-sticky:   200;
-  --z-overlay:  300;
-  --z-modal:    400;
-  --z-toast:    500;
-  --z-fab:      600;    /* Floating Action Button sobre todo */
 }
 
-/* ── Estilos globales base ─────────────────────────────────────────────────── */
-:root {
-  color-scheme: dark;
-}
+/* ══════════════════════════════════════════════════════════════════════════════
+   Estilos base globales
+══════════════════════════════════════════════════════════════════════════════ */
 
-*,
-*::before,
-*::after {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
 html {
+  color-scheme: dark;
   -webkit-text-size-adjust: 100%;
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  height: 100%;
 }
 
 body {
@@ -234,30 +194,76 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
-  line-height: var(--line-height-normal);
   font-weight: var(--font-weight-normal);
+  line-height: 1.5;
+  min-height: 100%;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Montos y números financieros siempre en mono */
+/* Montos y cifras financieras — siempre JetBrains Mono con cifras tabulares */
+.font-mono,
 .font-amount {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: var(--letter-spacing-tight);
 }
 
-/* Transición base para todos los elementos interactivos */
-a, button, [role="button"] {
-  transition: opacity var(--duration-fast) var(--ease-out),
-              background-color var(--duration-fast) var(--ease-out),
-              color var(--duration-fast) var(--ease-out);
+/* Títulos y display — Space Grotesk */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-display);
 }
 
-/* Focus ring consistente */
+/* Focus ring consistente usando brand como color */
 :focus-visible {
-  outline: 2px solid var(--color-acento);
+  outline: 2px solid var(--border-focus);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: 4px;
+}
+
+/* Transiciones base para interactivos */
+a, button, [role="button"] {
+  transition:
+    opacity    var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    color      var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.12);
+  border-radius: 2px;
+}
+
+/* ── Clase utilitaria para inputs de auth (Server Components — sin onFocus/onBlur) ── */
+.glass-input {
+  width: 100%;
+  border-radius: 10px;
+  padding: 11px 14px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  font-family: inherit;
+}
+
+.glass-input::placeholder {
+  color: var(--text-muted);
+}
+
+.glass-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(250, 104, 111, 0.12);
+}
+
+.glass-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 

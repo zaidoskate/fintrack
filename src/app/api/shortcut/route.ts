@@ -1,3 +1,8 @@
+/** Solo acepta POST — responde 405 a cualquier otro método para suprimir errores en logs. */
+export async function GET() {
+  return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'POST' } });
+}
+
 /**
  * POST /api/shortcut — Endpoint de captura para iOS Shortcuts.
  * Implementa: API_Contract.md §5, Architecture.md §3.4.

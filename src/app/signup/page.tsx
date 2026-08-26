@@ -1,12 +1,13 @@
 import { signUp } from '@/app/auth/actions';
+import { AmbientBackground } from '@/components/ui';
 
 /**
- * Página de registro de cuenta.
- * Implementa: Architecture.md §3.1, UX_UI_Heuristics.md H1, H5.
+ * Página de registro — Glass Ledger.
+ * Server Component puro: sin event handlers.
  */
 export const metadata = {
   title: 'Crear cuenta — FinTrack',
-  description: 'Crea tu cuenta gratuita en FinTrack y empieza a tomar control de tus finanzas.',
+  description: 'Crea tu cuenta gratuita en FinTrack.',
 };
 
 interface SignupPageProps {
@@ -17,166 +18,106 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const { error, message } = await searchParams;
 
   return (
-    <main
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundColor: 'var(--bg-base)' }}>
+    <main style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backgroundColor: 'var(--bg-base)' }}>
+      <AmbientBackground />
 
-      <div className="w-full max-w-sm">
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: '380px' }}>
+
         {/* Marca */}
-        <div className="text-center mb-8">
-          <h1
-            className="font-bold tracking-tight mb-1"
-            style={{
-              fontSize: 'var(--font-size-2xl)',
-              color: 'var(--text-primary)',
-              letterSpacing: 'var(--letter-spacing-tight)',
-            }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{
+            width: '48px', height: '48px', borderRadius: '14px',
+            background: 'linear-gradient(135deg, var(--brand), #ff8a8f)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '22px',
+            color: '#1a0a0b', margin: '0 auto 14px',
+          }}>F</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '24px', letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '4px' }}>
             FinTrack
           </h1>
-          <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
             Tu dinero, bajo control
           </p>
         </div>
 
         {/* Card */}
-        <div
-          className="rounded-2xl p-6 border"
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderColor: 'var(--border-base)',
-            boxShadow: 'var(--shadow-lg)',
-          }}>
-
-          <h2
-            className="font-semibold mb-6"
-            style={{ fontSize: 'var(--font-size-lg)', color: 'var(--text-primary)' }}>
+        <div style={{
+          background: 'var(--surface-glass)',
+          backdropFilter: 'blur(24px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+          border: '1px solid var(--border-glass)',
+          borderRadius: '22px',
+          padding: '28px 24px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+        }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: '18px', color: 'var(--text-primary)', marginBottom: '20px' }}>
             Crear cuenta
           </h2>
 
           {/* Feedback — H1 */}
           {error && (
-            <div
-              className="rounded-lg px-4 py-3 mb-4"
-              style={{
-                backgroundColor: 'var(--color-credito-rojo-bg)',
-                color: 'var(--color-credito-rojo-500)',
-                fontSize: 'var(--font-size-sm)',
-              }}
-              role="alert">
+            <div role="alert" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', fontSize: '14px', color: 'var(--credito-rojo)' }}>
               {decodeURIComponent(error)}
             </div>
           )}
           {message && (
-            <div
-              className="rounded-lg px-4 py-3 mb-4"
-              style={{
-                backgroundColor: 'var(--color-credito-verde-bg)',
-                color: 'var(--color-credito-verde-500)',
-                fontSize: 'var(--font-size-sm)',
-              }}
-              role="status">
+            <div role="status" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', fontSize: '14px', color: 'var(--credito-verde)' }}>
               {decodeURIComponent(message)}
             </div>
           )}
 
-          <form action={signUp} className="flex flex-col gap-4">
+          <form action={signUp} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-            {/* Nombre */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="displayName"
-                style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label htmlFor="displayName" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                 Tu nombre
               </label>
               <input
-                id="displayName"
-                name="displayName"
-                type="text"
-                autoComplete="name"
-                required
-                placeholder="Juan García"
-                className="w-full rounded-lg px-3 py-2.5 border"
-                style={{
-                  backgroundColor: 'var(--bg-elevated)',
-                  borderColor: 'var(--border-base)',
-                  color: 'var(--text-primary)',
-                  fontSize: 'var(--font-size-base)',
-                  outline: 'none',
-                }}
+                id="displayName" name="displayName" type="text"
+                autoComplete="name" required placeholder="Juan García"
+                className="glass-input"
               />
             </div>
 
-            {/* Email */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="email"
-                style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label htmlFor="email" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                 Correo electrónico
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                placeholder="tu@correo.com"
-                className="w-full rounded-lg px-3 py-2.5 border"
-                style={{
-                  backgroundColor: 'var(--bg-elevated)',
-                  borderColor: 'var(--border-base)',
-                  color: 'var(--text-primary)',
-                  fontSize: 'var(--font-size-base)',
-                  outline: 'none',
-                }}
+                id="email" name="email" type="email"
+                autoComplete="email" required placeholder="tu@correo.com"
+                className="glass-input"
               />
             </div>
 
-            {/* Contraseña */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="password"
-                style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label htmlFor="password" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                 Contraseña
               </label>
               <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
+                id="password" name="password" type="password"
+                autoComplete="new-password" required minLength={8}
                 placeholder="Mínimo 8 caracteres"
-                className="w-full rounded-lg px-3 py-2.5 border"
-                style={{
-                  backgroundColor: 'var(--bg-elevated)',
-                  borderColor: 'var(--border-base)',
-                  color: 'var(--text-primary)',
-                  fontSize: 'var(--font-size-base)',
-                  outline: 'none',
-                }}
+                className="glass-input"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full rounded-lg py-3 font-semibold mt-2"
               style={{
-                backgroundColor: 'var(--color-acento)',
-                color: '#fff',
-                fontSize: 'var(--font-size-base)',
-              }}>
+                width: '100%', padding: '13px', borderRadius: '12px', border: 'none',
+                background: 'var(--brand)', color: '#1a0a0b',
+                fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '15px',
+                cursor: 'pointer', marginTop: '4px',
+              }}
+            >
               Crear cuenta
             </button>
           </form>
 
-          <p
-            className="text-center mt-5"
-            style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+          <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '14px', color: 'var(--text-secondary)' }}>
             ¿Ya tienes cuenta?{' '}
-            <a
-              href="/login"
-              style={{ color: 'var(--color-acento)' }}
-              className="font-medium hover:underline">
+            <a href="/login" style={{ color: 'var(--brand)', fontWeight: 600 }}>
               Inicia sesión
             </a>
           </p>
