@@ -184,7 +184,7 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
               </div>
             )}
 
-            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '10px' }}>
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '10px', minHeight: 0 }}>
               {isLoading && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Cargando movimientos...</div>}
               {!isLoading && movimientos.length === 0 && (
                 <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No hay movimientos registrados.</div>
