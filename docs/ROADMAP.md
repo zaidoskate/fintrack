@@ -63,8 +63,28 @@ Esta fase va **primero** porque el frontend depende de un contrato de API real y
 
 ---
 
+## Fase 1.5 — Migración de backend a Supabase (insertada tras decisión de multiusuario)
+**Duración estimada: 1-2 sesiones**
+
+> Insertada entre Fase 1 y Fase 2 al decidir soportar múltiples usuarios con autenticación real. Ver `SRS.md` v2.0, `Architecture.md` v2.0 y `API_Contract.md` v2.0 para el detalle completo. El backend de Google Apps Script (Fase 1) queda retirado como capa de datos de producción; el Sheet histórico se conserva solo como referencia/backup.
+
+**Pasos clave:**
+1. Crear proyecto Supabase (gratis), ejecutar `supabase/schema.sql` (tablas + RLS).
+2. Configurar variables de entorno en Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `IPHONE_SHORTCUT_TOKEN`, `MY_USER_ID` (esta última tras crear la cuenta propia).
+3. Antigravity implementa: clientes `@supabase/ssr` (browser/server), `middleware.ts`, páginas `/login` y `/signup`, protección de rutas, `/api/shortcut`, y la capa `lib/api/` + `lib/finance/` reescrita contra Supabase.
+4. Actualizar el Shortcut "Fintrack" de iOS: nueva URL (`/api/shortcut`) y token agregado al diccionario.
+5. Crear la cuenta propia como primer usuario real; validar aislamiento RLS con una segunda cuenta de prueba.
+
+**Entregable:** Auth funcional (signup/login/logout), capa de datos conectada a Supabase con RLS verificado, Shortcut de iOS migrado y funcionando.
+
+**Criterio para avanzar a Fase 2:** puedes registrarte, iniciar sesión, y confirmar (con una segunda cuenta de prueba) que no hay fuga de datos entre usuarios. El Shortcut real de tu iPhone escribe correctamente en Supabase.
+
+---
+
 ## Fase 2 — Frontend: Scaffold + Design System
 **Duración estimada: 1-2 sesiones**
+
+> Los Pasos 2.0–2.4 (env vars, `create-next-app`, verificación local) ya no aplican tal cual estaban escritos — las variables de entorno ahora son las de Supabase (cubiertas en Fase 1.5), no las de Apps Script. Continúa desde el Paso 2.5 (design system) en adelante.
 
 ### 2.1 Inicialización del proyecto
 - `create-next-app` (TypeScript + Tailwind + App Router) o `create-vue` según lo decidido en Fase 0.

@@ -1,14 +1,16 @@
 # Architecture.md
 ## FinTrack — Arquitectura de Software
-**Versión:** 1.0
+**Versión:** 2.0 — Pivote de backend a Supabase (PostgreSQL + Auth + RLS)
+
+> Reemplaza el modelo v1.0 (Google Apps Script sobre Google Sheets). El Shortcut de iOS se conserva mediante un endpoint propio.
 
 ---
 
 ## 1. Visión general
 
-FinTrack es una arquitectura **cliente-céntrica** (thick client), donde la mayor parte de la lógica de negocio, cálculo y resiliencia vive en el frontend, dado que el backend (Google Apps Script) es intencionalmente delgado, lento y sin estado persistente propio más allá de Google Sheets.
+FinTrack pasa de un modelo "thick client contra un backend lento sin motor de consultas" (GAS + Sheets) a un modelo estándar de aplicación full-stack con **Backend as a Service**: PostgreSQL gestionado, autenticación integrada, y seguridad a nivel de fila (RLS) como mecanismo primario de aislamiento multiusuario.
 
-Principio rector: **"El backend es lento, no confiable en latencia, y debe tratarse como una cola remota de escritura, no como una base de datos transaccional."**
+Principio rector actualizado: **"La base de datos es la última línea de defensa del aislamiento entre usuarios — el código de aplicación puede tener bugs, las políticas de RLS son la garantía que no depende de que el código esté libre de errores."**
 
 ---
 
@@ -17,144 +19,138 @@ Principio rector: **"El backend es lento, no confiable en latencia, y debe trata
 ```
 ┌───────────────────────────────────────────────────────────────────┐
 │                         DISPOSITIVO DEL USUARIO                     │
-│                                                                       │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                    PWA (Next.js / Vue + TS)                   │   │
-│  │                                                                 │   │
+│  │                    PWA (Next.js App Router)                    │   │
 │  │  ┌───────────────┐   ┌────────────────────┐   ┌────────────┐ │   │
 │  │  │   UI Layer     │   │  State Manager      │   │  Service    │ │   │
-│  │  │  (Componentes, │◄─►│  (React Query /     │◄─►│  Worker     │ │   │
-│  │  │  Dashboard,    │   │   TanStack Query /   │   │  (SW)       │ │   │
-│  │  │  Formularios)  │   │   Pinia store)       │   │             │ │   │
+│  │  │  (Dashboard,   │◄─►│  (TanStack Query)    │◄─►│  Worker     │ │   │
+│  │  │  Formularios)  │   │                       │   │  (SW)       │ │   │
 │  │  └───────────────┘   └──────────┬─────────┘   └──────┬─────┘ │   │
-│  │                                    │                     │       │   │
 │  │                          ┌─────────▼─────────┐  ┌────────▼────┐ │   │
-│  │                          │  API Client Layer  │  │  IndexedDB   │ │   │
-│  │                          │  (lib/api/*.ts)     │  │  (Cola de    │ │   │
-│  │                          │  Fetch wrapper +    │  │  outbox +    │ │   │
-│  │                          │  auth token         │  │  caché local)│ │   │
+│  │                          │  lib/api/           │  │  IndexedDB   │ │   │
+│  │                          │  lib/finance/       │  │  (outbox +   │ │   │
+│  │                          │  lib/supabase/      │  │  caché)      │ │   │
+│  │                          │  (client.ts)         │  │              │ │   │
 │  │                          └─────────┬─────────┘  └──────────────┘ │   │
 │  └────────────────────────────────────┼───────────────────────────┘   │
 └───────────────────────────────────────┼───────────────────────────────┘
-                                          │ HTTPS (Fetch API)
-                                          │ GET / POST (JSON)
+                                          │ HTTPS
+                                          │ (supabase-js, con sesión de usuario)
                                           ▼
                      ┌─────────────────────────────────────────┐
-                     │      Google Apps Script (Web App)          │
-                     │      doGet(e) / doPost(e)                  │
+                     │                SUPABASE                    │
                      │  ┌───────────────────────────────────┐   │
-                     │  │  Router interno (por parámetro       │   │
-                     │  │  ?resource=movimientos|tarjetas|... )  │   │
+                     │  │  Auth (email/password, cookies)      │   │
                      │  ├───────────────────────────────────┤   │
-                     │  │  Middleware de autenticación (token) │   │
-                     │  ├───────────────────────────────────┤   │
-                     │  │  Capa de negocio (cálculo de         │   │
-                     │  │  periodos, validaciones)             │   │
-                     │  └───────────────────┬───────────────┘   │
-                     └───────────────────────┼───────────────────┘
-                                              │ SpreadsheetApp API
-                                              ▼
-                     ┌─────────────────────────────────────────┐
-                     │            Google Sheets                    │
-                     │  Movimientos | Calc_Data | Metas de Ahorro  │
-                     │  | Análisis de Gastos                       │
+                     │  │  PostgreSQL + Row Level Security      │   │
+                     │  │  (profiles, tarjetas, movimientos,   │   │
+                     │  │   metas, compras_msi)                │   │
+                     │  └───────────────────────────────────┘   │
                      └─────────────────────────────────────────┘
+                                          ▲
+                                          │ service_role key (bypass RLS)
+                                          │
+                     ┌─────────────────────────────────────────┐
+                     │   Vercel — Route Handler propio            │
+                     │   /api/shortcut  (Next.js)                 │
+                     │   Valida IPHONE_SHORTCUT_TOKEN,             │
+                     │   inserta con user_id = MY_USER_ID          │
+                     └─────────────────────────────────────────┘
+                                          ▲
+                                          │ HTTPS POST (JSON)
+                                          │
+                              ┌───────────────────────┐
+                              │   iOS Shortcuts App      │
+                              │  "Registra un gasto"     │
+                              │  "Registra un ingreso"   │
+                              │  "Fintrack" (webhook)    │
+                              └───────────────────────┘
 ```
 
 ---
 
 ## 3. Flujo de datos detallado
 
-### 3.1 Flujo de lectura (GET) — ej. cargar Dashboard
-1. El componente de UI monta y dispara un hook (`useMovimientos()`, `useTarjetas()`).
-2. El State Manager (React Query/TanStack Query) revisa su caché en memoria + persistida (localStorage/IndexedDB vía `persistQueryClient`).
-3. Si existe caché válida (no `stale`), se renderiza inmediatamente sin esperar red (**stale-while-revalidate**).
-4. En paralelo, se dispara el `fetch` real hacia el GAS Web App.
-5. Cuando la respuesta llega (1–3s después), el State Manager reconcilia los datos: si difieren, actualiza la UI de forma silenciosa (sin parpadeos ni loaders bloqueantes).
+### 3.1 Autenticación (nuevo)
+1. El usuario visita `/signup` o `/login`. Un Server Action (`src/app/auth/actions.ts`) llama a `supabase.auth.signUp()` o `signInWithPassword()`.
+2. Supabase gestiona la sesión mediante cookies HTTP-only. `middleware.ts` refresca la sesión en cada request usando `@supabase/ssr` → `updateSession()`.
+3. Cualquier Server Component o Route Handler que necesite el usuario actual llama `supabase.auth.getUser()` (nunca confiar en cookies sin verificar contra el servidor de Auth).
+4. Si no hay sesión válida, se redirige a `/login` antes de renderizar cualquier ruta del dashboard.
 
-### 3.2 Flujo de escritura (POST) — ej. registrar transacción
-1. El usuario envía el formulario de "Registro Universal".
-2. **Paso optimista inmediato:** el API Client Layer genera un ID temporal (`temp_uuid`), inserta el registro en la caché local de React Query (`queryClient.setQueryData`) y en el store de UI. La pantalla se actualiza al instante (< 100ms).
-3. El registro se escribe también en **IndexedDB (tabla `outbox`)** con estado `pending`.
-4. Si hay red disponible: el API Client intenta el `fetch POST` inmediatamente.
-   - **Éxito:** el backend responde con el ID/rowIndex real. Se reemplaza el `temp_uuid` por el ID real en caché e IndexedDB, y se marca `synced`.
-   - **Fallo (red o error 5xx del backend):** el registro permanece en `outbox` como `pending`, y la UI muestra un badge "Pendiente de sincronización" sobre ese ítem.
-5. Si NO hay red disponible: el Service Worker intercepta la petición fallida (o la app detecta `navigator.onLine === false`) y registra una tarea de **Background Sync** (`sync.register('sync-outbox')`).
-6. Cuando el navegador detecta que la conectividad regresó, dispara el evento `sync` en el Service Worker, que recorre la tabla `outbox` de IndexedDB y reenvía cada transacción pendiente en orden (FIFO), actualizando el estado conforme cada una se confirma.
-7. **Reconciliación:** tras cualquier sincronización exitosa, se invalida (`invalidateQueries`) la query de `movimientos`, `tarjetas` (por el recálculo de "Disponible") y `análisis de gastos`, forzando un refetch en segundo plano.
+### 3.2 Flujo de lectura (Dashboard, Movimientos, Metas)
+1. El componente llama un hook de TanStack Query (`useTarjetas()`, `useMovimientos()`).
+2. El hook usa el cliente de navegador de Supabase (`src/lib/supabase/client.ts`) para consultar la tabla correspondiente.
+3. RLS filtra automáticamente por `auth.uid()` — la consulta ni siquiera necesita especificar `user_id` manualmente; PostgreSQL lo hace cumplir a nivel de política.
+4. Caché en memoria/persistida igual que en v1.0 (`staleTime` por tipo de dato).
 
-### 3.3 Manejo de conflictos y consistencia
-- El servidor (Google Sheets vía GAS) es la **fuente de verdad final**. Cualquier cálculo optimista en el cliente (ej. "Disponible" de una tarjeta) se recalcula y sobreescribe silenciosamente al recibir la respuesta real.
-- No se implementa resolución de conflictos compleja (last-write-wins es aceptable, dado que es una app mono-usuario).
+### 3.3 Flujo de escritura (transacciones, metas, MSI)
+Se conserva el patrón de **Sincronización Optimista** descrito en v1.0: actualización inmediata de la UI + cola en IndexedDB (`outbox`) + reintento con Background Sync si no hay red. La diferencia es el destino de la escritura: Supabase (`insert`/`update`/`delete` vía `supabase-js`) en vez de un `fetch` a Apps Script.
+
+### 3.4 Flujo de captura vía iOS Shortcuts
+1. El Shortcut "Fintrack" hace `POST` a `https://tu-dominio.vercel.app/api/shortcut` con el payload `{ token, tipo, monto, categoria, comercio, metodo, esMeses?, meses? }`.
+2. El Route Handler valida `token === process.env.IPHONE_SHORTCUT_TOKEN`.
+3. Usa el cliente de Supabase inicializado con `SUPABASE_SERVICE_ROLE_KEY` (que **omite RLS por diseño**) para insertar la fila con `user_id = process.env.MY_USER_ID`.
+4. Si `esMeses === true`: inserta en `compras_msi` (calcula `fecha_ultima_cuota`). Si no: inserta en `movimientos`.
+
+**Importante:** el `service_role` client se instancia **solo dentro de este Route Handler** (código server-side), nunca se importa en ningún archivo que pueda terminar en el bundle del navegador.
 
 ---
 
 ## 4. Estrategia de caché
-
-| Capa | Tecnología | TTL / Estrategia | Propósito |
-|---|---|---|---|
-| Caché en memoria | React Query / TanStack Query (o Pinia + `@pinia/colada` en Vue) | `staleTime`: 60s para `movimientos`, 5 min para `tarjetas`/`metas` (cambian con menor frecuencia) | Evitar refetch innecesario dentro de la sesión activa |
-| Caché persistida | `persistQueryClient` + IndexedDB/localStorage | Persiste entre recargas de la app | Permite arranque instantáneo (datos previos) incluso sin red |
-| Cola de escritura offline | IndexedDB (tabla `outbox`) | Persistente hasta confirmación del servidor | Garantiza que ninguna transacción se pierda por falta de red |
-| Caché HTTP del Service Worker | Workbox (`StaleWhileRevalidate` para GET, `NetworkOnly` con Background Sync para POST) | Definida en `next-pwa` / `vite-plugin-pwa` config | Permite que el "shell" de la app y las respuestas GET recientes se sirvan instantáneamente |
-
-**Regla de invalidación clave:** cualquier mutación (POST transacción, CRUD de meta) invalida en cascada las queries dependientes:
-- Nueva transacción → invalida `movimientos`, `tarjetas` (recalcula Disponible/uso), `análisis-gastos`.
-- Aporte a meta → invalida `metas`.
+(Sin cambios respecto a v1.0 — TanStack Query con `staleTime` diferenciado, `persistQueryClient` para caché entre recargas, `outbox` en IndexedDB para escrituras offline. Ver v1.0 §4 para la tabla completa; se mantiene vigente.)
 
 ---
 
-## 5. Manejo de estado (State Management)
+## 5. Cálculo del termómetro de crédito (cambio clave respecto a v1.0)
 
-- **Server state** (datos que vienen del backend): gestionado exclusivamente por React Query/TanStack Query. Nunca se duplica manualmente en `useState`/store global.
-- **Client state** (UI-only: modal abierto, filtros seleccionados, tema): gestionado con `useState`/`Zustand` (Next.js) o `Pinia` (Vue), completamente separado del server state.
-- **Estado de sincronización global:** un store ligero (`useSyncStatus`) expone `idle | syncing | pending | error`, alimentado por listeners del Service Worker (`postMessage`) y del estado de la `outbox` en IndexedDB.
-
----
-
-## 6. Capa de abstracción de API (Backend for Frontend ligero)
-
-Todo el frontend se comunica con GAS **exclusivamente** a través de una carpeta `lib/api/`:
+En GAS, el cálculo se escribía de vuelta a `Calc_Data` en cada `GET /tarjetas` (workaround necesario por la falta de motor de consultas de Sheets). En Supabase, el cálculo se hace **en tiempo real, sin persistir el resultado**, en `src/lib/finance/tarjetas.ts`:
 
 ```
-lib/api/
-  client.ts        // fetch wrapper: base URL, token, manejo de errores, timeout
-  movimientos.ts    // getMovimientos(), createMovimiento()
-  tarjetas.ts       // getTarjetas()
-  metas.ts          // getMetas(), createMeta(), updateMeta(), deleteMeta()
-  offline/
-    outbox.ts        // CRUD sobre IndexedDB (Dexie.js recomendado)
-    sync.ts           // lógica de reintentos y Background Sync
+function calcularEstadoTarjeta(tarjeta, movimientos, comprasMSI, hoy):
+  periodo = getPeriodoVigente(tarjeta.dia_corte, hoy)   // misma lógica de clamp que v1.0
+  gastosMovimientos = suma de movimientos
+      donde metodo_pago == tarjeta.nombre
+      y tipo == 'Gasto'
+      y fecha dentro de [periodo.inicio, periodo.fin]
+
+  gastosMSI = suma de cuota_mensual de compras_msi
+      donde tarjeta_id == tarjeta.id
+      y hoy entre fecha_primer_cargo y fecha_ultima_cuota
+
+  gastosPeriodo = gastosMovimientos + gastosMSI
+  disponible = tarjeta.limite - gastosPeriodo
+  porcentajeUso = (gastosPeriodo / tarjeta.limite) * 100
+  estadoTermometro = clasificar(porcentajeUso)   // verde/amarillo/rojo, mismos umbrales
 ```
 
-Esto asegura NFR-06 (portabilidad): si en el futuro se migra el backend de GAS a un backend real (Node/Postgres), solo se reescribe esta carpeta.
+Esta función vive en TypeScript, no en SQL — mantiene la lógica de negocio portable y testeable, consistente con el principio de v1.0 de no dispersar reglas de negocio entre capas.
 
 ---
 
-## 7. Cálculo de periodos de tarjetas (lógica crítica)
+## 6. Seguridad y aislamiento multiusuario
 
-Dado que `Calc_Data` almacena "Día de Corte" y "Día de Pago" como enteros (día del mes), la lógica de cálculo de periodo vigente debe residir en una función pura y testeable, idealmente **duplicada en ambos lados** (GAS para el valor "oficial" que se guarda en Sheets, y en el cliente para el recálculo optimista):
-
-```
-function getPeriodoVigente(diaCorte: number, hoy: Date): { inicio: Date, fin: Date, proximoCorte: Date, proximoPago: Date }
-```
-
-Esta función debe considerar meses con menos días que `diaCorte` (ej. corte día 31 en febrero → usar último día del mes).
-
----
-
-## 8. Infraestructura y despliegue
-
-- **Frontend:** Vercel (build automático desde `main`), variables de entorno (`NEXT_PUBLIC_GAS_URL`, `GAS_AUTH_TOKEN`) configuradas en el dashboard de Vercel, nunca hardcodeadas.
-- **Backend:** Google Apps Script desplegado como "Web App" con acceso "Cualquier usuario, incluso anónimo" (protegido a nivel de aplicación por token, ya que GAS no soporta CORS headers personalizados de forma trivial — se recomienda validar el token como parámetro de query o en el body).
-- **CI/CD:** ver sección de GitHub Actions en el documento de requisitos (NFR-14); el pipeline corre en paralelo al build nativo de Vercel, actuando como gate de calidad antes del merge/deploy.
+| Mecanismo | Dónde vive | Propósito |
+|---|---|---|
+| Row Level Security (RLS) | PostgreSQL (Supabase) | Bloquea cualquier lectura/escritura cruzada entre usuarios, incluso si el código de aplicación tiene un bug |
+| `auth.uid()` en políticas | PostgreSQL | Cada política compara `user_id` de la fila contra el usuario autenticado en la sesión actual |
+| `anon key` | Cliente (navegador) | Segura de exponer — no otorga acceso a datos por sí sola, RLS es quien decide |
+| `service_role key` | Solo `/api/shortcut` (server-side) | Bypass intencional de RLS, para insertar en nombre de un usuario fijo sin requerir su sesión activa |
+| Middleware de sesión | `middleware.ts` | Refresca tokens de sesión y protege rutas del dashboard |
 
 ---
 
-## 9. Riesgos técnicos identificados
+## 7. Infraestructura y despliegue
+
+- **Frontend + Route Handlers:** Vercel (sin cambios respecto a v1.0).
+- **Backend de datos:** Supabase (proyecto único usado en Production/Preview/Development por simplicidad, dado el bajo riesgo con RLS activo — separar en proyectos de staging/prod queda como mejora futura opcional).
+- **CI/CD:** sin cambios respecto a v1.0 (GitHub Actions, ver Fase 5 del roadmap).
+
+---
+
+## 8. Riesgos técnicos actualizados
 | Riesgo | Mitigación |
 |---|---|
-| CORS con Google Apps Script | Usar `mode: 'no-cors'` no es viable si se necesita leer la respuesta; se debe configurar el Web App para responder con `ContentService` y headers correctos, o usar `text/plain` como `Content-Type` en el POST para evitar preflight. |
-| Límite de cuota diaria de GAS (ejecuciones) | Minimizar llamadas mediante caché agresiva; agrupar escrituras cuando sea posible. |
-| Pérdida de datos en `outbox` si el usuario borra datos del navegador | Mostrar advertencia clara en la UI cuando existan transacciones pendientes sin sincronizar por más de X horas. |
-| Falta de soporte de Background Sync en Safari/iOS | Fallback: sincronización al recuperar el foco de la app (`visibilitychange`) + botón manual de "Sincronizar ahora". |
+| Bug en una política de RLS que sea demasiado permisiva | Probar explícitamente con 2 cuentas de prueba antes de invitar usuarios reales (ver criterio de aceptación en `SRS.md` §5) |
+| `service_role key` filtrada accidentalmente (ej. commiteada por error) | Nunca debe estar en código versionado; solo en variables de entorno de Vercel; revisar `.gitignore` cubre `.env.local` |
+| Proyecto gratuito de Supabase se pausa tras 7 días de inactividad | No aplica mientras el uso sea diario; monitorear si se agregan usuarios de baja frecuencia |
+| Analítica de gastos no refleja cuotas MSI mes a mes | Aceptado como limitación conocida (FR-32), backlog de Fase 7 |
