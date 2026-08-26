@@ -30,8 +30,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — NUNCA versionar secretos
+# .env.local contiene SUPABASE_SERVICE_ROLE_KEY, IPHONE_SHORTCUT_TOKEN, MY_USER_ID
+.env
+.env.*
+.env*.local
 
 # vercel
 .vercel
@@ -39,9 +42,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-/.next/
-/out/
-next-env.d.ts
-*.tsbuildinfo
-.vercel
-.env*.local
+
+# supabase local dev (no aplica en este proyecto por ahora)
+/supabase/.branches
+/supabase/.temp
