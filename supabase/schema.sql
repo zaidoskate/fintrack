@@ -33,6 +33,7 @@ create table public.tarjetas (
   limite numeric(12,2) not null default 0,
   dia_corte int not null check (dia_corte between 1 and 31),
   dia_pago int not null check (dia_pago between 1 and 31),
+  rendimiento_anual numeric(5,2) not null default 0, -- Solo para Débito
   created_at timestamptz not null default now()
 );
 
@@ -59,10 +60,21 @@ create table public.metas (
   user_id uuid not null references auth.users(id) on delete cascade,
   nombre text not null,
   costo_objetivo numeric(12,2) not null check (costo_objetivo > 0),
-  monto_actual numeric(12,2) not null default 0,
-  rendimiento_anual numeric(5,2) not null default 0,
   created_at timestamptz not null default now()
 );
+
+-- ── 4.5 APORTES A METAS ────────────────────────────────────────
+create table public.meta_aportes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  meta_id uuid not null references public.metas(id) on delete cascade,
+  monto numeric(12,2) not null check (monto > 0),
+  fecha date not null default current_date,
+  tarjeta_origen_id uuid references public.tarjetas(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index idx_aportes_meta on public.meta_aportes (meta_id);
 
 -- ── 5. COMPRAS A MESES (MSI) ────────────────────────────────────
 create table public.compras_msi (
@@ -108,6 +120,9 @@ create policy "movimientos_all_own" on public.movimientos
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "metas_all_own" on public.metas
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "meta_aportes_all_own" on public.meta_aportes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "compras_msi_all_own" on public.compras_msi

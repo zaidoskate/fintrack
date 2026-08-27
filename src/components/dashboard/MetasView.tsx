@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   useMetas, useCrearMeta, useAportarMeta,
-  useEditarMeta, useEliminarMeta,
+  useEditarMeta, useEliminarMeta, useTarjetas
 } from '@/lib/hooks';
 import { GlassCard } from '@/components/ui';
 import type { MetaConEstado } from '@/lib/types';
@@ -39,6 +39,12 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
   const { mutate: aportar, isPending: aportaPending } = useAportarMeta();
   const { mutate: editar, isPending: editPending } = useEditarMeta();
   const { mutate: eliminar } = useEliminarMeta();
+  
+  const { data: tarjetas = [] } = useTarjetas();
+  const tarjetasDebito = tarjetas.filter(t => t.tipo === 'Débito');
+  
+  const [tarjetaOrigen, setTarjetaOrigen] = useState('');
+  const [fechaAporte, setFechaAporte] = useState(new Date().toISOString().split('T')[0]);
 
   const faltante = meta.costoObjetivo - meta.montoActual;
 
@@ -74,6 +80,11 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
           <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '20px', color: 'var(--text-primary)' }}>
             {fmt.format(meta.montoActual)}
           </div>
+          {meta.rendimientoGenerado > 0 && (
+            <div style={{ fontSize: '11px', color: 'var(--credito-verde)', marginTop: '2px' }}>
+              +{fmt.format(meta.rendimientoGenerado)} rendimientos
+            </div>
+          )}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>Objetivo</div>
@@ -97,13 +108,17 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         <span>Falta {fmt.format(Math.max(0, faltante))}</span>
       </div>
 
-      {/* Rendimiento */}
-      {meta.rendimientoAnual > 0 && (
-        <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-          Rendimiento {meta.rendimientoAnual}% anual
-          {meta.proyeccion.mesesEstimadosConRendimiento && (
-            <> · ~{meta.proyeccion.mesesEstimadosConRendimiento} meses estimados</>
-          )}
+      {/* Rendimiento global */}
+      {meta.rendimientoGenerado > 0 && (
+        <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span>Capital aportado:</span>
+            <strong style={{ color: 'var(--text-primary)' }}>{fmt.format(meta.capitalAportado)}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Rendimientos ganados:</span>
+            <strong style={{ color: 'var(--credito-verde)' }}>+{fmt.format(meta.rendimientoGenerado)}</strong>
+          </div>
         </div>
       )}
 
@@ -125,7 +140,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
       {!editando && meta.progreso < 100 && (
         <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
           {aportando ? (
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <input
                 type="number"
                 placeholder="Monto a aportar"
@@ -134,19 +149,42 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
                 style={inputStyle}
                 min="1"
               />
-              <button
-                onClick={() => {
-                  const monto = parseFloat(montoAporte);
-                  if (monto > 0) {
-                    aportar({ id: meta.id, monto }, { onSuccess: () => { setAportando(false); setMontoAporte(''); } });
-                  }
-                }}
-                disabled={aportaPending || !montoAporte}
-                style={btnPrimary}
-              >
-                {aportaPending ? '…' : 'Aportar'}
-              </button>
-              <button onClick={() => setAportando(false)} style={btnMuted}>✕</button>
+              <input
+                type="date"
+                value={fechaAporte}
+                onChange={(e) => setFechaAporte(e.target.value)}
+                style={inputStyle}
+              />
+              {tarjetasDebito.length > 0 && (
+                <select
+                  value={tarjetaOrigen}
+                  onChange={(e) => setTarjetaOrigen(e.target.value)}
+                  style={{ ...inputStyle, WebkitAppearance: 'none' }}
+                >
+                  <option value="">Sin tarjeta (efectivo)</option>
+                  {tarjetasDebito.map(t => (
+                    <option key={t.id} value={t.id}>{t.nombre} {t.rendimientoAnual > 0 ? `(${t.rendimientoAnual}% APY)` : ''}</option>
+                  ))}
+                </select>
+              )}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <button
+                  onClick={() => {
+                    const monto = parseFloat(montoAporte);
+                    if (monto > 0) {
+                      aportar(
+                        { id: meta.id, monto, tarjetaId: tarjetaOrigen || undefined, fecha: fechaAporte }, 
+                        { onSuccess: () => { setAportando(false); setMontoAporte(''); setTarjetaOrigen(''); } }
+                      );
+                    }
+                  }}
+                  disabled={aportaPending || !montoAporte}
+                  style={{ ...btnPrimary, flex: 1 }}
+                >
+                  {aportaPending ? '…' : 'Aportar'}
+                </button>
+                <button onClick={() => setAportando(false)} style={btnMuted}>Cancelar</button>
+              </div>
             </div>
           ) : (
             <button onClick={() => setAportando(true)} style={{ ...btnSecondary, width: '100%' }}>
@@ -168,14 +206,12 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
 function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [nombre, setNombre] = useState('');
   const [costo, setCosto] = useState('');
-  const [rendimiento, setRendimiento] = useState('0');
   const { mutate: crear, isPending } = useCrearMeta();
 
   useEffect(() => {
     if (isOpen) {
       setNombre('');
       setCosto('');
-      setRendimiento('0');
     }
   }, [isOpen]);
 
@@ -183,7 +219,7 @@ function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
     e.preventDefault();
     if (!nombre || !costo) return;
     crear(
-      { nombre, costoObjetivo: parseFloat(costo), rendimientoAnual: parseFloat(rendimiento) || 0 },
+      { nombre, costoObjetivo: parseFloat(costo) },
       { onSuccess: onClose },
     );
   };
@@ -216,7 +252,6 @@ function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <input required placeholder="Nombre de la meta" value={nombre} onChange={(e) => setNombre(e.target.value)} style={inputStyle} />
               <input required type="number" placeholder="Costo objetivo (MXN)" value={costo} onChange={(e) => setCosto(e.target.value)} style={inputStyle} min="1" />
-              <input type="number" placeholder="Rendimiento anual % (opcional)" value={rendimiento} onChange={(e) => setRendimiento(e.target.value)} style={inputStyle} min="0" max="100" step="0.1" />
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button type="submit" disabled={isPending} style={{ ...btnPrimary, flex: 1 }}>
                   {isPending ? 'Creando…' : 'Crear meta'}

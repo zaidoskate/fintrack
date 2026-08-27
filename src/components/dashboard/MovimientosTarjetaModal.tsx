@@ -6,7 +6,7 @@ import { GlassCard } from '@/components/ui';
 import { useMovimientos, useCrearMovimiento, useEliminarMovimiento } from '@/lib/hooks';
 import type { TarjetaConEstado, Movimiento } from '@/lib/types';
 import { useState, useMemo } from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, Search } from 'lucide-react';
 import { RegistroForm } from './RegistroForm';
 
 const fmt = new Intl.NumberFormat('es-MX', {
@@ -37,6 +37,7 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
   const [payMode, setPayMode] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [editingMov, setEditingMov] = useState<Movimiento | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handlePaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,10 +56,17 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
     });
   };
 
-  // Agrupar por mes para hacerlo genérico y ordenado
+  // Filtrar y Agrupar por mes
   const grouped = useMemo(() => {
+    const filtered = movimientos.filter(m => 
+      !searchTerm || 
+      m.comercio?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      m.categoria?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.monto.toString().includes(searchTerm)
+    );
+    
     const groups: Record<string, Movimiento[]> = {};
-    for (const mov of movimientos) {
+    for (const mov of filtered) {
       const date = new Date(mov.fecha + 'T00:00:00');
       const key = date.toLocaleString('es-MX', { month: 'long', year: 'numeric' });
       const capKey = key.charAt(0).toUpperCase() + key.slice(1);
@@ -66,7 +74,7 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
       groups[capKey].push(mov);
     }
     return groups;
-  }, [movimientos]);
+  }, [movimientos, searchTerm]);
 
   return (
     <AnimatePresence>
@@ -111,11 +119,34 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
             </div>
 
             {editingMov ? (
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                <RegistroForm initialData={editingMov} onClose={() => setEditingMov(null)} />
+              <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+                <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                  <RegistroForm initialData={editingMov} onClose={() => setEditingMov(null)} />
+                </div>
               </div>
             ) : (
-              <>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                {/* Search Bar */}
+                <div style={{ position: 'relative', marginBottom: '16px' }}>
+                  <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    placeholder="Buscar comercio, categoría..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid var(--border-glass)',
+                      borderRadius: '10px',
+                      padding: '10px 12px 10px 36px',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
                 {tarjeta.tipo === 'Crédito' && (
                   <div style={{ marginBottom: '20px' }}>
                 <AnimatePresence mode="wait">
@@ -184,83 +215,94 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
               </div>
             )}
 
-            <div style={{ 
-              overflowY: 'auto', 
-              flex: 1, 
-              paddingRight: '10px', 
-              minHeight: 0,
-              overscrollBehavior: 'contain',
-              WebkitOverflowScrolling: 'touch'
-            }}>
-              {isLoading && <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Cargando movimientos...</div>}
-              {!isLoading && movimientos.length === 0 && (
-                <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No hay movimientos registrados.</div>
-              )}
+            <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+              <div style={{ 
+                position: 'absolute', 
+                inset: 0, 
+                overflowY: 'auto', 
+                paddingRight: '10px',
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain'
+              }}>
+                {isLoading && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                    Cargando movimientos...
+                  </div>
+                )}
+                
+                {!isLoading && movimientos.length === 0 && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                    No hay movimientos registrados.
+                  </div>
+                )}
               
-              {!isLoading && Object.entries(grouped).map(([mes, movs]) => (
-                <div key={mes} style={{ marginBottom: '20px' }}>
-                  <div style={{
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: 'var(--text-muted)',
-                    marginBottom: '10px',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    paddingBottom: '4px'
-                  }}>
-                    {mes}
-                  </div>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {movs.map(mov => (
-                      <div key={mov.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>
-                            {mov.comercio || mov.categoria}
+                {!isLoading && Object.entries(grouped).map(([mes, movs]) => (
+                  <div key={mes} style={{ marginBottom: '20px' }}>
+                    <div style={{
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: 'var(--text-muted)',
+                      marginBottom: '10px',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      paddingBottom: '4px'
+                    }}>
+                      {mes}
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {movs.map((mov) => (
+                        <div key={mov.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                              {mov.comercio || mov.categoria}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                              {fmtFecha(mov.fecha)} · {mov.tipo === 'Ingreso' ? 'Ingreso' : mov.categoria}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            {fmtFecha(mov.fecha)} · {mov.tipo === 'Ingreso' ? 'Ingreso' : mov.categoria}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <div style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 600,
+                              fontSize: '15px',
+                              color: mov.tipo === 'Ingreso' ? 'var(--credito-verde)' : 'var(--text-primary)',
+                              textAlign: 'right'
+                            }}>
+                              {mov.tipo === 'Ingreso' ? '+' : '-'}{fmt.format(mov.monto)}
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                onClick={() => setEditingMov(mov)}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                                aria-label="Editar"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('¿Eliminar este movimiento?')) {
+                                    eliminarMov(mov.id);
+                                  }
+                                }}
+                                style={{ background: 'none', border: 'none', color: 'var(--credito-rojo)', cursor: 'pointer', padding: '4px', opacity: 0.8 }}
+                                aria-label="Eliminar"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <div style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 600,
-                            fontSize: '15px',
-                            color: mov.tipo === 'Ingreso' ? 'var(--credito-verde)' : 'var(--text-primary)',
-                            textAlign: 'right'
-                          }}>
-                            {mov.tipo === 'Ingreso' ? '+' : '-'}{fmt.format(mov.monto)}
-                          </div>
-                          
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => setEditingMov(mov)}
-                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                              aria-label="Editar"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if(window.confirm('¿Eliminar este movimiento?')) eliminarMov(mov.id);
-                              }}
-                              style={{ background: 'none', border: 'none', color: 'var(--credito-rojo)', cursor: 'pointer', padding: '4px', opacity: 0.8 }}
-                              aria-label="Eliminar"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </>
-        )}
-      </GlassCard>
+          </div>
+          )}
+          </GlassCard>
         </motion.div>
       )}
     </AnimatePresence>

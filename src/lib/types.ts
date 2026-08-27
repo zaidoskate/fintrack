@@ -14,6 +14,7 @@ export interface TarjetaRow {
   limite: number;       // Para Débito esto es el Saldo Inicial
   dia_corte: number | null;
   dia_pago: number | null;
+  rendimiento_anual: number; // Solo para Débito
   created_at: string;
 }
 
@@ -35,8 +36,16 @@ export interface MetaRow {
   user_id: string;
   nombre: string;
   costo_objetivo: number;
-  monto_actual: number;
-  rendimiento_anual: number;
+  created_at: string;
+}
+
+export interface MetaAporteRow {
+  id: string;
+  user_id: string;
+  meta_id: string;
+  monto: number;
+  fecha: string;
+  tarjeta_origen_id: string | null;
   created_at: string;
 }
 
@@ -65,6 +74,7 @@ export interface TarjetaConEstado {
   limite: number;        // Límite o Saldo inicial
   diaCorte: number | null;
   diaPago: number | null;
+  rendimientoAnual: number; // TNA % para Débito
   gastosPeriodoActual: number;
   disponible: number;    // Límite disponible (Crédito) o Saldo actual (Débito)
   porcentajeUso: number; // 0 para Débito
@@ -92,15 +102,27 @@ export interface MetaConEstado {
   id: string;
   nombre: string;
   costoObjetivo: number;
-  montoActual: number;
-  rendimientoAnual: number;
+  montoActual: number;      // Calculado sumando aportes + rendimientos
+  capitalAportado: number;  // Suma neta de aportes
+  rendimientoGenerado: number; // Suma de rendimientos
   progreso: number;         // porcentaje 0–100
+  aportes: MetaAporte[];
   proyeccion: {
     aportesMensualesPromedio: number;
     mesesEstimadosSinRendimiento: number | null;
     mesesEstimadosConRendimiento: number | null;
     fechaEstimadaCumplimiento: string | null;  // YYYY-MM-DD
   };
+}
+
+export interface MetaAporte {
+  id: string;
+  metaId: string;
+  monto: number;
+  fecha: string;
+  tarjetaOrigenId: string | null;
+  tarjetaOrigenNombre?: string;
+  rendimientoGenerado: number; // Rendimiento individual de este aporte hasta hoy
 }
 
 /** Compra MSI con meses restantes calculados */

@@ -27,6 +27,7 @@ export function TarjetaFormModal({
   const [limite, setLimite] = useState(initialData?.limite?.toString() || '');
   const [diaCorte, setDiaCorte] = useState(initialData?.diaCorte?.toString() || '');
   const [diaPago, setDiaPago] = useState(initialData?.diaPago?.toString() || '');
+  const [rendimientoAnual, setRendimientoAnual] = useState(initialData?.rendimientoAnual?.toString() || '');
 
   // Reset form when initialData changes
   useEffect(() => {
@@ -36,6 +37,7 @@ export function TarjetaFormModal({
       setLimite(initialData?.limite?.toString() || '');
       setDiaCorte(initialData?.diaCorte?.toString() || '');
       setDiaPago(initialData?.diaPago?.toString() || '');
+      setRendimientoAnual(initialData?.rendimientoAnual?.toString() || '');
     }
   }, [isOpen, initialData]);
 
@@ -47,6 +49,7 @@ export function TarjetaFormModal({
       limite: parseFloat(limite),
       diaCorte: tipo === 'Crédito' ? parseInt(diaCorte, 10) : null,
       diaPago: tipo === 'Crédito' ? parseInt(diaPago, 10) : null,
+      rendimientoAnual: tipo === 'Débito' ? (parseFloat(rendimientoAnual) || 0) : 0,
     });
   };
 
@@ -154,6 +157,21 @@ export function TarjetaFormModal({
                         className="glass-input"
                       />
                     </div>
+                  </motion.div>
+                )}
+                {tipo === 'Débito' && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Rendimiento Anual / TNA % (Opcional)</label>
+                    <input
+                      type="number" min="0" step="0.1" placeholder="Ej. 15.0"
+                      value={rendimientoAnual} onChange={e => setRendimientoAnual(e.target.value)}
+                      className="glass-input"
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>

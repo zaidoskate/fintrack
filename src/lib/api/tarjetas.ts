@@ -67,6 +67,7 @@ export interface NuevaTarjetaInput {
   limite: number;
   diaCorte: number | null;
   diaPago: number | null;
+  rendimientoAnual?: number;
 }
 
 /** Crea una tarjeta para el usuario autenticado. */
@@ -84,6 +85,7 @@ export async function crearTarjeta(input: NuevaTarjetaInput): Promise<TarjetaRow
       limite:    input.limite,
       dia_corte: input.diaCorte,
       dia_pago:  input.diaPago,
+      rendimiento_anual: input.rendimientoAnual ?? 0,
     })
     .select()
     .single<TarjetaRow>();
@@ -106,6 +108,7 @@ export async function actualizarTarjeta(
       ...(campos.limite    !== undefined && { limite: campos.limite }),
       ...(campos.diaCorte  !== undefined && { dia_corte: campos.diaCorte }),
       ...(campos.diaPago   !== undefined && { dia_pago: campos.diaPago }),
+      ...(campos.rendimientoAnual !== undefined && { rendimiento_anual: campos.rendimientoAnual }),
     })
     .eq('id', id);
 

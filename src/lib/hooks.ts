@@ -200,7 +200,7 @@ export function useCrearMeta() {
 export function useAportarMeta() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, monto }: { id: string; monto: number }) => aportarMeta(id, monto),
+    mutationFn: ({ id, monto, tarjetaId, fecha }: { id: string; monto: number, tarjetaId?: string, fecha?: string }) => aportarMeta(id, monto, tarjetaId, fecha),
     // Optimista: actualiza la cache antes de que el server confirme
     onMutate: async ({ id, monto }) => {
       await qc.cancelQueries({ queryKey: QK.metas });
@@ -208,7 +208,7 @@ export function useAportarMeta() {
       qc.setQueryData<MetaConEstado[]>(QK.metas, (old) =>
         old?.map((m) =>
           m.id === id
-            ? { ...m, montoActual: m.montoActual + monto }
+            ? { ...m, montoActual: m.montoActual + monto, capitalAportado: (m.capitalAportado || 0) + monto }
             : m,
         ) ?? [],
       );

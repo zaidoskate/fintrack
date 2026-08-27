@@ -159,6 +159,7 @@ export function calcularEstadoTarjeta(
       limite:              Number(tarjeta.limite) || 0,
       diaCorte:            null,
       diaPago:             null,
+      rendimientoAnual:    tarjeta.rendimiento_anual ?? 0,
       gastosPeriodoActual: 0,
       disponible:          Math.round(saldo * 100) / 100, // Este es el "Saldo Actual"
       porcentajeUso:       0,
@@ -238,6 +239,7 @@ export function calcularEstadoTarjeta(
     limite,
     diaCorte:            tarjeta.dia_corte,
     diaPago:             tarjeta.dia_pago,
+    rendimientoAnual:    Number(tarjeta.rendimiento_anual) || 0,
     gastosPeriodoActual,
     disponible,
     porcentajeUso,

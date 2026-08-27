@@ -9,25 +9,24 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { calcularEstadoMetas } from '@/lib/finance/metas';
-import type { MetaRow, MetaConEstado } from '@/lib/types';
+import type { MetaRow, MetaAporteRow, TarjetaRow, MetaConEstado } from '@/lib/types';
 
 // ── Lectura ───────────────────────────────────────────────────────────────────
 
-/**
- * Obtiene todas las metas del usuario con progreso y proyección calculados.
- * RLS filtra automáticamente por usuario autenticado.
- */
 export async function getMetas(): Promise<MetaConEstado[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from('metas')
-    .select('*')
-    .order('created_at', { ascending: true })
-    .returns<MetaRow[]>();
+  const [metasRes, aportesRes, tarjetasRes] = await Promise.all([
+    supabase.from('metas').select('*').order('created_at', { ascending: true }).returns<MetaRow[]>(),
+    supabase.from('meta_aportes').select('*').returns<MetaAporteRow[]>(),
+    supabase.from('tarjetas').select('id, nombre, rendimiento_anual').returns<TarjetaRow[]>()
+  ]);
 
-  if (error) throw error;
-  return calcularEstadoMetas(data ?? []);
+  if (metasRes.error) throw metasRes.error;
+  if (aportesRes.error) throw aportesRes.error;
+  if (tarjetasRes.error) throw tarjetasRes.error;
+
+  return calcularEstadoMetas(metasRes.data ?? [], aportesRes.data ?? [], tarjetasRes.data ?? []);
 }
 
 // ── Escritura ─────────────────────────────────────────────────────────────────
@@ -35,8 +34,6 @@ export async function getMetas(): Promise<MetaConEstado[]> {
 export interface NuevaMetaInput {
   nombre: string;
   costoObjetivo: number;
-  montoActual?: number;
-  rendimientoAnual?: number;
 }
 
 /** Crea una meta de ahorro para el usuario autenticado. */
@@ -51,44 +48,39 @@ export async function crearMeta(input: NuevaMetaInput): Promise<MetaConEstado> {
       user_id:            user.id,
       nombre:             input.nombre,
       costo_objetivo:     input.costoObjetivo,
-      monto_actual:       input.montoActual      ?? 0,
-      rendimiento_anual:  input.rendimientoAnual ?? 0,
     })
     .select()
     .single<MetaRow>();
 
   if (error) throw error;
-  return calcularEstadoMetas([data])[0];
+  return calcularEstadoMetas([data], [], [])[0];
 }
 
 /**
- * Registra un aporte a una meta — actualiza SOLO `monto_actual`.
- * agents.md regla 7: NUNCA genera fila en `movimientos`.
+ * Registra un aporte a una meta — inserta en `meta_aportes`.
  */
-export async function aportarMeta(id: string, monto: number): Promise<MetaConEstado> {
+export async function aportarMeta(
+  id: string, 
+  monto: number, 
+  tarjetaId?: string, 
+  fechaAporte?: string
+): Promise<void> {
   if (monto <= 0) throw new Error('El monto del aporte debe ser positivo.');
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado.');
 
-  // Primero obtenemos el valor actual para sumar (RLS garantiza que es del usuario)
-  const { data: actual, error: fetchError } = await supabase
-    .from('metas')
-    .select('monto_actual')
-    .eq('id', id)
-    .single<Pick<MetaRow, 'monto_actual'>>();
-
-  if (fetchError) throw fetchError;
-
-  const nuevoMonto = Number(actual.monto_actual) + monto;
-
-  const { data, error } = await supabase
-    .from('metas')
-    .update({ monto_actual: nuevoMonto })
-    .eq('id', id)
-    .select()
-    .single<MetaRow>();
+  const { error } = await supabase
+    .from('meta_aportes')
+    .insert({
+      user_id: user.id,
+      meta_id: id,
+      monto: monto,
+      fecha: fechaAporte || new Date().toISOString().split('T')[0],
+      tarjeta_origen_id: tarjetaId || null
+    });
 
   if (error) throw error;
-  return calcularEstadoMetas([data])[0];
 }
 
 /** Edita campos de una meta existente. */
@@ -101,8 +93,6 @@ export async function editarMeta(
   const patch: Record<string, unknown> = {};
   if (campos.nombre             !== undefined) patch.nombre             = campos.nombre;
   if (campos.costoObjetivo      !== undefined) patch.costo_objetivo     = campos.costoObjetivo;
-  if (campos.montoActual        !== undefined) patch.monto_actual       = campos.montoActual;
-  if (campos.rendimientoAnual   !== undefined) patch.rendimiento_anual  = campos.rendimientoAnual;
 
   const { data, error } = await supabase
     .from('metas')
@@ -112,7 +102,9 @@ export async function editarMeta(
     .single<MetaRow>();
 
   if (error) throw error;
-  return calcularEstadoMetas([data])[0];
+  
+  // Refetch todo en el componente para tener estado actualizado, o retornar dummy si no es crítico:
+  return calcularEstadoMetas([data], [], [])[0];
 }
 
 /** Elimina una meta. */

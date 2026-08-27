@@ -5,12 +5,14 @@
  * agents.md: lógica de negocio en lib/finance/, no persiste resultados en DB.
  */
 
-import type { MetaRow, MetaConEstado } from '@/lib/types';
+import type { MetaRow, MetaAporteRow, TarjetaRow, MetaConEstado, MetaAporte } from '@/lib/types';
 
 /** Formatea Date a YYYY-MM-DD */
 function toISODate(date: Date): string {
   return date.toISOString().substring(0, 10);
 }
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 /**
  * Calcula el estado completo de una meta de ahorro.
@@ -24,11 +26,47 @@ function toISODate(date: Date): string {
  */
 export function calcularEstadoMeta(
   meta: MetaRow,
+  aportesRow: MetaAporteRow[],
+  tarjetas: TarjetaRow[],
   hoy: Date = new Date(),
 ): MetaConEstado {
-  const costoObjetivo   = Number(meta.costo_objetivo);
-  const montoActual     = Number(meta.monto_actual);
-  const rendimientoAnual = Number(meta.rendimiento_anual);
+  const costoObjetivo = Number(meta.costo_objetivo);
+  let capitalAportado = 0;
+  let rendimientoGenerado = 0;
+
+  const hoyTime = hoy.getTime();
+
+  // Procesar cada aporte
+  const aportes: MetaAporte[] = aportesRow.map(row => {
+    const monto = Number(row.monto);
+    capitalAportado += monto;
+
+    let rendAporte = 0;
+    const tarjeta = tarjetas.find(t => t.id === row.tarjeta_origen_id);
+    
+    if (tarjeta && Number(tarjeta.rendimiento_anual) > 0) {
+      const fechaAporte = new Date(row.fecha + 'T00:00:00').getTime();
+      const dias = Math.max(0, Math.floor((hoyTime - fechaAporte) / MS_PER_DAY));
+      const tasaAnual = Number(tarjeta.rendimiento_anual) / 100;
+      // Fórmula de interés compuesto diario
+      const montoConInteres = monto * Math.pow(1 + (tasaAnual / 365), dias);
+      rendAporte = montoConInteres - monto;
+    }
+
+    rendimientoGenerado += rendAporte;
+
+    return {
+      id: row.id,
+      metaId: row.meta_id,
+      monto,
+      fecha: row.fecha,
+      tarjetaOrigenId: row.tarjeta_origen_id,
+      tarjetaOrigenNombre: tarjeta?.nombre,
+      rendimientoGenerado: rendAporte
+    };
+  }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+  const montoActual = capitalAportado + rendimientoGenerado;
 
   const progreso = costoObjetivo > 0
     ? Math.round((montoActual / costoObjetivo) * 1000) / 10
@@ -47,25 +85,11 @@ export function calcularEstadoMeta(
   let fechaEstimada: string | null = null;
 
   if (aporteMensual > 0 && faltante > 0) {
-    // Sin rendimiento
     mesesSinRendimiento = Math.ceil(faltante / aporteMensual);
-
-    // Con rendimiento compuesto mensual
-    const tasaMensual = rendimientoAnual > 0
-      ? Math.pow(1 + rendimientoAnual / 100, 1 / 12) - 1
-      : 0;
-
-    let acum = montoActual;
-    let meses = 0;
-    while (acum < costoObjetivo && meses < 600) {
-      acum = acum * (1 + tasaMensual) + aporteMensual;
-      meses++;
-    }
-    if (meses < 600) {
-      mesesConRendimiento = meses;
-      const fechaFin = new Date(hoy.getFullYear(), hoy.getMonth() + meses, hoy.getDate());
-      fechaEstimada = toISODate(fechaFin);
-    }
+    // Para simplificar, la proyección futura usa una tasa promedio de 0% (se puede mejorar después si ligan una tarjeta base a la meta)
+    mesesConRendimiento = mesesSinRendimiento;
+    const fechaFin = new Date(hoy.getFullYear(), hoy.getMonth() + mesesSinRendimiento, hoy.getDate());
+    fechaEstimada = toISODate(fechaFin);
   }
 
   return {
@@ -73,8 +97,10 @@ export function calcularEstadoMeta(
     nombre:           meta.nombre,
     costoObjetivo,
     montoActual,
-    rendimientoAnual,
+    capitalAportado,
+    rendimientoGenerado,
     progreso,
+    aportes,
     proyeccion: {
       aportesMensualesPromedio:         aporteMensual,
       mesesEstimadosSinRendimiento:     mesesSinRendimiento,
@@ -86,7 +112,12 @@ export function calcularEstadoMeta(
 
 export function calcularEstadoMetas(
   metas: MetaRow[],
+  aportes: MetaAporteRow[],
+  tarjetas: TarjetaRow[],
   hoy: Date = new Date(),
 ): MetaConEstado[] {
-  return metas.map((m) => calcularEstadoMeta(m, hoy));
+  return metas.map((m) => {
+    const aportesDeMeta = aportes.filter(a => a.meta_id === m.id);
+    return calcularEstadoMeta(m, aportesDeMeta, tarjetas, hoy);
+  });
 }
