@@ -12,20 +12,7 @@
 import { useState } from 'react';
 import { GlassCard, StatusPill } from '@/components/ui';
 import type { TarjetaConEstado, CompraMSI } from '@/lib/types';
-import { Pencil, Trash, ExternalLink } from 'lucide-react';
-
-/* Intenta emparejar el nombre con el URL Scheme del banco */
-function getBankAppScheme(cardName: string): string | null {
-  const name = cardName.toLowerCase();
-  if (name.includes('nu') || name.includes('nubank')) return 'nu://';
-  if (name.includes('bbva') || name.includes('bancomer')) return 'bbvamexico://';
-  if (name.includes('hey')) return 'heybanco://';
-  if (name.includes('banamex') || name.includes('citi')) return 'banamex://';
-  if (name.includes('santander')) return 'santandermx://';
-  if (name.includes('mercado') || name.includes('mp')) return 'mercadopago://';
-  if (name.includes('amex') || name.includes('american')) return 'amex://';
-  return null;
-}
+import { Pencil, Trash } from 'lucide-react';
 
 /* Formatea monto MXN (es-MX, formato moneda sin decimales si son .00) */
 const fmt = new Intl.NumberFormat('es-MX', {
@@ -133,26 +120,6 @@ export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onD
             gap: '8px'
           }}>
             {fmt.format(tarjeta.disponible)}
-            {getBankAppScheme(tarjeta.nombre) && (
-              <a
-                href={getBankAppScheme(tarjeta.nombre)!}
-                onClick={(e) => e.stopPropagation()}
-                title="Abrir app del banco"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'rgba(255,255,255,0.08)',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid var(--border-glass)',
-                  borderRadius: '6px',
-                  padding: '4px',
-                  textDecoration: 'none'
-                }}
-              >
-                <ExternalLink size={14} />
-              </a>
-            )}
           </div>
         </div>
 

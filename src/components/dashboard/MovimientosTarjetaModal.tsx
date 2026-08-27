@@ -56,25 +56,62 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
     });
   };
 
-  // Filtrar y Agrupar por mes
+  // Filtrar y Agrupar
   const grouped = useMemo(() => {
     const filtered = movimientos.filter(m => 
       !searchTerm || 
-      m.comercio?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      m.categoria?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.comercio || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (m.categoria || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.monto.toString().includes(searchTerm)
     );
     
     const groups: Record<string, Movimiento[]> = {};
-    for (const mov of filtered) {
-      const date = new Date(mov.fecha + 'T00:00:00');
-      const key = date.toLocaleString('es-MX', { month: 'long', year: 'numeric' });
-      const capKey = key.charAt(0).toUpperCase() + key.slice(1);
-      if (!groups[capKey]) groups[capKey] = [];
-      groups[capKey].push(mov);
+
+    if (tarjeta?.tipo === 'Crédito' && tarjeta.diaCorte) {
+      // Agrupar por periodo de corte
+      for (const mov of filtered) {
+        const d = new Date(mov.fecha + 'T00:00:00');
+        const day = d.getDate();
+        const month = d.getMonth();
+        const year = d.getFullYear();
+        
+        let startPeriod: Date;
+        let endPeriod: Date;
+
+        if (day >= tarjeta.diaCorte) {
+          startPeriod = new Date(year, month, tarjeta.diaCorte);
+          endPeriod = new Date(year, month + 1, tarjeta.diaCorte - 1);
+        } else {
+          startPeriod = new Date(year, month - 1, tarjeta.diaCorte);
+          endPeriod = new Date(year, month, tarjeta.diaCorte - 1);
+        }
+
+        const startStr = startPeriod.toLocaleString('es-MX', { day: 'numeric', month: 'short' });
+        const endStr = endPeriod.toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+        const key = `${startStr} - ${endStr}`;
+        const capKey = key.charAt(0).toUpperCase() + key.slice(1);
+        
+        if (!groups[capKey]) groups[capKey] = [];
+        groups[capKey].push(mov);
+      }
+    } else {
+      // Agrupar por mes natural (Débito)
+      for (const mov of filtered) {
+        const date = new Date(mov.fecha + 'T00:00:00');
+        const key = date.toLocaleString('es-MX', { month: 'long', year: 'numeric' });
+        const capKey = key.charAt(0).toUpperCase() + key.slice(1);
+        if (!groups[capKey]) groups[capKey] = [];
+        groups[capKey].push(mov);
+      }
     }
+    
+    // Sort groups in descending order (assuming keys can be parsed or relying on object insertion order which is not reliable, 
+    // but the `movimientos` array is already sorted descending by date from the hook, so we just group them)
+    // To ensure the object keys are in the correct order, we can return an array of groups instead, 
+    // but Object.entries preserves insertion order for non-numeric string keys. 
+    // Since `movimientos` is sorted, the first key inserted is the most recent.
     return groups;
-  }, [movimientos, searchTerm]);
+  }, [movimientos, searchTerm, tarjeta]);
 
   return (
     <AnimatePresence>
