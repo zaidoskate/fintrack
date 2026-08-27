@@ -58,19 +58,28 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
 
   // Filtrar y Agrupar
   const grouped = useMemo(() => {
-    const filtered = movimientos.filter(m => 
-      !searchTerm || 
-      (m.comercio || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (m.categoria || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.monto.toString().includes(searchTerm)
-    );
+    if (!movimientos || !Array.isArray(movimientos)) return {};
+
+    const safeSearch = (searchTerm || '').toLowerCase();
+    
+    const filtered = movimientos.filter(m => {
+      if (!safeSearch) return true;
+      const comercio = String(m.comercio || '').toLowerCase();
+      const categoria = String(m.categoria || '').toLowerCase();
+      const montoStr = String(m.monto || 0);
+      return comercio.includes(safeSearch) || categoria.includes(safeSearch) || montoStr.includes(safeSearch);
+    });
     
     const groups: Record<string, Movimiento[]> = {};
 
-    if (tarjeta?.tipo === 'Crédito' && tarjeta.diaCorte) {
+    if (tarjeta?.tipo === 'Crédito' && tarjeta.diaCorte != null && Number(tarjeta.diaCorte) > 0) {
       // Agrupar por periodo de corte
+      const cutDay = Number(tarjeta.diaCorte);
       for (const mov of filtered) {
+        if (!mov.fecha) continue;
         const d = new Date(mov.fecha + 'T00:00:00');
+        if (isNaN(d.getTime())) continue;
+
         const day = d.getDate();
         const month = d.getMonth();
         const year = d.getFullYear();
@@ -78,26 +87,28 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
         let startPeriod: Date;
         let endPeriod: Date;
 
-        if (day >= tarjeta.diaCorte) {
-          startPeriod = new Date(year, month, tarjeta.diaCorte);
-          endPeriod = new Date(year, month + 1, tarjeta.diaCorte - 1);
+        if (day >= cutDay) {
+          startPeriod = new Date(year, month, cutDay);
+          endPeriod = new Date(year, month + 1, cutDay - 1);
         } else {
-          startPeriod = new Date(year, month - 1, tarjeta.diaCorte);
-          endPeriod = new Date(year, month, tarjeta.diaCorte - 1);
+          startPeriod = new Date(year, month - 1, cutDay);
+          endPeriod = new Date(year, month, cutDay - 1);
         }
 
         const startStr = startPeriod.toLocaleString('es-MX', { day: 'numeric', month: 'short' });
         const endStr = endPeriod.toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
-        const key = `${startStr} - ${endStr}`;
-        const capKey = key.charAt(0).toUpperCase() + key.slice(1);
+        const capKey = `${startStr} - ${endStr}`.replace(/\b\w/g, l => l.toUpperCase());
         
         if (!groups[capKey]) groups[capKey] = [];
         groups[capKey].push(mov);
       }
     } else {
-      // Agrupar por mes natural (Débito)
+      // Agrupar por mes natural (Débito o sin diaCorte)
       for (const mov of filtered) {
+        if (!mov.fecha) continue;
         const date = new Date(mov.fecha + 'T00:00:00');
+        if (isNaN(date.getTime())) continue;
+
         const key = date.toLocaleString('es-MX', { month: 'long', year: 'numeric' });
         const capKey = key.charAt(0).toUpperCase() + key.slice(1);
         if (!groups[capKey]) groups[capKey] = [];
@@ -105,11 +116,6 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
       }
     }
     
-    // Sort groups in descending order (assuming keys can be parsed or relying on object insertion order which is not reliable, 
-    // but the `movimientos` array is already sorted descending by date from the hook, so we just group them)
-    // To ensure the object keys are in the correct order, we can return an array of groups instead, 
-    // but Object.entries preserves insertion order for non-numeric string keys. 
-    // Since `movimientos` is sorted, the first key inserted is the most recent.
     return groups;
   }, [movimientos, searchTerm, tarjeta]);
 
@@ -252,16 +258,15 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
               </div>
             )}
 
-            <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-              <div style={{ 
-                position: 'absolute', 
-                inset: 0, 
-                overflowY: 'auto', 
-                paddingRight: '10px',
-                WebkitOverflowScrolling: 'touch',
-                overscrollBehavior: 'contain'
-              }}>
-                {isLoading && (
+            <div style={{ 
+              flex: 1, 
+              minHeight: 0, 
+              overflowY: 'auto', 
+              paddingRight: '10px',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain'
+            }}>
+              {isLoading && (
                   <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
                     Cargando movimientos...
                   </div>
@@ -337,9 +342,8 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
                 ))}
               </div>
             </div>
-          </div>
           )}
-          </GlassCard>
+        </GlassCard>
         </motion.div>
       )}
     </AnimatePresence>
