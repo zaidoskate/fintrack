@@ -57,6 +57,32 @@ export async function signIn(formData: FormData) {
   redirect(next);
 }
 
+// ── Inicio de sesión con OAuth ────────────────────────────────────────────────
+
+export async function signInWithProvider(provider: 'google' | 'apple') {
+  const supabase = await createClient();
+  
+  // Usamos el SITE_URL configurado o un fallback genérico.
+  // Es mejor usar headers para obtener el origen real si es posible,
+  // pero NEXT_PUBLIC_SITE_URL (o localhost en dev) es el estándar de Supabase.
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${baseUrl}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+  }
+
+  if (data?.url) {
+    redirect(data.url);
+  }
+}
+
 // ── Cierre de sesión ──────────────────────────────────────────────────────────
 
 export async function signOut() {
