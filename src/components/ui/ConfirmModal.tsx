@@ -3,6 +3,8 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { GlassCard } from './GlassCard';
 import { useMotionConfig } from '@/lib/motion/variants';
+import { createPortal } from 'react-dom';
+import { useState, useEffect } from 'react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -26,8 +28,13 @@ export function ConfirmModal({
   isDestructive = false,
 }: ConfirmModalProps) {
   const { modalTransition } = useMotionConfig();
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -107,6 +114,7 @@ export function ConfirmModal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

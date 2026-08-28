@@ -14,6 +14,7 @@ import {
 } from '@/lib/hooks';
 import { GlassCard, ConfirmModal } from '@/components/ui';
 import type { MetaConEstado } from '@/lib/types';
+import { Pencil, Trash } from 'lucide-react';
 
 const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
 
@@ -69,8 +70,22 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
           </div>
         )}
         <div style={{ display: 'flex', gap: '6px' }}>
-          <button onClick={() => setEditando((v) => !v)} style={btnMuted} title="Editar">Editar</button>
-          <button onClick={() => setShowDeleteConfirm(true)} style={btnMuted} title="Eliminar">Eliminar</button>
+          <button 
+            onClick={() => setEditando((v) => !v)} 
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} 
+            title="Editar"
+            aria-label="Editar meta"
+          >
+            <Pencil size={16} />
+          </button>
+          <button 
+            onClick={() => setShowDeleteConfirm(true)} 
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} 
+            title="Eliminar"
+            aria-label="Eliminar meta"
+          >
+            <Trash size={16} />
+          </button>
         </div>
       </div>
 
