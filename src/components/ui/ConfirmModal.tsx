@@ -64,7 +64,7 @@ export function ConfirmModal({
             style={{ width: '100%', maxWidth: '320px' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <GlassCard>
+            <GlassCard style={{ padding: '24px' }}>
               <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', marginBottom: message ? '8px' : '20px' }}>
                 {title}
               </h3>
