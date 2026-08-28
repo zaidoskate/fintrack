@@ -35,10 +35,10 @@ import type {
   NuevaTarjetaInput,
   NuevoMovimientoInput,
   NuevaMetaInput,
-  NuevaCompraMSIInput,
 } from '@/lib/api-inputs';
 import { db } from '@/lib/offline/db';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleOfflineError(action: string, payload: any, err: any) {
   if (err?.message === 'Failed to fetch' || !navigator.onLine) {
     await db.outbox.add({

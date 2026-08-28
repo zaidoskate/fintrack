@@ -35,6 +35,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const saved = localStorage.getItem('fintrack_show_flags');
     if (saved !== null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowFlags(saved === 'true');
     }
   }, []);

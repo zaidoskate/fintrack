@@ -19,10 +19,11 @@ export async function forceSync(queryClient: QueryClient) {
       if (item.id) {
         await db.outbox.delete(item.id);
       }
-    } catch (err: any) {
-      console.error(`Error sincronizando acción offline: ${item.action}`, err);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(`Error sincronizando acción offline: ${item.action}`, error);
       // Si el error es claramente de red, detenemos el loop y reintentaremos luego.
-      if (err.message === 'Failed to fetch' || !navigator.onLine) {
+      if (error.message === 'Failed to fetch' || !navigator.onLine) {
         break;
       }
       // Si el error es del servidor (ej. 400 Bad Request, RLS, etc.),

@@ -20,12 +20,13 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.redirect(`${origin}/login?error=Ocurrió%20un%20error%20en%20la%20autenticación`);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as Error;
     // Return raw exception to the browser
     return NextResponse.json({ 
       error: 'Unhandled Route Exception', 
-      message: error.message,
-      stack: error.stack 
+      message: err.message,
+      stack: err.stack 
     }, { status: 500 });
   }
 }

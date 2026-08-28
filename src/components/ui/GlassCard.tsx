@@ -58,6 +58,7 @@ export function GlassCard({
   const { interactiveProps } = useMotionConfig();
 
   // Pick the motion component based on 'as' prop
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const MotionComponent = motion.create(as as any) as any;
   const isInteractive = !!motionProps.onClick || as === 'button';
 

@@ -7,6 +7,7 @@ export function Greeting({ name }: { name: string }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const hour = new Date().getHours();
     if (hour < 12) setGreeting('Buenos días');

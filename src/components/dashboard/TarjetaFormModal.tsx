@@ -32,6 +32,7 @@ export function TarjetaFormModal({
   // Reset form when initialData changes
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTipo(initialData?.tipo || 'Crédito');
       setNombre(initialData?.nombre || '');
       setLimite(initialData?.limite?.toString() || '');

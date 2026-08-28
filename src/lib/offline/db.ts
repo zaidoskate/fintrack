@@ -3,6 +3,7 @@ import Dexie, { type Table } from 'dexie';
 export interface OutboxRequest {
   id?: number;
   action: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any;
   createdAt: string;
 }

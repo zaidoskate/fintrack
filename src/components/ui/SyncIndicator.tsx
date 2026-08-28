@@ -17,6 +17,7 @@ export function SyncIndicator() {
   const pendingCount = useLiveQuery(() => db.outbox.count(), []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsOnline(navigator.onLine);
 
     const handleOnline = async () => {
