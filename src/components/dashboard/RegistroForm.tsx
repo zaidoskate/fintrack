@@ -93,7 +93,6 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
     /* ── Rama normal — Sincronización Optimista (FR-06/07) ─────── */
     // eslint-disable-next-line react-hooks/purity
     const tempId = `temp-${Date.now()}`;
-    // eslint-disable-next-line react-hooks/purity
     const horaText = new Date().toTimeString().substring(0, 5);
     
     const optimisticMov: Movimiento = {

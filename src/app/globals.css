@@ -267,3 +267,13 @@ a, button, [role="button"] {
   cursor: not-allowed;
 }
 
+@keyframes jiggle {
+  0% { transform: rotate(-1deg) scale(0.98); }
+  50% { transform: rotate(1.5deg) scale(0.98); }
+  100% { transform: rotate(-1deg) scale(0.98); }
+}
+
+.animate-jiggle {
+  animation: jiggle 0.3s infinite;
+  transform-origin: center center;
+}

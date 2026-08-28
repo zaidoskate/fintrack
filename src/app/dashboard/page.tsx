@@ -8,18 +8,36 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useTarjetas, useComprasMSI, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta } from '@/lib/hooks';
+import {
+  DndContext,
+  closestCenter,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { useTarjetas, useComprasMSI, useMetas, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta } from '@/lib/hooks';
 import { TarjetaCard } from '@/components/dashboard/TarjetaCard';
+import { SaludFinanciera } from '@/components/dashboard/SaludFinanciera';
+import { SortableTarjeta } from '@/components/dashboard/SortableTarjeta';
 import { TarjetaFormModal } from '@/components/dashboard/TarjetaFormModal';
 import { MovimientosTarjetaModal } from '@/components/dashboard/MovimientosTarjetaModal';
 import { GlassCard } from '@/components/ui';
-import { Plus, HelpCircle } from 'lucide-react';
+import { Plus, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import type { TarjetaConEstado } from '@/lib/types';
 import type { NuevaTarjetaInput } from '@/lib/api-inputs';
 
 export default function DashboardPage() {
   const { data: tarjetas, isLoading: loadT, error: errT } = useTarjetas();
   const { data: comprasMSI = [], isLoading: loadM } = useComprasMSI();
+  const { data: metas = [] } = useMetas();
   
   const { mutate: crear, isPending: creating } = useCrearTarjeta();
   const { mutate: actualizar, isPending: updating } = useActualizarTarjeta();
@@ -30,15 +48,65 @@ export default function DashboardPage() {
   const [viewingCard, setViewingCard] = useState<TarjetaConEstado | null>(null);
   
   const [showFlags, setShowFlags] = useState(true);
+  const [viewMode, setViewMode] = useState<'full' | 'compact'>('full');
   const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [cardOrder, setCardOrder] = useState<string[]>([]);
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 100, tolerance: 5 },
+    })
+  );
 
   useEffect(() => {
-    const saved = localStorage.getItem('fintrack_show_flags');
-    if (saved !== null) {
+    const savedFlags = localStorage.getItem('fintrack_show_flags');
+    if (savedFlags !== null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setShowFlags(saved === 'true');
+      setShowFlags(savedFlags === 'true');
+    }
+    const savedView = localStorage.getItem('fintrack_card_view_mode');
+    if (savedView === 'compact' || savedView === 'full') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setViewMode(savedView);
     }
   }, []);
+
+  useEffect(() => {
+    if (tarjetas) {
+      const savedOrder = localStorage.getItem('fintrack_card_order');
+      let parsed: string[] = [];
+      if (savedOrder) {
+        try { parsed = JSON.parse(savedOrder); } catch (e) {}
+      }
+      const existingIds = new Set(tarjetas.map(t => t.id));
+      const validOrder = parsed.filter(id => existingIds.has(id));
+      const missingIds = tarjetas.map(t => t.id).filter(id => !validOrder.includes(id));
+      
+      const newOrder = [...validOrder, ...missingIds];
+      // Only set if different to avoid unnecessary renders
+      if (newOrder.join(',') !== cardOrder.join(',')) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setCardOrder(newOrder);
+      }
+    }
+  }, [tarjetas, cardOrder]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setCardOrder((items) => {
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        localStorage.setItem('fintrack_card_order', JSON.stringify(newOrder));
+        return newOrder;
+      });
+    }
+  };
 
   const toggleFlags = () => {
     setShowFlags((prev) => {
@@ -87,6 +155,38 @@ export default function DashboardPage() {
         </h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isEditingOrder && (
+            <button
+              onClick={() => setIsEditingOrder(false)}
+              style={{
+                background: 'var(--brand)', border: 'none', color: '#fff',
+                cursor: 'pointer', padding: '6px 14px', borderRadius: '16px',
+                fontSize: '13px', fontWeight: 600,
+              }}
+            >
+              Hecho
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              setViewMode((prev) => {
+                const next = prev === 'full' ? 'compact' : 'full';
+                localStorage.setItem('fintrack_card_view_mode', next);
+                return next;
+              });
+            }}
+            style={{
+              background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text-primary)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '32px', height: '32px', borderRadius: '50%',
+              transition: 'background 0.2s',
+            }}
+            aria-label="Cambiar vista de tarjetas"
+          >
+            {viewMode === 'full' ? <LayoutGrid size={16} /> : <List size={16} />}
+          </button>
+
           <button
             onClick={() => setInfoModalOpen(true)}
             style={{
@@ -164,17 +264,47 @@ export default function DashboardPage() {
               </p>
             </GlassCard>
           ) : (
-            tarjetas.map((t) => (
-              <TarjetaCard
-                key={t.id}
-                tarjeta={t}
-                comprasMSI={comprasMSI.filter((m) => m.tarjetaId === t.id)}
-                showFlags={showFlags}
-                onEdit={handleOpenModal}
-                onDelete={(id) => eliminar(id)}
-                onViewDetails={(t) => setViewingCard(t)}
-              />
-            ))
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={cardOrder}
+                strategy={viewMode === 'compact' ? rectSortingStrategy : verticalListSortingStrategy}
+              >
+                <div style={viewMode === 'compact' ? {
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                  gap: '16px',
+                  marginBottom: '20px'
+                } : {}}>
+                  {cardOrder.map((id) => {
+                    const t = tarjetas.find(card => card.id === id);
+                    if (!t) return null;
+                    return (
+                      <SortableTarjeta 
+                        key={t.id} 
+                        id={t.id}
+                        isEditing={isEditingOrder}
+                        onLongPress={() => setIsEditingOrder(true)}
+                      >
+                        <TarjetaCard
+                          tarjeta={t}
+                          comprasMSI={comprasMSI.filter((m) => m.tarjetaId === t.id)}
+                          metas={metas}
+                          showFlags={showFlags}
+                          variant={viewMode}
+                          onEdit={handleOpenModal}
+                          onDelete={(id) => eliminar(id)}
+                          onViewDetails={(t) => setViewingCard(t)}
+                        />
+                      </SortableTarjeta>
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
 
           {/* Botón Agregar Tarjeta */}
@@ -196,6 +326,9 @@ export default function DashboardPage() {
               <span>Agregar tarjeta</span>
             </div>
           </GlassCard>
+
+          {/* Sección Salud Financiera */}
+          <SaludFinanciera />
         </>
       )}
 
