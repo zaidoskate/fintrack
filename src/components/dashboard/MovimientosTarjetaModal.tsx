@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'motion/react';
 import { useMotionConfig } from '@/lib/motion/variants';
-import { GlassCard } from '@/components/ui';
+import { GlassCard, ConfirmModal } from '@/components/ui';
 import { useMovimientos, useCrearMovimiento, useEliminarMovimiento } from '@/lib/hooks';
 import type { TarjetaConEstado, Movimiento } from '@/lib/types';
 import { useState, useMemo } from 'react';
@@ -37,6 +37,7 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
   const [payMode, setPayMode] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [editingMov, setEditingMov] = useState<Movimiento | null>(null);
+  const [movToDelete, setMovToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const handlePaySubmit = (e: React.FormEvent) => {
@@ -324,9 +325,7 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
                               </button>
                               <button
                                 onClick={() => {
-                                  if (window.confirm('¿Eliminar este movimiento?')) {
-                                    eliminarMov(mov.id);
-                                  }
+                                  setMovToDelete(mov.id);
                                 }}
                                 style={{ background: 'none', border: 'none', color: 'var(--credito-rojo)', cursor: 'pointer', padding: '4px', opacity: 0.8 }}
                                 aria-label="Eliminar"
@@ -343,7 +342,18 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
               </div>
             </div>
           )}
-        </GlassCard>
+
+          <ConfirmModal
+            isOpen={movToDelete !== null}
+            title="¿Eliminar movimiento?"
+            message="Esta acción no se puede deshacer y el monto afectará al total de tu tarjeta."
+            confirmText="Eliminar"
+            onConfirm={() => {
+              if (movToDelete) eliminarMov(movToDelete);
+            }}
+            onCancel={() => setMovToDelete(null)}
+          />
+          </GlassCard>
         </motion.div>
       )}
     </AnimatePresence>

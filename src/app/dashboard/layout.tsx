@@ -8,6 +8,7 @@ import { PageTransition } from '@/components/dashboard/PageTransition';
 import { LogOut } from 'lucide-react';
 import { FabRegistro } from '@/components/dashboard/FabRegistro';
 import { SyncIndicator } from '@/components/ui/SyncIndicator';
+import { Greeting } from '@/components/dashboard/Greeting';
 
 /**
  * Layout del dashboard — envuelve todas las rutas protegidas con:
@@ -25,6 +26,8 @@ export default async function DashboardLayout({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
+
+  const userName = user.user_metadata?.full_name?.split(' ')[0] || 'Usuario';
 
   return (
     <QueryProvider>
@@ -68,6 +71,9 @@ export default async function DashboardLayout({
               </button>
             </form>
           </header>
+
+          {/* Saludo dinámico */}
+          <Greeting name={userName} />
 
           {/* Navegación por tabs */}
           <DashboardNav />

@@ -12,7 +12,7 @@ import {
   useMetas, useCrearMeta, useAportarMeta,
   useEditarMeta, useEliminarMeta, useTarjetas
 } from '@/lib/hooks';
-import { GlassCard } from '@/components/ui';
+import { GlassCard, ConfirmModal } from '@/components/ui';
 import type { MetaConEstado } from '@/lib/types';
 
 const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
@@ -39,6 +39,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
   const { mutate: aportar, isPending: aportaPending } = useAportarMeta();
   const { mutate: editar, isPending: editPending } = useEditarMeta();
   const { mutate: eliminar } = useEliminarMeta();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const { data: tarjetas = [] } = useTarjetas();
   const tarjetasDebito = tarjetas.filter(t => t.tipo === 'Débito');
@@ -69,9 +70,18 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         )}
         <div style={{ display: 'flex', gap: '6px' }}>
           <button onClick={() => setEditando((v) => !v)} style={btnMuted} title="Editar">Editar</button>
-          <button onClick={() => { if (confirm('¿Eliminar esta meta?')) eliminar(meta.id); }} style={btnMuted} title="Eliminar">Eliminar</button>
+          <button onClick={() => setShowDeleteConfirm(true)} style={btnMuted} title="Eliminar">Eliminar</button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title={`¿Eliminar la meta ${meta.nombre}?`}
+        message="Esta acción no se puede deshacer y borrará todo el progreso registrado."
+        confirmText="Eliminar"
+        onConfirm={() => eliminar(meta.id)}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
 
       {/* Montos */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '16px' }}>

@@ -5,6 +5,8 @@
  * directamente en componentes de página (agents.md regla 5).
  */
 export { GlassCard }       from './GlassCard';
+export { AuthSubmitButton } from './AuthSubmitButton';
+export { ConfirmModal } from './ConfirmModal';
 export { AmbientBackground } from './AmbientBackground';
 export { StatusPill }       from './StatusPill';
 export * from './GlassSelect';

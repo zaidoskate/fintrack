@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { GlassCard, StatusPill } from '@/components/ui';
+import { GlassCard, StatusPill, ConfirmModal } from '@/components/ui';
 import type { TarjetaConEstado, CompraMSI } from '@/lib/types';
 import { Pencil, Trash } from 'lucide-react';
 
@@ -39,6 +39,7 @@ interface TarjetaCardProps {
 
 export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onDelete, onViewDetails }: TarjetaCardProps) {
   const [msiOpen, setMsiOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const msiActivas = comprasMSI.filter((m) => m.mesesRestantes > 0);
   const esCredito = tarjeta.tipo === 'Crédito';
 
@@ -73,9 +74,7 @@ export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onD
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (confirm(`¿Eliminar la tarjeta ${tarjeta.nombre}?`)) {
-                  onDelete(tarjeta.id);
-                }
+                setShowDeleteConfirm(true);
               }}
               aria-label="Eliminar tarjeta"
               style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
@@ -85,6 +84,15 @@ export function TarjetaCard({ tarjeta, comprasMSI, showFlags = true, onEdit, onD
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title={`¿Eliminar la tarjeta ${tarjeta.nombre}?`}
+        message="Esta acción no se puede deshacer y eliminará todos los movimientos asociados a esta tarjeta."
+        confirmText="Eliminar"
+        onConfirm={() => onDelete?.(tarjeta.id)}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
 
       {/* Número enmascarado — estilo JetBrains Mono */}
       <div style={{
