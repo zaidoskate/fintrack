@@ -22,9 +22,11 @@
 | id | uuid | PK, autogenerado |
 | user_id | uuid | FK a `auth.users`, filtrado por RLS |
 | nombre | text | |
-| limite | numeric(12,2) | |
+| limite | numeric(12,2) | (Para Débito: se usa como Saldo Inicial) |
 | dia_corte | int | 1–31 |
 | dia_pago | int | 1–31 |
+| tipo | text | check `'Crédito'` \| `'Débito'` |
+| rendimiento_anual | numeric(5,2) | default 0 (Solo aplicable a Débito) |
 | created_at | timestamptz | |
 
 **Lectura (ejemplo, `src/lib/api/tarjetas.ts`):**
@@ -43,6 +45,8 @@ interface TarjetaConEstado {
   limite: number;
   diaCorte: number;
   diaPago: number;
+  tipo: 'Crédito' | 'Débito';
+  rendimientoAnual: number;
   gastosPeriodoActual: number;
   disponible: number;
   porcentajeUso: number;

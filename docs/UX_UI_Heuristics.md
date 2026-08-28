@@ -47,8 +47,8 @@ Cada heurística se documenta con: **(a)** su significado general, **(b)** su ap
 
 ### H3 — Control y libertad del usuario
 - **Significado:** Los usuarios necesitan una "salida de emergencia" clara para deshacer acciones no deseadas.
-- **Aplicación en FinTrack:** Toda transacción debe ser editable y eliminable, incluso después de sincronizada (FR-08). Si el usuario registra un gasto en la tarjeta equivocada, debe poder corregirlo sin fricción, ya que esto afecta directamente el cálculo del termómetro de crédito de dos tarjetas simultáneamente.
-- **Decisión de diseño:** Swipe-to-edit / swipe-to-delete en la lista de movimientos, con confirmación solo para eliminar (no para editar).
+- **Aplicación en FinTrack:** Toda transacción debe ser editable y eliminable. Si el usuario se equivoca al borrar un recurso (meta, tarjeta, movimiento), debe existir un paso de confirmación no intrusivo y diseñado acorde al resto de la aplicación, evitando las alertas nativas del navegador que rompen la experiencia de usuario y parecen de sistema operativo.
+- **Decisión de diseño:** Implementación de `ConfirmModal` (modal con desenfoque de cristal y botones estilizados) para todas las acciones destructivas, asegurando consistencia y previniendo borrados accidentales sin romper la inmersión visual.
 
 ### H4 — Consistencia y estándares
 - **Significado:** Los usuarios no deben tener que preguntarse si distintas palabras, situaciones o acciones significan lo mismo.
@@ -71,9 +71,9 @@ Cada heurística se documenta con: **(a)** su significado general, **(b)** su ap
 - **Decisión de diseño:** Autocompletar Categoría según el histórico de un mismo texto en "Comercio/Descripción" (ej. escribir "Oxxo" sugiere automáticamente categoría "Conveniencia").
 
 ### H8 — Diseño estético y minimalista
-- **Significado:** Las interfaces no deben contener información irrelevante o raramente necesaria.
-- **Aplicación en FinTrack:** El Dashboard principal debe priorizar jerárquicamente: 1) Termómetros de tarjetas, 2) Resumen de metas, 3) Analítica. La analítica detallada (gráficos semestrales) no debe competir visualmente en la vista principal; debe vivir en una sección secundaria.
-- **Decisión de diseño:** Dashboard "at a glance" con máximo 2 scrolls de altura de pantalla en móvil; gráficos de tendencia detallados en una ruta/tab separada (`/analitica`).
+- **Significado:** Las interfaces no deben contener información irrelevante o raramente necesaria. El diseño general influye directamente en la confianza y frecuencia de uso.
+- **Aplicación en FinTrack:** Se utiliza el sistema de diseño "Glass Ledger" basado en **Glassmorphism**, empleando paneles translúcidos (`GlassCard`), desenfoques de fondo (`backdrop-blur`) y bordes sutiles. El Dashboard debe priorizar jerárquicamente: 1) Saludo dinámico, 2) Termómetros de tarjetas, 3) Resumen de metas, 4) Analítica.
+- **Decisión de diseño:** UI altamente inmersiva y oscura; componentes suspendidos sobre el fondo para dar sensación de ligereza. Gráficos detallados y formularios densos separados en vistas dedicadas (ej. modal dedicado para el desglose cronológico de movimientos por tarjeta).
 
 ### H9 — Ayudar a los usuarios a reconocer, diagnosticar y recuperarse de errores
 - **Significado:** Los mensajes de error deben expresarse en lenguaje claro (sin códigos), indicar el problema con precisión y sugerir una solución.

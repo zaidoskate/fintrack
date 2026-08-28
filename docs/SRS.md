@@ -17,7 +17,7 @@ Este documento especifica los requisitos funcionales y no funcionales para el de
 El sistema, denominado **FinTrack**, permitirá a cada usuario registrado:
 - Crear una cuenta (signup) e iniciar sesión (login) de forma independiente.
 - Registrar transacciones financieras (ingresos/gastos), incluso sin conexión a internet.
-- Monitorear el uso de tarjetas de crédito respecto a sus fechas de corte y límites.
+- Monitorear el uso de tarjetas de crédito (límites, fechas de corte) y tarjetas de débito (saldo real con cálculo de rendimiento diario).
 - Registrar y dar seguimiento a **compras a meses sin intereses (MSI)** pagadas con tarjeta de crédito, sin distorsionar el cálculo del uso real del periodo vigente.
 - Definir y rastrear metas de ahorro con proyecciones basadas en rendimiento anual.
 - Visualizar tendencias de gasto por categoría a lo largo del tiempo.
@@ -96,7 +96,7 @@ Múltiples usuarios independientes (1 hoy, meta de 5–10 en mediano plazo), cad
 | FR-32 | (Backlog, no bloqueante) Las cuotas de compras MSI no se reflejan automáticamente en la Analítica de Gastos por categoría — limitación aceptada conscientemente, documentada como ítem de mejora futura. | Baja |
 
 ### 3.3 Módulo: Motor de Metas y Rendimientos
-(FR-15 a FR-19 sin cambios respecto a v1.0. Un aporte a una meta actualiza únicamente `monto_actual` en la tabla `metas` — nunca genera una fila en `movimientos`, por decisión explícita del usuario.)
+El cálculo de progresos y proyecciones soporta **interés compuesto diario** (rendimientos anualizados) aplicable tanto a las metas de ahorro como a las tarjetas de débito. Un aporte a una meta actualiza únicamente `monto_actual` en la tabla `metas` — nunca genera una fila en `movimientos`, por decisión explícita del usuario.
 
 ### 3.4 Módulo: Analítica de Gastos
 (FR-20 a FR-22 sin cambios respecto a v1.0, ahora consultando la tabla `movimientos` vía SQL en vez de iterar un arreglo en Apps Script.)
