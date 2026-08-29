@@ -120,6 +120,6 @@ Ideas priorizadas para el futuro:
 - [x] Fase 2 — Scaffold frontend + design system
 - [x] Fase 3 — Core Features (Tarjetas, Analítica, Metas, Débito)
 - [x] Fase 4 — PWA & Offline-first verificado
-- [ ] Fase 5 — CI/CD activo con branch protection
-- [ ] Fase 6 — Módulo de Inversiones (Criptos/ETFs)
-- [ ] Fase 7 — Backlog de iteración definido y validación fina (Accesibilidad, Lighthouse)
+- [x] Fase 5 — CI/CD activo con branch protection
+- [x] Fase 6 — Módulo de Inversiones (Criptos/ETFs)
+- [x] Fase 7 — Módulo de Perfil de Usuario y Modificaciones Patrimoniales
