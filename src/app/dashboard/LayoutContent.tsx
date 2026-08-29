@@ -1,5 +1,7 @@
 'use client';
 
+import type { User } from '@supabase/supabase-js';
+
 import { useModo } from '@/lib/ModoContext';
 import { signOut } from '@/app/auth/actions';
 import { DashboardNav } from '@/components/dashboard/DashboardNav';
@@ -12,7 +14,7 @@ import { DashboardPatrimonial } from '@/components/dashboard/DashboardPatrimonia
 import { ProfileModal } from '@/components/dashboard/ProfileModal';
 import { AnimatePresence } from 'motion/react';
 
-export function LayoutContent({ children, userName, user }: { children: React.ReactNode, userName: string, user: any }) {
+export function LayoutContent({ children, userName, user }: { children: React.ReactNode, userName: string, user: User }) {
   const { modo, setModo } = useModo();
   const [showSettings, setShowSettings] = useState(false);
 

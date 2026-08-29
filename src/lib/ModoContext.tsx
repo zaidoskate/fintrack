@@ -18,6 +18,7 @@ export function ModoProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const saved = localStorage.getItem('fintrack_modo');
     if (saved === 'patrimonio') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setModoState('patrimonio');
     }
   }, []);

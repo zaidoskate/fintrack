@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Lock, Mail, Save } from 'lucide-react';
+import { motion } from 'motion/react';
+import { X, User as UserIcon, Lock, Mail } from 'lucide-react';
 import { GlassCard } from '@/components/ui';
 import { updateUserProfile, updateUserPassword } from '@/app/auth/actions';
+import type { User } from '@supabase/supabase-js';
 
 interface ProfileModalProps {
-  user: any;
+  user: User;
   onClose: () => void;
   modo: string;
   setModo: (modo: 'diario' | 'patrimonio') => void;
@@ -44,8 +45,8 @@ export function ProfileModal({ user, onClose, modo, setModo }: ProfileModalProps
       await updateUserProfile(formData);
       setSuccessMsg('Nombre actualizado');
       setEditingName(false);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error al actualizar nombre');
+    } catch (err: Error | unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al actualizar nombre');
     } finally {
       setLoadingName(false);
     }
@@ -67,9 +68,8 @@ export function ProfileModal({ user, onClose, modo, setModo }: ProfileModalProps
       setSuccessMsg('Contraseña actualizada correctamente');
       setEditingPass(false);
       setPassword('');
-      user.user_metadata.last_password_change = new Date().toISOString(); // optimistically update local state
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error al actualizar contraseña');
+    } catch (err: Error | unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Error al actualizar contraseña');
     } finally {
       setLoadingPass(false);
     }

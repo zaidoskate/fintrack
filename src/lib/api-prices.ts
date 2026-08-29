@@ -19,7 +19,7 @@ export async function fetchCryptoPrices(symbols: string[]): Promise<Record<strin
   if (symbols.length === 0) return {};
 
   const cachedStr = localStorage.getItem(CACHE_KEY);
-  let cache: PriceCache = cachedStr ? JSON.parse(cachedStr) : { timestamp: 0, prices: {} };
+  const cache: PriceCache = cachedStr ? JSON.parse(cachedStr) : { timestamp: 0, prices: {} };
 
   const now = Date.now();
   const isCacheValid = (now - cache.timestamp) < CACHE_TTL_MS;

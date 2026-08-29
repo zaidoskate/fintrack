@@ -56,7 +56,7 @@ export function DashboardPatrimonial() {
     if (!formYield.nombre || !formYield.balance_inicial || !formYield.apy) return;
     addYield({
       nombre: formYield.nombre,
-      moneda: formYield.moneda as any,
+      moneda: formYield.moneda as 'MXN' | 'USD' | 'USDC' | 'USDT',
       balance_inicial: parseFloat(formYield.balance_inicial),
       apy: parseFloat(formYield.apy),
       ultima_actualizacion: new Date().toISOString().split('T')[0]

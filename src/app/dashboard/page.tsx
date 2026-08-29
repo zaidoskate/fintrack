@@ -70,7 +70,6 @@ export default function DashboardPage() {
     }
     const savedView = localStorage.getItem('fintrack_card_view_mode');
     if (savedView === 'compact' || savedView === 'full') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setViewMode(savedView);
     }
   }, []);
@@ -80,7 +79,7 @@ export default function DashboardPage() {
       const savedOrder = localStorage.getItem('fintrack_card_order');
       let parsed: string[] = [];
       if (savedOrder) {
-        try { parsed = JSON.parse(savedOrder); } catch (e) {}
+        try { parsed = JSON.parse(savedOrder); } catch {}
       }
       const existingIds = new Set(tarjetas.map(t => t.id));
       const validOrder = parsed.filter(id => existingIds.has(id));
