@@ -30,11 +30,18 @@ export function SortableTarjeta({ id, isEditing, onLongPress, children }: Sortab
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const startPress = () => {
+  const startPress = (e: React.PointerEvent) => {
     if (isEditing) return;
+    // Evitar multi-touch o disparos repetidos
+    if (timerRef.current) return; 
+    
+    // Si no es el click primario (ej. click derecho), ignorar
+    if (e.button && e.button !== 0) return;
+
     timerRef.current = setTimeout(() => {
       onLongPress();
-    }, 1200); // 1200ms long press
+      timerRef.current = null;
+    }, 1200);
   };
 
   const cancelPress = () => {
@@ -44,16 +51,16 @@ export function SortableTarjeta({ id, isEditing, onLongPress, children }: Sortab
     }
   };
 
-  // We only bind pointer events for long press if we aren't editing yet.
-  // When editing, dnd-kit's listeners take over dragging.
+  React.useEffect(() => {
+    return () => cancelPress();
+  }, []);
+
+  // Solo usamos Pointer Events para que soporte Touch/Mouse/Pen sin duplicar
   const interactProps = isEditing ? {} : {
     onPointerDown: startPress,
     onPointerUp: cancelPress,
     onPointerLeave: cancelPress,
     onPointerCancel: cancelPress,
-    onTouchStart: startPress,
-    onTouchEnd: cancelPress,
-    onTouchCancel: cancelPress,
   };
 
   return (
