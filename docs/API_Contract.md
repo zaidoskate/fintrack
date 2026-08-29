@@ -158,7 +158,34 @@ interface CompraMSI {
 
 ---
 
-## 5. `POST /api/shortcut` (único endpoint HTTP propio)
+## 5. Tabla `portafolio_activos` (Fase 6)
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | FK, RLS |
+| simbolo | text | ej. 'BTC', 'VOO', 'AAPL' |
+| tipo | text | check `'crypto'` \| `'stock'` \| `'etf'` |
+| cantidad | numeric(18,8) | Alta precisión para criptos |
+| created_at | timestamptz | |
+
+---
+
+## 6. Tabla `cuentas_yield` (Fase 6)
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | FK, RLS |
+| nombre | text | ej. 'AirTM USDC' |
+| balance_inicial | numeric(12,2) | Saldo base al configurar |
+| apy | numeric(5,2) | Rendimiento anual esperado |
+| ultima_actualizacion | date | Fecha desde la cual se proyecta el crecimiento pasivo |
+| created_at | timestamptz | |
+
+---
+
+## 7. `POST /api/shortcut` (único endpoint HTTP propio)
 
 Route Handler de Next.js. Reemplaza al `doPost` legacy de Apps Script.
 
@@ -216,7 +243,7 @@ o `"insertado_en": "compras_msi"` según corresponda.
 
 | Operación | Mecanismo |
 |---|---|
-| Leer/escribir tarjetas, movimientos, metas, compras_msi (desde la PWA) | `supabase-js` directo, protegido por RLS |
+| Leer/escribir tarjetas, movimientos, metas, compras_msi, inversiones (desde la PWA) | `supabase-js` directo, protegido por RLS |
 | Autenticación (signup/login/logout/sesión) | `supabase.auth.*` vía `@supabase/ssr` |
 | Captura desde iOS Shortcuts | `POST /api/shortcut` (único endpoint HTTP propio del sistema) |
 

@@ -109,6 +109,14 @@ El cálculo de progresos y proyecciones soporta **interés compuesto diario** (r
 |---|---|---|
 | FR-33 | El sistema debe exponer un único endpoint HTTP (`/api/shortcut`) que reciba el mismo payload JSON que el Shortcut de iOS ya envía hoy (`tipo, monto, categoria, comercio, metodo`, más `esMeses`/`meses` cuando aplique), validado con un token fijo (`IPHONE_SHORTCUT_TOKEN`), e inserte los datos en nombre del usuario propietario (`MY_USER_ID`) usando la `service_role key` de Supabase. | Alta |
 
+### 3.7 Módulo: Inversiones y Patrimonio (Fase 6)
+| ID | Requisito | Prioridad |
+|---|---|---|
+| FR-34 | El sistema debe permitir activar un "Modo Patrimonial" no invasivo mediante un toggle en Ajustes, ocultando el dashboard de gastos para evitar ruido visual. | Alta |
+| FR-35 | El sistema debe permitir registrar activos de renta variable (Criptomonedas, Acciones, ETFs) mediante ingreso manual de cantidades. | Alta |
+| FR-36 | El sistema debe consultar APIs de precios en tiempo real (ej. CoinGecko, Finnhub) y aplicar un caché local para no agotar los límites gratuitos. | Alta |
+| FR-37 | El sistema debe permitir crear "Cuentas Yield" (Renta Fija / Stablecoins) con saldo inicial y APY configurable, proyectando el crecimiento de forma pasiva sin necesidad de transacciones manuales. | Alta |
+
 ---
 
 ## 4. Requisitos No Funcionales (NFR)

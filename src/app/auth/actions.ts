@@ -91,3 +91,41 @@ export async function signOut() {
   revalidatePath('/', 'layout');
   redirect('/login');
 }
+
+// ── Perfil (Fase 7) ──────────────────────────────────────────────────────────
+
+export async function updateUserProfile(formData: FormData) {
+  const supabase = await createClient();
+  const name = formData.get('name') as string;
+
+  const { error } = await supabase.auth.updateUser({
+    data: { full_name: name }
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/', 'layout');
+}
+
+export async function updateUserPassword(formData: FormData) {
+  const supabase = await createClient();
+  const password = formData.get('password') as string;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+
+  // Verify 30 days limit
+  const lastChange = user.user_metadata?.last_password_change;
+  if (lastChange) {
+    const daysSince = Math.floor((new Date().getTime() - new Date(lastChange).getTime()) / (1000 * 60 * 60 * 24));
+    if (daysSince < 30) {
+      throw new Error(`Debes esperar ${30 - daysSince} días para cambiar tu contraseña de nuevo.`);
+    }
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: password,
+    data: { last_password_change: new Date().toISOString() }
+  });
+
+  if (error) throw new Error(error.message);
+}

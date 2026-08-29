@@ -44,7 +44,8 @@ Principio rector actualizado: **"La base de datos es la última línea de defens
                      │  ├───────────────────────────────────┤   │
                      │  │  PostgreSQL + Row Level Security      │   │
                      │  │  (profiles, tarjetas, movimientos,   │   │
-                     │  │   metas, compras_msi)                │   │
+                     │  │   metas, compras_msi,                │   │
+                     │  │   portafolio_activos, cuentas_yield) │   │
                      │  └───────────────────────────────────┘   │
                      └─────────────────────────────────────────┘
                                           ▲
@@ -139,7 +140,17 @@ Esta función vive en TypeScript, no en SQL — mantiene la lógica de negocio p
 
 ---
 
-## 7. Infraestructura y despliegue
+## 7. Modo Patrimonial e Integración de APIs Externas (Fase 6)
+
+El Modo Patrimonial (Inversiones) funciona como un contexto paralelo al Dashboard de Gastos.
+1. **Separación de Contexto**: Se activa mediante un toggle en Ajustes. La UI alterna entre `DashboardGastos` y `DashboardPatrimonial`.
+2. **APIs de Precios**: Los activos variables (Cripto/Stocks) almacenan solo la cantidad poseída en Supabase (`portafolio_activos`). Los precios en tiempo real se consultan a APIs públicas (ej. CoinGecko, Finnhub) en el cliente.
+3. **Caché de Precios**: Para evitar quemar los límites de tasa de las APIs gratuitas, las cotizaciones se guardan en `localStorage` con un TTL (Time-to-Live) de 15 a 60 minutos.
+4. **Cuentas Yield**: (ej. AirTM). Almacenan un balance inicial y un APY. El crecimiento pasivo se proyecta linealmente en el frontend usando la diferencia de días entre `ultima_actualizacion` y hoy.
+
+---
+
+## 8. Infraestructura y despliegue
 
 - **Frontend + Route Handlers:** Vercel (sin cambios respecto a v1.0).
 - **Backend de datos:** Supabase (proyecto único usado en Production/Preview/Development por simplicidad, dado el bajo riesgo con RLS activo — separar en proyectos de staging/prod queda como mejora futura opcional).

@@ -24,12 +24,18 @@ import { getMetas, crearMeta, aportarMeta, editarMeta, eliminarMeta }
   from '@/lib/api/metas';
 import { getComprasMSI, crearCompraMSI, eliminarCompraMSI }
   from '@/lib/api/compras-msi';
+import { getActivos, addActivo, updateActivo, deleteActivo, getCuentasYield, addCuentaYield, updateCuentaYield, deleteCuentaYield }
+  from '@/lib/api/inversiones';
 import type {
   FiltrosMovimientos,
   TarjetaConEstado,
   Movimiento,
   MetaConEstado,
   CompraMSI,
+  PortafolioActivo,
+  CuentaYield,
+  PortafolioActivoRow,
+  CuentaYieldRow
 } from '@/lib/types';
 import type {
   NuevaTarjetaInput,
@@ -63,6 +69,8 @@ export const QK = {
   movimientos: (f?: FiltrosMovimientos) => ['movimientos', f] as const,
   metas:       ['metas']               as const,
   msi:         (tarjetaId?: string)    => ['compras-msi', tarjetaId] as const,
+  activos:     ['activos']             as const,
+  yields:      ['yields']              as const,
 };
 
 // ── Tarjetas ──────────────────────────────────────────────────────────────────
@@ -268,5 +276,71 @@ export function useEliminarCompraMSI() {
       qc.invalidateQueries({ queryKey: ['compras-msi'] });
       qc.invalidateQueries({ queryKey: QK.tarjetas });
     },
+  });
+}
+
+// ── Inversiones (Fase 6) ───────────────────────────────────────────────────────
+
+export function useActivos() {
+  return useQuery<PortafolioActivo[]>({
+    queryKey: QK.activos,
+    queryFn: getActivos,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAddActivo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: addActivo,
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.activos }),
+  });
+}
+
+export function useUpdateActivo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, campos }: { id: string; campos: Partial<PortafolioActivoRow> }) => updateActivo(id, campos),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.activos }),
+  });
+}
+
+export function useDeleteActivo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteActivo,
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.activos }),
+  });
+}
+
+export function useCuentasYield() {
+  return useQuery<CuentaYield[]>({
+    queryKey: QK.yields,
+    queryFn: getCuentasYield,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAddCuentaYield() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: addCuentaYield,
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.yields }),
+  });
+}
+
+export function useUpdateCuentaYield() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, campos }: { id: string; campos: Partial<CuentaYieldRow> }) => updateCuentaYield(id, campos),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.yields }),
+  });
+}
+
+export function useDeleteCuentaYield() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteCuentaYield,
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.yields }),
   });
 }

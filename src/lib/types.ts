@@ -64,6 +64,26 @@ export interface CompraMSIRow {
   created_at: string;
 }
 
+export interface PortafolioActivoRow {
+  id: string;
+  user_id: string;
+  simbolo: string;
+  tipo: 'crypto' | 'stock' | 'etf';
+  cantidad: number;
+  created_at: string;
+}
+
+export interface CuentaYieldRow {
+  id: string;
+  user_id: string;
+  nombre: string;
+  moneda: 'MXN' | 'USD' | 'USDC' | 'USDT';
+  balance_inicial: number;
+  apy: number;
+  ultima_actualizacion: string; // YYYY-MM-DD
+  created_at: string;
+}
+
 // ── Tipos de dominio (camelCase, para la UI y lib/finance/) ──────────────────
 
 /** Estado calculado de una tarjeta (Architecture.md §5) */
@@ -138,6 +158,26 @@ export interface CompraMSI {
   fechaPrimerCargo: string;
   fechaUltimaCuota: string;
   mesesRestantes: number;  // calculado en cliente
+}
+
+export interface PortafolioActivo {
+  id: string;
+  simbolo: string;
+  tipo: 'crypto' | 'stock' | 'etf';
+  cantidad: number;
+  precioActual?: number; // Fetcheado desde API
+  valorTotal?: number;   // cantidad * precioActual
+}
+
+export interface CuentaYield {
+  id: string;
+  nombre: string;
+  moneda: 'MXN' | 'USD' | 'USDC' | 'USDT';
+  balanceInicial: number;
+  apy: number;
+  ultimaActualizacion: string;
+  balanceActual: number; // Proyectado al día de hoy en su moneda original
+  valorTotalMXN?: number; // Calculado al tipo de cambio
 }
 
 // ── Parámetros de filtro ─────────────────────────────────────────────────────

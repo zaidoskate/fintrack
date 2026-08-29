@@ -62,8 +62,8 @@ Cada heurística se documenta con: **(a)** su significado general, **(b)** su ap
 
 ### H6 — Reconocimiento antes que recuerdo
 - **Significado:** Minimizar la carga de memoria del usuario haciendo visibles las opciones y la información relevante.
-- **Aplicación en FinTrack:** El usuario no debería tener que recordar cuánto lleva gastado en una tarjeta antes de decidir usarla: esa información (Disponible, % de uso) debe estar visible en el propio selector de método de pago del formulario de registro, no solo en el Dashboard separado.
-- **Decisión de diseño:** En el dropdown de "Método de pago", cada tarjeta muestra un mini-indicador de color junto a su nombre reflejando su estado actual del termómetro.
+- **Aplicación en FinTrack:** El usuario no debería tener que recordar cuánto lleva gastado en una tarjeta antes de decidir usarla: esa información (Disponible, % de uso) debe estar visible en el propio selector de método de pago del formulario de registro. En el Dashboard, el usuario no debe recordar el orden, por ello el "Drag and Drop" guarda el orden persistente en `localStorage`.
+- **Decisión de diseño:** En el dropdown de "Método de pago", cada tarjeta muestra un mini-indicador de color. El Dashboard incluye un botón "Hecho" (estilo iOS) tras finalizar un drag & drop largo (1.2s) para no disparar ediciones por accidente.
 
 ### H7 — Flexibilidad y eficiencia de uso
 - **Significado:** Aceleradores invisibles para usuarios novatos pero que agilizan la interacción para usuarios expertos.
@@ -72,8 +72,8 @@ Cada heurística se documenta con: **(a)** su significado general, **(b)** su ap
 
 ### H8 — Diseño estético y minimalista
 - **Significado:** Las interfaces no deben contener información irrelevante o raramente necesaria. El diseño general influye directamente en la confianza y frecuencia de uso.
-- **Aplicación en FinTrack:** Se utiliza el sistema de diseño "Glass Ledger" basado en **Glassmorphism**, empleando paneles translúcidos (`GlassCard`), desenfoques de fondo (`backdrop-blur`) y bordes sutiles. El Dashboard debe priorizar jerárquicamente: 1) Saludo dinámico, 2) Termómetros de tarjetas, 3) Resumen de metas, 4) Analítica.
-- **Decisión de diseño:** UI altamente inmersiva y oscura; componentes suspendidos sobre el fondo para dar sensación de ligereza. Gráficos detallados y formularios densos separados en vistas dedicadas (ej. modal dedicado para el desglose cronológico de movimientos por tarjeta).
+- **Aplicación en FinTrack:** Se utiliza el sistema de diseño "Glass Ledger" basado en **Glassmorphism**, empleando paneles translúcidos (`GlassCard`). Para la Fase 6 (Inversiones), dado que no todos invierten, el módulo debe ser estrictamente opt-in (Modo Patrimonial).
+- **Decisión de diseño:** UI altamente inmersiva y oscura. El Modo Patrimonial se activa desde Ajustes y es un "Contexto paralelo" separado: si estás viendo inversiones, NO ves gastos diarios, para no mezclar estrés financiero de corto plazo con la paz de inversiones a largo plazo.
 
 ### H9 — Ayudar a los usuarios a reconocer, diagnosticar y recuperarse de errores
 - **Significado:** Los mensajes de error deben expresarse en lenguaje claro (sin códigos), indicar el problema con precisión y sugerir una solución.
