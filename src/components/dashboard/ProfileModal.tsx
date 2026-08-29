@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Lock, Mail } from 'lucide-react';
+import { X, User as UserIcon, Lock, Mail } from 'lucide-react';
 import { GlassCard } from '@/components/ui';
 import { updateUserProfile, updateUserPassword } from '@/app/auth/actions';
 import type { User } from '@supabase/supabase-js';
@@ -124,7 +124,7 @@ export function ProfileModal({ user, onClose, modo, setModo }: ProfileModalProps
             {/* Nombre */}
             <div>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><User size={14} /> Nombre</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><UserIcon size={14} /> Nombre</span>
                 {!editingName && (
                   <button onClick={() => setEditingName(true)} style={{ background: 'none', border: 'none', color: 'var(--brand)', fontSize: '13px', cursor: 'pointer' }}>Editar</button>
                 )}
