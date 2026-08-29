@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, User as UserIcon, Lock, Mail } from 'lucide-react';
+import { X, Lock, Mail } from 'lucide-react';
 import { GlassCard } from '@/components/ui';
 import { updateUserProfile, updateUserPassword } from '@/app/auth/actions';
 import type { User } from '@supabase/supabase-js';
