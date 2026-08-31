@@ -25,27 +25,30 @@ import {
 } from '@dnd-kit/sortable';
 import { useTarjetas, useComprasMSI, useMetas, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta } from '@/lib/hooks';
 import { TarjetaCard } from '@/components/dashboard/TarjetaCard';
-import { SaludFinanciera } from '@/components/dashboard/SaludFinanciera';
+
 import { SortableTarjeta } from '@/components/dashboard/SortableTarjeta';
 import { TarjetaFormModal } from '@/components/dashboard/TarjetaFormModal';
 import { MovimientosTarjetaModal } from '@/components/dashboard/MovimientosTarjetaModal';
+import { ApartadoFormModal } from '@/components/dashboard/ApartadoFormModal';
+import { MoverDineroApartadoModal } from '@/components/dashboard/MoverDineroApartadoModal';
 import { GlassCard } from '@/components/ui';
 import { Plus, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import type { TarjetaConEstado } from '@/lib/types';
-import type { NuevaTarjetaInput } from '@/lib/api-inputs';
 
 export default function DashboardPage() {
   const { data: tarjetas, isLoading: loadT, error: errT } = useTarjetas();
   const { data: comprasMSI = [], isLoading: loadM } = useComprasMSI();
   const { data: metas = [] } = useMetas();
   
-  const { mutate: crear, isPending: creating } = useCrearTarjeta();
-  const { mutate: actualizar, isPending: updating } = useActualizarTarjeta();
+  const { mutate: crear } = useCrearTarjeta();
+  const { mutate: actualizar } = useActualizarTarjeta();
   const { mutate: eliminar } = useEliminarTarjeta();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<TarjetaConEstado | null>(null);
   const [viewingCard, setViewingCard] = useState<TarjetaConEstado | null>(null);
+  const [apartadoCard, setApartadoCard] = useState<TarjetaConEstado | null>(null);
+  const [moveApartado, setMoveApartado] = useState<{ id: string, maxRetiro: number, maxIngreso: number } | null>(null);
   
   const [showFlags, setShowFlags] = useState(true);
   const [viewMode, setViewMode] = useState<'full' | 'compact'>('full');
@@ -116,27 +119,13 @@ export default function DashboardPage() {
   };
 
   const isLoading = loadT || loadM;
-  const isPending = creating || updating;
 
   const handleOpenModal = (tarjeta?: TarjetaConEstado) => {
-    setEditingCard(tarjeta || null);
-    setModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setModalOpen(false);
-    setEditingCard(null);
-  };
-
-  const handleSubmit = (data: Partial<NuevaTarjetaInput>) => {
-    if (editingCard) {
-      actualizar({ id: editingCard.id, campos: data }, {
-        onSuccess: () => handleCloseModal()
-      });
+    if (tarjeta) {
+      setEditingCard(tarjeta);
     } else {
-      crear(data as NuevaTarjetaInput, {
-        onSuccess: () => handleCloseModal()
-      });
+      setEditingCard(null);
+      setModalOpen(true);
     }
   };
 
@@ -294,9 +283,11 @@ export default function DashboardPage() {
                           metas={metas}
                           showFlags={showFlags}
                           variant={viewMode}
-                          onEdit={handleOpenModal}
-                          onDelete={(id) => eliminar(id)}
+                          onEdit={(t) => setEditingCard(t)}
+                          onDelete={eliminar}
                           onViewDetails={(t) => setViewingCard(t)}
+                          onAddApartado={(t) => setApartadoCard(t)}
+                          onMoveApartado={(id, maxRetiro, maxIngreso) => setMoveApartado({ id, maxRetiro, maxIngreso })}
                         />
                       </SortableTarjeta>
                     );
@@ -327,17 +318,38 @@ export default function DashboardPage() {
           </GlassCard>
 
           {/* Sección Salud Financiera */}
-          <SaludFinanciera />
+
         </>
       )}
 
       {/* Modal CRUD */}
       <TarjetaFormModal
-        isOpen={modalOpen}
-        onClose={handleCloseModal}
-        onSubmit={handleSubmit}
+        isOpen={modalOpen || editingCard !== null}
+        onClose={() => { setModalOpen(false); setEditingCard(null); }}
         initialData={editingCard || undefined}
-        isPending={isPending}
+        onSubmit={(datos) => {
+          if (editingCard) {
+            actualizar({ id: editingCard.id, campos: datos });
+          } else {
+            crear(datos as unknown as import('@/lib/api-inputs').NuevaTarjetaInput);
+          }
+          setModalOpen(false);
+          setEditingCard(null);
+        }}
+      />
+
+      <ApartadoFormModal
+        isOpen={apartadoCard !== null}
+        onClose={() => setApartadoCard(null)}
+        tarjeta={apartadoCard}
+      />
+
+      <MoverDineroApartadoModal
+        isOpen={moveApartado !== null}
+        onClose={() => setMoveApartado(null)}
+        apartadoId={moveApartado?.id || null}
+        maxRetiro={moveApartado?.maxRetiro || 0}
+        maxIngreso={moveApartado?.maxIngreso || 0}
       />
 
       {/* Modal Detalles */}

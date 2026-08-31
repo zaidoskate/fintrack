@@ -14,6 +14,8 @@ import type {
   MovimientoRow,
   CompraMSIRow,
   TarjetaConEstado,
+  ApartadoRow,
+  ApartadoConEstado,
 } from '@/lib/types';
 
 // ── Umbrales del semáforo (Architecture.md §5, UX/UI Heuristics H4) ──────────
@@ -135,6 +137,7 @@ export function calcularEstadoTarjeta(
   tarjeta: TarjetaRow,
   movimientos: MovimientoRow[],
   comprasMSI: CompraMSIRow[],
+  apartadosRow: ApartadoRow[] = [],
   hoy: Date = new Date(),
 ): TarjetaConEstado {
   // === LÓGICA PARA TARJETA DE DÉBITO ===
@@ -152,6 +155,39 @@ export function calcularEstadoTarjeta(
       }
     }
 
+    // Calcular estado de apartados de esta tarjeta
+    const apartados: ApartadoConEstado[] = apartadosRow
+      .filter(a => a.tarjeta_id === tarjeta.id)
+      .map(a => {
+        const balanceIni = Number(a.balance_inicial);
+        const tasaAnual = Number(a.rendimiento_anual) / 100;
+        let balanceCalculado = balanceIni;
+        
+        if (tasaAnual > 0) {
+          const fechaAct = new Date(a.ultima_actualizacion + 'T00:00:00').getTime();
+          const dias = Math.max(0, Math.floor((hoy.getTime() - fechaAct) / 86_400_000));
+          // Interés compuesto
+          balanceCalculado = balanceIni * Math.pow(1 + (tasaAnual / 365), dias);
+        }
+
+        return {
+          id: a.id,
+          tarjetaId: a.tarjeta_id,
+          nombre: a.nombre,
+          rendimientoAnual: Number(a.rendimiento_anual),
+          balanceCalculado: Math.round(balanceCalculado * 100) / 100,
+          ultimaActualizacion: a.ultima_actualizacion
+        };
+      });
+
+    // Restamos el capital metido a apartados del saldo disponible principal de la tarjeta
+    // Nota: Solo restamos el balance inicial invertido, no el rendimiento generado.
+    const saldoEnApartados = apartadosRow
+      .filter(a => a.tarjeta_id === tarjeta.id)
+      .reduce((sum, a) => sum + Number(a.balance_inicial), 0);
+    
+    saldo -= saldoEnApartados;
+
     return {
       id:                  tarjeta.id,
       nombre:              tarjeta.nombre,
@@ -168,6 +204,7 @@ export function calcularEstadoTarjeta(
       proximoCorte:        null,
       proximoPago:         null,
       diasParaPago:        null,
+      apartados:           apartados,
     };
   }
 
@@ -259,9 +296,10 @@ export function calcularEstadoTarjetas(
   tarjetas: TarjetaRow[],
   movimientos: MovimientoRow[],
   comprasMSI: CompraMSIRow[],
+  apartados: ApartadoRow[] = [],
   hoy: Date = new Date(),
 ): TarjetaConEstado[] {
-  return tarjetas.map((t) => calcularEstadoTarjeta(t, movimientos, comprasMSI, hoy));
+  return tarjetas.map((t) => calcularEstadoTarjeta(t, movimientos, comprasMSI, apartados, hoy));
 }
 
 /** Umbrales exportados para que el cliente pueda replicar el semáforo (Architecture.md §3.3) */

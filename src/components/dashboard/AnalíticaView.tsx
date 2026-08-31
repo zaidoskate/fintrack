@@ -17,6 +17,7 @@ import { useMemo, useState } from 'react';
 import { useMovimientos } from '@/lib/hooks';
 import { GlassCard } from '@/components/ui';
 import type { Movimiento } from '@/lib/types';
+import { SaludFinanciera } from '@/components/dashboard/SaludFinanciera';
 
 /* ── Paleta categorías (H4 — NUNCA reutilizar credito-*) ─────────────────── */
 const CATEGORIA_COLOR: Record<string, string> = {
@@ -135,6 +136,19 @@ export function AnalíticaView() {
       }}>
         Analítica
       </h1>
+
+      {/* Nueva Sección: Salud Financiera (Grid con 5 módulos) */}
+      <div style={{ marginBottom: '40px' }}>
+        <SaludFinanciera />
+      </div>
+
+      <h2 style={{
+        fontFamily: 'var(--font-display)',
+        fontWeight: 600, fontSize: '20px',
+        color: 'var(--text-primary)', marginBottom: '16px',
+      }}>
+        Tendencia de Gastos
+      </h2>
 
       {/* Selector de rango */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>

@@ -24,7 +24,7 @@ const CATEGORIAS = [
   'Ropa', 'Conveniencia', 'Servicios', 'Sin categoría',
 ];
 
-const METODOS_EFECTIVO = ['Efectivo', 'SPEI / Transferencia', 'Débito'];
+const METODOS_EFECTIVO = ['Efectivo'];
 // Nombres de tarjetas de crédito — se obtienen de useTarjetas() en tiempo real
 
 const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });

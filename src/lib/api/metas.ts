@@ -9,24 +9,27 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { calcularEstadoMetas } from '@/lib/finance/metas';
-import type { MetaRow, MetaAporteRow, TarjetaRow, MetaConEstado } from '@/lib/types';
+import { moverDineroApartado } from '@/lib/api/apartados';
+import type { MetaRow, MetaAporteRow, TarjetaRow, ApartadoRow, MetaConEstado } from '@/lib/types';
 
 // ── Lectura ───────────────────────────────────────────────────────────────────
 
 export async function getMetas(): Promise<MetaConEstado[]> {
   const supabase = createClient();
 
-  const [metasRes, aportesRes, tarjetasRes] = await Promise.all([
+  const [metasRes, aportesRes, tarjetasRes, apartadosRes] = await Promise.all([
     supabase.from('metas').select('*').order('created_at', { ascending: true }).returns<MetaRow[]>(),
     supabase.from('meta_aportes').select('*').returns<MetaAporteRow[]>(),
-    supabase.from('tarjetas').select('id, nombre, rendimiento_anual').returns<TarjetaRow[]>()
+    supabase.from('tarjetas').select('id, nombre, rendimiento_anual').returns<TarjetaRow[]>(),
+    supabase.from('tarjeta_apartados').select('*').returns<ApartadoRow[]>()
   ]);
 
   if (metasRes.error) throw metasRes.error;
   if (aportesRes.error) throw aportesRes.error;
   if (tarjetasRes.error) throw tarjetasRes.error;
+  if (apartadosRes.error) throw apartadosRes.error;
 
-  return calcularEstadoMetas(metasRes.data ?? [], aportesRes.data ?? [], tarjetasRes.data ?? []);
+  return calcularEstadoMetas(metasRes.data ?? [], aportesRes.data ?? [], tarjetasRes.data ?? [], apartadosRes.data ?? []);
 }
 
 // ── Escritura ─────────────────────────────────────────────────────────────────
@@ -53,7 +56,7 @@ export async function crearMeta(input: NuevaMetaInput): Promise<MetaConEstado> {
     .single<MetaRow>();
 
   if (error) throw error;
-  return calcularEstadoMetas([data], [], [])[0];
+  return calcularEstadoMetas([data], [], [], [])[0];
 }
 
 /**
@@ -63,6 +66,7 @@ export async function aportarMeta(
   id: string, 
   monto: number, 
   tarjetaId?: string, 
+  apartadoId?: string,
   fechaAporte?: string
 ): Promise<void> {
   if (monto <= 0) throw new Error('El monto del aporte debe ser positivo.');
@@ -77,10 +81,16 @@ export async function aportarMeta(
       meta_id: id,
       monto: monto,
       fecha: fechaAporte || new Date().toISOString().split('T')[0],
-      tarjeta_origen_id: tarjetaId || null
+      tarjeta_origen_id: tarjetaId || null,
+      apartado_id: apartadoId || null
     });
 
   if (error) throw error;
+
+  // Depositar automáticamente en el balance del apartado elegido
+  if (apartadoId) {
+    await moverDineroApartado(apartadoId, monto);
+  }
 }
 
 /** Edita campos de una meta existente. */
@@ -104,7 +114,7 @@ export async function editarMeta(
   if (error) throw error;
   
   // Refetch todo en el componente para tener estado actualizado, o retornar dummy si no es crítico:
-  return calcularEstadoMetas([data], [], [])[0];
+  return calcularEstadoMetas([data], [], [], [])[0];
 }
 
 /** Elimina una meta. */

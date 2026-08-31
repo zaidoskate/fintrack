@@ -46,6 +46,7 @@ export interface MetaAporteRow {
   monto: number;
   fecha: string;
   tarjeta_origen_id: string | null;
+  apartado_id: string | null;
   created_at: string;
 }
 
@@ -84,6 +85,17 @@ export interface CuentaYieldRow {
   created_at: string;
 }
 
+export interface ApartadoRow {
+  id: string;
+  user_id: string;
+  tarjeta_id: string;
+  nombre: string;
+  rendimiento_anual: number;
+  balance_inicial: number;
+  ultima_actualizacion: string; // YYYY-MM-DD
+  created_at: string;
+}
+
 // ── Tipos de dominio (camelCase, para la UI y lib/finance/) ──────────────────
 
 /** Estado calculado de una tarjeta (Architecture.md §5) */
@@ -103,6 +115,17 @@ export interface TarjetaConEstado {
   proximoCorte: string | null;  // YYYY-MM-DD
   proximoPago: string | null;   // YYYY-MM-DD
   diasParaPago: number | null;
+  apartados?: ApartadoConEstado[];
+}
+
+/** Estado de un apartado (Cajita) calculado con rendimientos al día de hoy */
+export interface ApartadoConEstado {
+  id: string;
+  tarjetaId: string;
+  nombre: string;
+  rendimientoAnual: number; // TNA %
+  balanceCalculado: number; // Balance + Rendimientos
+  ultimaActualizacion: string;
 }
 
 /** Movimiento normalizado para la UI */
@@ -142,6 +165,8 @@ export interface MetaAporte {
   fecha: string;
   tarjetaOrigenId: string | null;
   tarjetaOrigenNombre?: string;
+  apartadoId: string | null;
+  apartadoNombre?: string;
   rendimientoGenerado: number; // Rendimiento individual de este aporte hasta hoy
 }
 

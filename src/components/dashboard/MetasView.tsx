@@ -12,7 +12,7 @@ import {
   useMetas, useCrearMeta, useAportarMeta,
   useEditarMeta, useEliminarMeta, useTarjetas
 } from '@/lib/hooks';
-import { GlassCard, ConfirmModal } from '@/components/ui';
+import { GlassCard, ConfirmModal, GlassSelect } from '@/components/ui';
 import type { MetaConEstado } from '@/lib/types';
 import { Pencil, Trash } from 'lucide-react';
 
@@ -46,7 +46,11 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
   const tarjetasDebito = tarjetas.filter(t => t.tipo === 'Débito');
   
   const [tarjetaOrigen, setTarjetaOrigen] = useState('');
+  const [apartadoId, setApartadoId] = useState('');
   const [fechaAporte, setFechaAporte] = useState(new Date().toISOString().split('T')[0]);
+
+  const tarjetaSeleccionada = tarjetasDebito.find(t => t.id === tarjetaOrigen);
+  const apartadosDeTarjeta = tarjetaSeleccionada?.apartados || [];
 
   const faltante = meta.costoObjetivo - meta.montoActual;
 
@@ -54,7 +58,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
     <GlassCard
       glow={meta.progreso >= 100 ? 'verde' : 'none'}
       as="article"
-      style={{ padding: '20px 24px', marginBottom: '16px' }}
+      style={{ overflow: 'visible', padding: '20px 24px', marginBottom: '16px' }}
     >
       {/* Cabecera */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -181,16 +185,39 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
                 style={inputStyle}
               />
               {tarjetasDebito.length > 0 && (
-                <select
-                  value={tarjetaOrigen}
-                  onChange={(e) => setTarjetaOrigen(e.target.value)}
-                  style={{ ...inputStyle, WebkitAppearance: 'none' }}
-                >
-                  <option value="">Sin tarjeta (efectivo)</option>
-                  {tarjetasDebito.map(t => (
-                    <option key={t.id} value={t.id}>{t.nombre} {t.rendimientoAnual > 0 ? `(${t.rendimientoAnual}% APY)` : ''}</option>
-                  ))}
-                </select>
+                <div style={{ position: 'relative', zIndex: 30 }}>
+                  <GlassSelect
+                    value={tarjetaOrigen}
+                    onChange={(val) => {
+                      setTarjetaOrigen(val);
+                      setApartadoId(''); // reset apartado al cambiar de tarjeta
+                    }}
+                    options={[
+                      { value: '', label: 'Sin tarjeta (efectivo)' },
+                      ...tarjetasDebito.map(t => ({
+                        value: t.id,
+                        label: `${t.nombre} ${t.rendimientoAnual > 0 ? `(${t.rendimientoAnual}% APY)` : ''}`
+                      }))
+                    ]}
+                    placeholder="Selecciona tarjeta"
+                  />
+                </div>
+              )}
+              {apartadosDeTarjeta.length > 0 && (
+                <div style={{ position: 'relative', zIndex: 20 }}>
+                  <GlassSelect
+                    value={apartadoId}
+                    onChange={(val) => setApartadoId(val)}
+                    options={[
+                      { value: '', label: 'Balance general (sin apartado)' },
+                      ...apartadosDeTarjeta.map(a => ({
+                        value: a.id,
+                        label: `${a.nombre} (${a.rendimientoAnual}% APY)`
+                      }))
+                    ]}
+                    placeholder="Selecciona apartado"
+                  />
+                </div>
               )}
               <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                 <button
@@ -198,8 +225,8 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
                     const monto = parseFloat(montoAporte);
                     if (monto > 0) {
                       aportar(
-                        { id: meta.id, monto, tarjetaId: tarjetaOrigen || undefined, fecha: fechaAporte }, 
-                        { onSuccess: () => { setAportando(false); setMontoAporte(''); setTarjetaOrigen(''); } }
+                        { id: meta.id, monto, tarjetaId: tarjetaOrigen || undefined, apartadoId: apartadoId || undefined, fecha: fechaAporte }, 
+                        { onSuccess: () => { setAportando(false); setMontoAporte(''); setTarjetaOrigen(''); setApartadoId(''); } }
                       );
                     }
                   }}
@@ -320,7 +347,11 @@ export function MetasView() {
         </GlassCard>
       )}
 
-      {metas.map((m) => <MetaCard key={m.id} meta={m} />)}
+      {metas.map((m, i) => (
+        <div key={m.id} style={{ position: 'relative', zIndex: metas.length - i }}>
+          <MetaCard meta={m} />
+        </div>
+      ))}
     </div>
   );
 }

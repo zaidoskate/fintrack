@@ -4,8 +4,10 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
 
+export type SelectOption = string | { value: string; label: string };
+
 interface GlassSelectProps {
-  options: string[];
+  options: SelectOption[];
   value: string;
   onChange: (val: string) => void;
   placeholder?: string;
@@ -27,7 +29,10 @@ export function GlassSelect({ options, value, onChange, placeholder, style }: Gl
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  const displayValue = value || placeholder || 'Seleccionar...';
+  const selectedOption = options.find((opt) => typeof opt === 'string' ? opt === value : opt.value === value);
+  const displayValue = selectedOption
+    ? (typeof selectedOption === 'string' ? selectedOption : selectedOption.label)
+    : placeholder || 'Seleccionar...';
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', ...style }}>
@@ -84,37 +89,34 @@ export function GlassSelect({ options, value, onChange, placeholder, style }: Gl
               overflowY: 'auto',
             }}
           >
-            {options.map((opt) => (
-              <li key={opt}>
+            {options.map((opt) => {
+              const optValue = typeof opt === 'string' ? opt : opt.value;
+              const optLabel = typeof opt === 'string' ? opt : opt.label;
+              return (
+              <li key={optValue}>
                 <button
                   type="button"
                   onClick={() => {
-                    onChange(opt);
+                    onChange(optValue);
                     setIsOpen(false);
                   }}
                   style={{
                     width: '100%',
                     textAlign: 'left',
                     padding: '10px 12px',
-                    background: value === opt ? 'rgba(255,255,255,0.08)' : 'transparent',
+                    background: value === optValue ? 'rgba(255,255,255,0.08)' : 'transparent',
                     border: 'none',
                     borderRadius: '8px',
-                    color: value === opt ? 'var(--brand)' : 'var(--text-primary)',
+                    color: value === optValue ? 'var(--text-primary)' : 'var(--text-secondary)',
                     fontSize: '14px',
                     cursor: 'pointer',
-                    transition: 'background 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (value !== opt) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (value !== opt) e.currentTarget.style.background = 'transparent';
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  {opt}
+                  {optLabel}
                 </button>
               </li>
-            ))}
+            )})}
           </motion.ul>
         )}
       </AnimatePresence>

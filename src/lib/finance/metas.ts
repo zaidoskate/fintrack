@@ -5,7 +5,7 @@
  * agents.md: lógica de negocio en lib/finance/, no persiste resultados en DB.
  */
 
-import type { MetaRow, MetaAporteRow, TarjetaRow, MetaConEstado, MetaAporte } from '@/lib/types';
+import type { MetaRow, MetaAporteRow, TarjetaRow, ApartadoRow, MetaConEstado, MetaAporte } from '@/lib/types';
 
 /** Formatea Date a YYYY-MM-DD */
 function toISODate(date: Date): string {
@@ -28,6 +28,7 @@ export function calcularEstadoMeta(
   meta: MetaRow,
   aportesRow: MetaAporteRow[],
   tarjetas: TarjetaRow[],
+  apartados: ApartadoRow[],
   hoy: Date = new Date(),
 ): MetaConEstado {
   const costoObjetivo = Number(meta.costo_objetivo);
@@ -43,11 +44,15 @@ export function calcularEstadoMeta(
 
     let rendAporte = 0;
     const tarjeta = tarjetas.find(t => t.id === row.tarjeta_origen_id);
+    const apartado = row.apartado_id ? apartados.find(a => a.id === row.apartado_id) : null;
     
-    if (tarjeta && Number(tarjeta.rendimiento_anual) > 0) {
+    // El rendimiento viene del apartado, si no tiene apartado, vemos si la tarjeta base tiene rendimiento
+    const tasa = apartado ? Number(apartado.rendimiento_anual) : (tarjeta ? Number(tarjeta.rendimiento_anual) : 0);
+    
+    if (tasa > 0) {
       const fechaAporte = new Date(row.fecha + 'T00:00:00').getTime();
       const dias = Math.max(0, Math.floor((hoyTime - fechaAporte) / MS_PER_DAY));
-      const tasaAnual = Number(tarjeta.rendimiento_anual) / 100;
+      const tasaAnual = tasa / 100;
       // Fórmula de interés compuesto diario
       const montoConInteres = monto * Math.pow(1 + (tasaAnual / 365), dias);
       rendAporte = montoConInteres - monto;
@@ -62,6 +67,8 @@ export function calcularEstadoMeta(
       fecha: row.fecha,
       tarjetaOrigenId: row.tarjeta_origen_id,
       tarjetaOrigenNombre: tarjeta?.nombre,
+      apartadoId: row.apartado_id || null,
+      apartadoNombre: apartado?.nombre,
       rendimientoGenerado: rendAporte
     };
   }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
@@ -114,10 +121,11 @@ export function calcularEstadoMetas(
   metas: MetaRow[],
   aportes: MetaAporteRow[],
   tarjetas: TarjetaRow[],
+  apartados: ApartadoRow[],
   hoy: Date = new Date(),
 ): MetaConEstado[] {
   return metas.map((m) => {
     const aportesDeMeta = aportes.filter(a => a.meta_id === m.id);
-    return calcularEstadoMeta(m, aportesDeMeta, tarjetas, hoy);
+    return calcularEstadoMeta(m, aportesDeMeta, tarjetas, apartados, hoy);
   });
 }

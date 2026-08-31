@@ -18,6 +18,7 @@ import {
 } from '@tanstack/react-query';
 import { getTarjetas, crearTarjeta, actualizarTarjeta, eliminarTarjeta }
   from '@/lib/api/tarjetas';
+import { crearApartado as apiCrearApartado, moverDineroApartado as apiMoverDineroApartado, eliminarApartado as apiEliminarApartado } from '@/lib/api/apartados';
 import { getMovimientos, crearMovimiento, editarMovimiento, eliminarMovimiento }
   from '@/lib/api/movimientos';
 import { getMetas, crearMeta, aportarMeta, editarMeta, eliminarMeta }
@@ -208,7 +209,7 @@ export function useCrearMeta() {
 export function useAportarMeta() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, monto, tarjetaId, fecha }: { id: string; monto: number, tarjetaId?: string, fecha?: string }) => aportarMeta(id, monto, tarjetaId, fecha),
+    mutationFn: ({ id, monto, tarjetaId, apartadoId, fecha }: { id: string; monto: number, tarjetaId?: string, apartadoId?: string, fecha?: string }) => aportarMeta(id, monto, tarjetaId, apartadoId, fecha),
     // Optimista: actualiza la cache antes de que el server confirme
     onMutate: async ({ id, monto }) => {
       await qc.cancelQueries({ queryKey: QK.metas });
@@ -243,6 +244,32 @@ export function useEliminarMeta() {
   return useMutation({
     mutationFn: eliminarMeta,
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.metas }),
+  });
+}
+
+// ── Apartados ─────────────────────────────────────────────────────────────────
+
+export function useCrearApartado() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: apiCrearApartado,
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.tarjetas }),
+  });
+}
+
+export function useMoverDineroApartado() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, montoDelta }: { id: string; montoDelta: number }) => apiMoverDineroApartado(id, montoDelta),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.tarjetas }),
+  });
+}
+
+export function useEliminarApartado() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: apiEliminarApartado,
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.tarjetas }),
   });
 }
 

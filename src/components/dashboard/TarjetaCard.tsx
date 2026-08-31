@@ -12,7 +12,7 @@
 import { useState } from 'react';
 import { GlassCard, StatusPill, ConfirmModal } from '@/components/ui';
 import type { TarjetaConEstado, CompraMSI, MetaConEstado } from '@/lib/types';
-import { Pencil, Trash } from 'lucide-react';
+import { Pencil, Trash, ArrowRightLeft } from 'lucide-react';
 
 /* Formatea monto MXN (es-MX, formato moneda sin decimales si son .00) */
 const fmt = new Intl.NumberFormat('es-MX', {
@@ -37,14 +37,18 @@ interface TarjetaCardProps {
   onEdit?: (tarjeta: TarjetaConEstado) => void;
   onDelete?: (tarjetaId: string) => void;
   onViewDetails?: (tarjeta: TarjetaConEstado) => void;
+  onAddApartado?: (tarjeta: TarjetaConEstado) => void;
+  onMoveApartado?: (apartadoId: string, maxRetiro: number, maxIngreso: number) => void;
 }
 
-export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true, variant = 'full', onEdit, onDelete, onViewDetails }: TarjetaCardProps) {
+export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true, variant = 'full', onEdit, onDelete, onViewDetails, onAddApartado, onMoveApartado }: TarjetaCardProps) {
   const [msiOpen, setMsiOpen] = useState(false);
   const [metasOpen, setMetasOpen] = useState(false);
+  const [apartadosOpen, setApartadosOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const msiActivas = comprasMSI.filter((m) => m.mesesRestantes > 0);
   const esCredito = tarjeta.tipo === 'Crédito';
+  const apartados = tarjeta.apartados || [];
 
   let totalAportado = 0;
   const desgloseMetas: { metaNombre: string; monto: number; id: string }[] = [];
@@ -384,6 +388,107 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
                     textAlign: 'right',
                   }}>
                     {fmt.format(m.monto)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sección Apartados expandible (Débito) */}
+      {!esCredito && variant === 'full' && (
+        <div style={{ marginTop: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {apartados.length > 0 ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setApartadosOpen((v) => !v); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                <span style={{
+                  display: 'inline-block',
+                  transform: apartadosOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
+                }}>▶</span>
+                {apartados.length} Apartado{apartados.length !== 1 ? 's' : ''} con rendimiento
+              </button>
+            ) : (
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Sin apartados</span>
+            )}
+            
+            {onAddApartado && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onAddApartado(tarjeta); }}
+                style={{
+                  background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px',
+                  color: 'var(--text-primary)', fontSize: '11px', padding: '2px 6px', cursor: 'pointer'
+                }}
+              >
+                + Nuevo apartado
+              </button>
+            )}
+          </div>
+
+          {apartadosOpen && (
+            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {apartados.map((a) => (
+                <div
+                  key={a.id}
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '12px',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {a.nombre}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--credito-verde)', marginTop: '2px' }}>
+                      {a.rendimientoAnual}% APY
+                    </div>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      fontSize: '15px',
+                      color: 'var(--text-primary)',
+                      textAlign: 'right',
+                    }}>
+                      {fmt.format(a.balanceCalculado)}
+                    </div>
+                    {onMoveApartado && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onMoveApartado(a.id, a.balanceCalculado, tarjeta.disponible); }}
+                        style={{
+                          background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px',
+                          color: 'var(--text-primary)', padding: '6px', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}
+                        title="Transferir a saldo"
+                      >
+                        <ArrowRightLeft size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

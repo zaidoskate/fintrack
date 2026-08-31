@@ -15,6 +15,7 @@ import type {
   MovimientoRow,
   CompraMSIRow,
   TarjetaConEstado,
+  ApartadoRow,
 } from '@/lib/types';
 
 // ── Lectura ───────────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ export async function getTarjetas(): Promise<TarjetaConEstado[]> {
   const supabase = createClient();
 
   // Tres consultas en paralelo para minimizar la latencia total
-  const [tarjetasRes, movimientosRes, msiRes] = await Promise.all([
+  const [tarjetasRes, movimientosRes, msiRes, apartadosRes] = await Promise.all([
     supabase
       .from('tarjetas')
       .select('*')
@@ -46,16 +47,23 @@ export async function getTarjetas(): Promise<TarjetaConEstado[]> {
       .from('compras_msi')
       .select('id, tarjeta_id, cuota_mensual, fecha_primer_cargo, fecha_ultima_cuota, meses_totales, monto_total')
       .returns<CompraMSIRow[]>(),
+
+    supabase
+      .from('tarjeta_apartados')
+      .select('*')
+      .returns<ApartadoRow[]>(),
   ]);
 
   if (tarjetasRes.error) throw tarjetasRes.error;
   if (movimientosRes.error) throw movimientosRes.error;
   if (msiRes.error) throw msiRes.error;
+  if (apartadosRes.error) throw apartadosRes.error;
 
   return calcularEstadoTarjetas(
     tarjetasRes.data ?? [],
     movimientosRes.data ?? [],
     msiRes.data ?? [],
+    apartadosRes.data ?? [],
   );
 }
 
