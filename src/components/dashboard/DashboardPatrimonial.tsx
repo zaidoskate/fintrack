@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import type { CuentaYield } from '@/lib/types';
 import { useActivos, useCuentasYield, useTarjetas, useAddActivo, useAddCuentaYield, useDeleteActivo, useDeleteCuentaYield, useUpdateActivo, useUpdateCuentaYield } from '@/lib/hooks';
 import { AddInversionModal } from './AddInversionModal';
 import { AddCuentaYieldModal } from './AddCuentaYieldModal';
@@ -9,7 +10,6 @@ import { PatrimonialAnalytics } from './analytics/PatrimonialAnalytics';
 import { GlassCard, GlassSelect, ConfirmModal } from '@/components/ui';
 import { Loader } from '@/components/ui/Loader';
 import { Plus, Trash, TrendingUp, Wallet, Bitcoin, LineChart, DollarSign, HelpCircle, Pencil } from 'lucide-react';
-import { useEffect } from 'react';
 
 export function DashboardPatrimonial() {
   const { data: activos = [], isLoading: loadA } = useActivos();
@@ -24,6 +24,45 @@ export function DashboardPatrimonial() {
   const { mutate: updateYield } = useUpdateCuentaYield();
 
   const [activeTab, setActiveTab] = useState<'activos' | 'yields'>('activos');
+
+  const yieldsCombinados = useMemo(() => {
+    const list: (CuentaYield & { isAuto?: boolean })[] = [...yields];
+    tarjetas.forEach(t => {
+      if (t.tipo === 'Débito') {
+        if (t.rendimientoAnual > 0) {
+          list.push({
+            id: `card-${t.id}`,
+            nombre: `Saldo ${t.nombre}`,
+            moneda: 'MXN',
+            apy: t.rendimientoAnual,
+            balanceInicial: t.disponible,
+            balanceActual: t.disponible,
+            valorTotalMXN: t.disponible,
+            ultimaActualizacion: new Date().toISOString().split('T')[0],
+            isAuto: true
+          });
+        }
+        if (t.apartados) {
+          t.apartados.forEach(a => {
+            if (a.rendimientoAnual > 0) {
+              list.push({
+                id: `apt-${a.id}`,
+                nombre: `${a.nombre} (${t.nombre})`,
+                moneda: 'MXN',
+                apy: a.rendimientoAnual,
+                balanceInicial: a.balanceInicial,
+                balanceActual: a.balanceCalculado,
+                valorTotalMXN: a.balanceCalculado,
+                ultimaActualizacion: a.ultimaActualizacion || new Date().toISOString().split('T')[0],
+                isAuto: true
+              });
+            }
+          });
+        }
+      }
+    });
+    return list;
+  }, [yields, tarjetas]);
   const [showAddActivo, setShowAddActivo] = useState(false);
   const [showAddYield, setShowAddYield] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
@@ -249,12 +288,12 @@ export function DashboardPatrimonial() {
               />
             )}
 
-            {yields.length === 0 && !showAddYield && (
+            {yieldsCombinados.length === 0 && !showAddYield && (
               <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>No tienes cuentas yield.</div>
             )}
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {yields.map(y => (
+              {yieldsCombinados.map((y: CuentaYield & { isAuto?: boolean }) => (
                 <GlassCard key={y.id} style={{ padding: 0 }}>
                   <div style={{ padding: '16px', position: 'relative', display: 'flex', gap: '16px', alignItems: 'stretch' }}>
                     <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '12px', color: '#4ade80', width: '64px', minHeight: '72px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -278,14 +317,16 @@ export function DashboardPatrimonial() {
                         </div>
                       </div>
                     </div>
-                    <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '4px' }}>
-                      <button onClick={() => { setEditTarget({ type: 'yield', id: y.id }); setEditValue(String(y.moneda === 'MXN' ? y.balanceActual.toFixed(2) : y.balanceActual)); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
-                        <Pencil size={18} />
-                      </button>
-                      <button onClick={() => setDeleteTarget({ type: 'yield', id: y.id })} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
-                        <Trash size={18} />
-                      </button>
-                    </div>
+                    {!y.isAuto && (
+                      <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '4px' }}>
+                        <button onClick={() => { setEditTarget({ type: 'yield', id: y.id }); setEditValue(String(y.moneda === 'MXN' ? y.balanceActual.toFixed(2) : y.balanceActual)); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
+                          <Pencil size={18} />
+                        </button>
+                        <button onClick={() => setDeleteTarget({ type: 'yield', id: y.id })} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
+                          <Trash size={18} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </GlassCard>
               ))}

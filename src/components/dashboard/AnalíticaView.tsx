@@ -10,8 +10,8 @@
  */
 
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  Cell, LineChart, Line, CartesianGrid,
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
+  LineChart, Line, CartesianGrid,
 } from 'recharts';
 import { useMemo, useState } from 'react';
 import { useMovimientos } from '@/lib/hooks';
@@ -128,50 +128,38 @@ export function AnalíticaView() {
 
   return (
     <div>
-      <h1 style={{
-        fontFamily: 'var(--font-display)',
-        fontWeight: 500, fontSize: '26px',
-        letterSpacing: '-0.02em', marginBottom: '20px',
-        color: 'var(--text-primary)',
-      }}>
-        Analítica
-      </h1>
-
-      {/* Nueva Sección: Salud Financiera (Grid con 5 módulos) */}
-      <div style={{ marginBottom: '40px' }}>
-        <SaludFinanciera />
+      {/* Hero Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '24px', color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+            Flujo y Gastos
+          </h1>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total gastado en el periodo</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '40px', color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.02em' }}>
+            {fmtMXN.format(gastoTotal)}
+          </div>
+        </div>
+        
+        {/* Selector de rango estilo Píldora */}
+        <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '4px' }}>
+          {RANGOS.map((r) => (
+            <button
+              key={r.value}
+              onClick={() => setRango(r.value)}
+              style={{
+                background: rango === r.value ? 'var(--brand)' : 'transparent',
+                color: rango === r.value ? '#fff' : 'var(--text-muted)',
+                border: 'none', padding: '8px 16px', borderRadius: '10px',
+                fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+              }}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <h2 style={{
-        fontFamily: 'var(--font-display)',
-        fontWeight: 600, fontSize: '20px',
-        color: 'var(--text-primary)', marginBottom: '16px',
-      }}>
-        Tendencia de Gastos
-      </h2>
-
-      {/* Selector de rango */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {RANGOS.map((r) => (
-          <button
-            key={r.value}
-            onClick={() => setRango(r.value)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '9999px',
-              border: '1px solid',
-              borderColor: rango === r.value ? 'var(--brand)' : 'var(--border-glass)',
-              background: rango === r.value ? 'rgba(250,104,111,0.15)' : 'transparent',
-              color: rango === r.value ? 'var(--brand)' : 'var(--text-secondary)',
-              fontSize: '13px',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {r.label}
-          </button>
-        ))}
-      </div>
+      <SaludFinanciera />
 
       {isLoading ? (
         <div style={{
@@ -181,57 +169,14 @@ export function AnalíticaView() {
           animation: 'pulse 1.5s ease-in-out infinite',
         }} />
       ) : (
-        <>
-          {/* Resumen total */}
-          <GlassCard style={{ padding: '20px 24px', marginBottom: '16px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Total gastado
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '28px',
-              color: 'var(--text-primary)', marginTop: '4px',
-            }}>
-              {fmtMXN.format(gastoTotal)}
-            </div>
-          </GlassCard>
-
-          {/* Gráfico por categoría */}
-          <GlassCard style={{ padding: '20px 16px 16px', marginBottom: '16px' }}>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', paddingLeft: '8px' }}>
-              Por categoría
-            </div>
-            {porCategoria.length === 0 ? (
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '20px 0' }}>
-                Sin gastos en este período
-              </p>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={porCategoria} layout="vertical" margin={{ left: 0, right: 16 }}>
-                  <XAxis type="number" hide />
-                  <YAxis
-                    type="category" dataKey="categoria"
-                    width={100} tick={{ fill: 'rgba(245,245,247,0.6)', fontSize: 12 }}
-                    axisLine={false} tickLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-                  <Bar dataKey="total" radius={[0, 6, 6, 0]}>
-                    {porCategoria.map((entry) => (
-                      <Cell key={entry.categoria} fill={colorFor(entry.categoria)} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </GlassCard>
-
-          {/* Tendencia mensual */}
-          {porMes.length > 1 && (
-            <GlassCard style={{ padding: '20px 16px 16px' }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', paddingLeft: '8px' }}>
-                Tendencia mensual
-              </div>
-              <ResponsiveContainer width="100%" height={160}>
-                <LineChart data={porMes} margin={{ left: 0, right: 8 }}>
+        <GlassCard style={{ padding: '24px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '24px' }}>Tendencia y Categorías</h3>
+          
+          {/* Gráfico de Línea (Tendencia Mensual) */}
+          {porMes.length > 0 ? (
+            <div style={{ height: '180px', width: '100%', marginBottom: '32px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={porMes} margin={{ left: 0, right: 8, top: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                   <XAxis dataKey="mes" tick={{ fill: 'rgba(245,245,247,0.5)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis hide />
@@ -244,9 +189,35 @@ export function AnalíticaView() {
                   />
                 </LineChart>
               </ResponsiveContainer>
-            </GlassCard>
+            </div>
+          ) : (
+            <div style={{ height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+              Sin datos para gráfica de tendencia
+            </div>
           )}
-        </>
+
+          {/* Barra de Distribución por Categoría */}
+          {porCategoria.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', width: '100%', height: '8px', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
+                {porCategoria.map(c => (
+                  <div key={c.categoria} style={{ width: `${(c.total / gastoTotal) * 100}%`, background: colorFor(c.categoria) }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+                {porCategoria.map(c => (
+                  <div key={c.categoria} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: colorFor(c.categoria) }} />
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.categoria}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {((c.total / gastoTotal) * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </GlassCard>
       )}
     </div>
   );

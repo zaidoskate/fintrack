@@ -124,6 +124,7 @@ export interface ApartadoConEstado {
   tarjetaId: string;
   nombre: string;
   rendimientoAnual: number; // TNA %
+  balanceInicial: number;   // Balance original depositado
   balanceCalculado: number; // Balance + Rendimientos
   ultimaActualizacion: string;
 }

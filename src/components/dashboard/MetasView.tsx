@@ -52,8 +52,6 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
   const tarjetaSeleccionada = tarjetasDebito.find(t => t.id === tarjetaOrigen);
   const apartadosDeTarjeta = tarjetaSeleccionada?.apartados || [];
 
-  const faltante = meta.costoObjetivo - meta.montoActual;
-
   return (
     <GlassCard
       glow={meta.progreso >= 100 ? 'verde' : 'none'}
@@ -102,54 +100,41 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         onCancel={() => setShowDeleteConfirm(false)}
       />
 
-      {/* Montos */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '16px' }}>
-        <div>
-          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '3px' }}>Ahorrado</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '20px', color: 'var(--text-primary)' }}>
-            {fmt.format(meta.montoActual)}
-          </div>
-          {meta.rendimientoGenerado > 0 && (
-            <div style={{ fontSize: '11px', color: 'var(--credito-verde)', marginTop: '2px' }}>
-              +{fmt.format(meta.rendimientoGenerado)} rendimientos
-            </div>
-          )}
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>Objetivo</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text-secondary)' }}>
-            {editando ? (
-              <input
-                type="number"
-                value={costoEdit}
-                onChange={(e) => setCostoEdit(e.target.value)}
-                style={{ width: '100px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '6px', padding: '3px 8px', color: 'var(--text-primary)', fontSize: '13px', textAlign: 'right' }}
-              />
-            ) : fmt.format(meta.costoObjetivo)}
-          </div>
-        </div>
-      </div>
-
+      {/* Barra de progreso */}
       <ProgressBar pct={meta.progreso} />
-
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
         <span>{meta.progreso.toFixed(1)}% completado</span>
-        <span>Falta {fmt.format(Math.max(0, faltante))}</span>
+        <span>Meta: {editando ? (
+          <input
+            type="number"
+            value={costoEdit}
+            onChange={(e) => setCostoEdit(e.target.value)}
+            style={{ width: '80px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '6px', padding: '2px 6px', color: 'var(--text-primary)', fontSize: '11px', textAlign: 'right' }}
+          />
+        ) : fmt.format(meta.costoObjetivo)}</span>
       </div>
 
-      {/* Rendimiento global */}
-      {meta.rendimientoGenerado > 0 && (
-        <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span>Capital aportado:</span>
-            <strong style={{ color: 'var(--text-primary)' }}>{fmt.format(meta.capitalAportado)}</strong>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Rendimientos ganados:</span>
-            <strong style={{ color: 'var(--credito-verde)' }}>+{fmt.format(meta.rendimientoGenerado)}</strong>
+      {/* Montos consolidados y compactos */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '12px' }}>
+        <div>
+          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '2px' }}>Ahorrado Total</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '18px', color: 'var(--text-primary)' }}>
+            {fmt.format(meta.montoActual)}
           </div>
         </div>
-      )}
+        
+        {meta.rendimientoGenerado > 0 && (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '2px' }}>Capital depositado</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              {fmt.format(meta.capitalAportado)}
+              <span style={{ color: 'var(--credito-verde)', marginLeft: '6px', fontWeight: 600 }}>
+                +{fmt.format(meta.rendimientoGenerado)}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Guardar edición */}
       {editando && (

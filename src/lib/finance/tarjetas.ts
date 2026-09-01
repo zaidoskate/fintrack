@@ -175,6 +175,7 @@ export function calcularEstadoTarjeta(
           tarjetaId: a.tarjeta_id,
           nombre: a.nombre,
           rendimientoAnual: Number(a.rendimiento_anual),
+          balanceInicial: balanceIni,
           balanceCalculado: Math.round(balanceCalculado * 100) / 100,
           ultimaActualizacion: a.ultima_actualizacion
         };
