@@ -2,13 +2,19 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useActivos, useCuentasYield, useAddActivo, useAddCuentaYield, useDeleteActivo, useDeleteCuentaYield, useUpdateActivo, useUpdateCuentaYield } from '@/lib/hooks';
+import { useActivos, useCuentasYield, useTarjetas, useAddActivo, useAddCuentaYield, useDeleteActivo, useDeleteCuentaYield, useUpdateActivo, useUpdateCuentaYield } from '@/lib/hooks';
+import { AddInversionModal } from './AddInversionModal';
+import { AddCuentaYieldModal } from './AddCuentaYieldModal';
+import { PatrimonialAnalytics } from './analytics/PatrimonialAnalytics';
 import { GlassCard, GlassSelect, ConfirmModal } from '@/components/ui';
+import { Loader } from '@/components/ui/Loader';
 import { Plus, Trash, TrendingUp, Wallet, Bitcoin, LineChart, DollarSign, HelpCircle, Pencil } from 'lucide-react';
+import { useEffect } from 'react';
 
 export function DashboardPatrimonial() {
   const { data: activos = [], isLoading: loadA } = useActivos();
   const { data: yields = [], isLoading: loadY } = useCuentasYield();
+  const { data: tarjetas = [], isLoading: loadT } = useTarjetas();
   
   const { mutate: addActivo, isPending: addingA } = useAddActivo();
   const { mutate: addYield, isPending: addingY } = useAddCuentaYield();
@@ -26,44 +32,57 @@ export function DashboardPatrimonial() {
   const [editTarget, setEditTarget] = useState<{ type: 'activo' | 'yield', id: string } | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  const [formActivo, setFormActivo] = useState({ simbolo: '', tipo: 'Cripto', cantidad: '' });
-  const [formYield, setFormYield] = useState({ nombre: '', moneda: 'MXN', balance_inicial: '', apy: '' });
+
 
   const totalActivos = activos.reduce((sum, a) => sum + (a.valorTotal || 0), 0);
   const totalYields = yields.reduce((sum, y) => sum + (y.valorTotalMXN || y.balanceActual), 0);
   const granTotal = totalActivos + totalYields;
 
-  const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+  const [displayCurrency, setDisplayCurrency] = useState('MXN');
+  const [rates, setRates] = useState<Record<string, number>>({});
 
-  const handleAddActivo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formActivo.simbolo || !formActivo.cantidad) return;
-    const tipoDb = formActivo.tipo === 'Cripto' ? 'crypto' : formActivo.tipo === 'Acción' ? 'stock' : 'etf';
+  useEffect(() => {
+    fetch('/api/prices?symbols=MXN=X,EURMXN=X,BTC-USD')
+      .then(res => res.json())
+      .then(data => setRates(data))
+      .catch(console.error);
+  }, []);
+
+  let displayTotal = granTotal;
+  let decimals = 2;
+  if (displayCurrency === 'USD' && rates['MXN=X']) { displayTotal = granTotal / rates['MXN=X']; }
+  else if (displayCurrency === 'EUR' && rates['EURMXN=X']) { displayTotal = granTotal / rates['EURMXN=X']; }
+  else if (displayCurrency === 'BTC' && rates['BTC-USD']) { displayTotal = granTotal / rates['BTC-USD']; decimals = 6; }
+
+  const fmt = new Intl.NumberFormat('es-MX', { 
+    style: 'currency', 
+    currency: displayCurrency === 'BTC' ? 'MXN' : displayCurrency, // Fallback si el browser no soporta BTC, igual reemplazamos string abajo
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+
+  const handleAddActivo = (datos: { simbolo: string; tipo: 'crypto' | 'stock' | 'etf'; cantidad: number }) => {
     addActivo({
-      simbolo: formActivo.simbolo.toUpperCase(),
-      tipo: tipoDb as 'crypto'|'stock'|'etf',
-      cantidad: parseFloat(formActivo.cantidad)
+      simbolo: datos.simbolo,
+      tipo: datos.tipo,
+      cantidad: datos.cantidad,
     }, {
       onSuccess: () => {
         setShowAddActivo(false);
-        setFormActivo({ simbolo: '', tipo: 'Cripto', cantidad: '' });
       }
     });
   };
 
-  const handleAddYield = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formYield.nombre || !formYield.balance_inicial || !formYield.apy) return;
+  const handleAddYield = (datos: { nombre: string; moneda: 'MXN' | 'USD' | 'USDC' | 'USDT'; balance_inicial: number; apy: number }) => {
     addYield({
-      nombre: formYield.nombre,
-      moneda: formYield.moneda as 'MXN' | 'USD' | 'USDC' | 'USDT',
-      balance_inicial: parseFloat(formYield.balance_inicial),
-      apy: parseFloat(formYield.apy),
+      nombre: datos.nombre,
+      moneda: datos.moneda,
+      balance_inicial: datos.balance_inicial,
+      apy: datos.apy,
       ultima_actualizacion: new Date().toISOString().split('T')[0]
     }, {
       onSuccess: () => {
         setShowAddYield(false);
-        setFormYield({ nombre: '', moneda: 'MXN', balance_inicial: '', apy: '' });
       }
     });
   };
@@ -82,8 +101,8 @@ export function DashboardPatrimonial() {
     setEditTarget(null);
   };
 
-  if (loadA || loadY) {
-    return <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '40px' }}>Cargando portafolio...</div>;
+  if (loadA || loadY || loadT) {
+    return <Loader label="Cargando portafolio..." fullHeight />;
   }
 
   return (
@@ -92,10 +111,19 @@ export function DashboardPatrimonial() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <div style={{ marginBottom: '32px' }}>
+      <div style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Patrimonio Total
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Patrimonio Total
+            </div>
+            <div style={{ width: '80px', zIndex: 10 }}>
+              <GlassSelect
+                options={['MXN', 'USD', 'EUR', 'BTC']}
+                value={displayCurrency}
+                onChange={setDisplayCurrency}
+              />
+            </div>
           </div>
           <button
             onClick={() => setInfoModalOpen(true)}
@@ -109,12 +137,14 @@ export function DashboardPatrimonial() {
           </button>
         </div>
         <div style={{ fontSize: '40px', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {fmt.format(granTotal)}
+          {displayCurrency === 'BTC' ? `₿ ${displayTotal.toFixed(6)}` : fmt.format(displayTotal)}
           <div style={{ background: 'var(--credito-verde)', color: '#000', fontSize: '12px', padding: '4px 8px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <TrendingUp size={14} /> LIVE
           </div>
         </div>
       </div>
+
+      <PatrimonialAnalytics activos={activos} yields={yields} tarjetas={tarjetas} />
 
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
         <button
@@ -154,28 +184,12 @@ export function DashboardPatrimonial() {
                 <Plus size={18} />
               </button>
             </div>
-            
             {showAddActivo && (
-              <GlassCard style={{ padding: '16px', marginBottom: '16px' }}>
-                <form onSubmit={handleAddActivo} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <input placeholder="Símbolo (ej. BTC)" value={formActivo.simbolo} onChange={e => setFormActivo({...formActivo, simbolo: e.target.value})} style={{ flex: 1, minWidth: '120px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', color: '#fff', boxSizing: 'border-box' }} required />
-                    <div style={{ flex: 1, minWidth: '120px', zIndex: 10 }}>
-                      <GlassSelect
-                        options={['Cripto', 'Acción', 'ETF']}
-                        value={formActivo.tipo}
-                        onChange={(val: string) => setFormActivo({...formActivo, tipo: val})}
-                        placeholder="Tipo"
-                      />
-                    </div>
-                  </div>
-                  <input type="number" step="any" placeholder="Cantidad que posees" value={formActivo.cantidad} onChange={e => setFormActivo({...formActivo, cantidad: e.target.value})} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', color: '#fff', boxSizing: 'border-box', width: '100%' }} required />
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                    <button type="submit" disabled={addingA} style={{ flex: 1, background: 'var(--text-primary)', color: '#000', padding: '10px', borderRadius: '8px', fontWeight: 600, border: 'none' }}>{addingA ? 'Guardando...' : 'Guardar'}</button>
-                    <button type="button" onClick={() => setShowAddActivo(false)} style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid rgba(255,255,255,0.2)', padding: '10px', borderRadius: '8px' }}>Cancelar</button>
-                  </div>
-                </form>
-              </GlassCard>
+              <AddInversionModal
+                onClose={() => setShowAddActivo(false)}
+                onSubmit={handleAddActivo}
+                isPending={addingA}
+              />
             )}
 
             {activos.length === 0 && !showAddActivo && (
@@ -192,9 +206,15 @@ export function DashboardPatrimonial() {
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: '24px' }}>
                       <div style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', lineHeight: 1.2 }}>{a.simbolo}</div>
                       <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{a.cantidad} posesiones</div>
-                      <div style={{ marginTop: '8px' }}>
-                        <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--text-primary)' }}>{fmt.format(a.valorTotal || 0)}</div>
-                        <div style={{ fontSize: '13px', color: 'var(--credito-verde)' }}>{fmt.format(a.precioActual || 0)} c/u</div>
+                      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Valor Total</div>
+                          <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--text-primary)' }}>{fmt.format(a.valorTotal || 0)}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Precio Mercado</div>
+                          <div style={{ fontSize: '14px', color: 'var(--credito-verde)', fontWeight: 500 }}>{fmt.format(a.precioActual || 0)} c/u</div>
+                        </div>
                       </div>
                     </div>
                     <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '4px' }}>
@@ -222,29 +242,11 @@ export function DashboardPatrimonial() {
             </div>
 
             {showAddYield && (
-              <GlassCard style={{ padding: '16px', marginBottom: '16px' }}>
-                <form onSubmit={handleAddYield} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <input placeholder="Nombre (ej. AirTM USDC)" value={formYield.nombre} onChange={e => setFormYield({...formYield, nombre: e.target.value})} style={{ flex: 1, minWidth: '150px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', color: '#fff', boxSizing: 'border-box' }} required />
-                    <div style={{ width: '100px', zIndex: 10 }}>
-                      <GlassSelect
-                        options={['MXN', 'USD', 'USDC', 'USDT']}
-                        value={formYield.moneda}
-                        onChange={(val: string) => setFormYield({...formYield, moneda: val})}
-                        placeholder="Moneda"
-                      />
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <input type="number" step="any" placeholder="Balance Inicial" value={formYield.balance_inicial} onChange={e => setFormYield({...formYield, balance_inicial: e.target.value})} style={{ flex: 1, minWidth: '150px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', color: '#fff', boxSizing: 'border-box' }} required />
-                    <input type="number" step="any" placeholder="APY % (ej. 5.5)" value={formYield.apy} onChange={e => setFormYield({...formYield, apy: e.target.value})} style={{ flex: 1, minWidth: '100px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', color: '#fff', boxSizing: 'border-box' }} required />
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                    <button type="submit" disabled={addingY} style={{ flex: 1, background: 'var(--text-primary)', color: '#000', padding: '10px', borderRadius: '8px', fontWeight: 600, border: 'none' }}>{addingY ? 'Guardando...' : 'Guardar'}</button>
-                    <button type="button" onClick={() => setShowAddYield(false)} style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid rgba(255,255,255,0.2)', padding: '10px', borderRadius: '8px' }}>Cancelar</button>
-                  </div>
-                </form>
-              </GlassCard>
+              <AddCuentaYieldModal
+                onClose={() => setShowAddYield(false)}
+                onSubmit={handleAddYield}
+                isPending={addingY}
+              />
             )}
 
             {yields.length === 0 && !showAddYield && (
@@ -261,12 +263,18 @@ export function DashboardPatrimonial() {
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: '24px' }}>
                       <div style={{ fontWeight: 600, fontSize: '18px', color: 'var(--text-primary)', lineHeight: 1.2 }}>{y.nombre}</div>
                       <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{y.apy}% APY Pasivo</div>
-                      <div style={{ marginTop: '8px' }}>
-                        <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--text-primary)' }}>
-                          {y.moneda === 'MXN' ? fmt.format(y.balanceActual) : `${y.balanceActual.toFixed(2)} ${y.moneda}`}
+                      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Valor Total</div>
+                          <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--text-primary)' }}>
+                            {y.moneda === 'MXN' ? fmt.format(y.balanceActual) : `${y.balanceActual.toFixed(2)} ${y.moneda}`}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '13px', color: 'var(--credito-verde)' }}>
-                          +{fmt.format((y.valorTotalMXN || y.balanceActual) - (y.moneda === 'MXN' ? y.balanceInicial : y.balanceInicial * ((y.valorTotalMXN || 1) / y.balanceActual)))} (en MXN)
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rendimiento Total</div>
+                          <div style={{ fontSize: '14px', color: 'var(--credito-verde)', fontWeight: 500 }}>
+                            +{fmt.format((y.valorTotalMXN || y.balanceActual) - (y.moneda === 'MXN' ? y.balanceInicial : y.balanceInicial * ((y.valorTotalMXN || 1) / y.balanceActual)))} (MXN)
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'motion/react';
 import { useMotionConfig } from '@/lib/motion/variants';
-import { GlassCard, ConfirmModal } from '@/components/ui';
+import { GlassCard, Loader, ConfirmModal } from '@/components/ui';
 import { useMovimientos, useCrearMovimiento, useEliminarMovimiento } from '@/lib/hooks';
 import type { TarjetaConEstado, Movimiento } from '@/lib/types';
 import { useState, useMemo } from 'react';
@@ -268,9 +268,9 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
               overscrollBehavior: 'contain'
             }}>
               {isLoading && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-                    Cargando movimientos...
-                  </div>
+                  <div style={{ padding: '40px' }}>
+                  <Loader label="Cargando movimientos..." fullHeight={false} />
+                </div>
                 )}
                 
                 {!isLoading && movimientos.length === 0 && (

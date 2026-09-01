@@ -10,3 +10,4 @@ export { ConfirmModal } from './ConfirmModal';
 export { AmbientBackground } from './AmbientBackground';
 export { StatusPill }       from './StatusPill';
 export * from './GlassSelect';
+export * from './Loader';

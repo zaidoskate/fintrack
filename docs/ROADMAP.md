@@ -1,114 +1,62 @@
 # ROADMAP.md
 ## FinTrack — Hoja de ruta de ejecución
 **De los documentos de arquitectura al producto desplegado**
-**Versión:** 2.1 (Actualizada post-migración Supabase y Offline)
+**Versión:** 2.2 (Actualizada post-CI/CD y Módulo Patrimonial)
 
-> Este roadmap refleja el estado actual del proyecto tras la migración exitosa a Supabase, la implementación del modo Offline (PWA) y la adición de Google OAuth. Las referencias antiguas a Google Apps Script han sido marcadas como retiradas.
+> Este roadmap refleja el estado actual del proyecto tras la migración exitosa a Supabase, la implementación del modo Offline (PWA), la configuración de GitHub Actions y el despliegue de las analíticas patrimoniales.
 
 ---
 
-## Fase 0 — Preparación del entorno
+## Fase 0 a Fase 4
 **Estado: COMPLETADA**
-
-| Tarea | Responsable |
-|---|---|
-| Crear repositorio en GitHub (`fintrack-pwa`) | Tú |
-| Crear estructura de carpetas base | Tú o Antigravity |
-| Mover los `.md` generados a `/docs` | Tú |
-| Crear cuenta/proyecto en Vercel y vincularlo al repo | Tú |
-| Decidir stack final: **Next.js (App Router)** | Tú / Antigravity |
-
----
-
-## Fase 1 — Backend: Google Apps Script (RETIRADA)
-**Estado: RETIRADA**
-
-Esta fase se desarrolló originalmente para usar Google Sheets como base de datos. Sin embargo, para soportar escalabilidad, autenticación real y múltiples usuarios, fue completamente reemplazada por la **Fase 1.5**. 
-*El código antiguo en GAS queda solo como referencia histórica.*
-
----
-
-## Fase 1.5 — Backend Supabase + Autenticación
-**Estado: COMPLETADA**
-
-**Logros:**
-1. Creación de base de datos relacional en Supabase con Row Level Security (RLS).
-2. Implementación de Auth SSR con Supabase (`/login`, `/signup`).
-3. Integración de **Google OAuth** (Inicio de sesión con Google) gratuito vía GCP.
-4. Migración de Shortcut de iOS para registrar gastos de forma nativa.
-5. Aislamiento total de datos por usuario (`user_id`).
-
----
-
-## Fase 2 — Frontend: Scaffold + Design System
-**Estado: COMPLETADA**
-
-**Logros:**
-- Inicialización con Next.js 15+ (App Router).
-- Implementación de React Query y Server Actions.
-- Creación de Design System "Glass Ledger" (Glassmorphism, desenfoques, colores base).
-- Creación de componentes base: `GlassCard`, `StatusPill`, `ConfirmModal`.
-
----
-
-## Fase 3 — Core Features (Tarjetas, Analítica, Metas)
-**Estado: COMPLETADA**
-
-**Logros:**
-1. **Dashboard de Tarjetas**: Cálculo de Termómetro de Crédito y fechas de corte.
-2. **Analítica**: Filtros de mes/semana, métricas de balance.
-3. **Metas de Ahorro**: Motor de metas con barras de progreso circulares y lineales.
-4. **Registro Universal**: FAB central para ingresar gastos o ingresos.
-5. **Tarjetas de Débito**: Soporte para saldo disponible y desglose cronológico de movimientos por tarjeta.
-6. **Rendimientos Dinámicos**: Cálculo de interés compuesto diario para tarjetas de débito y metas.
-
----
-
-## Fase 4 — PWA y Modo Offline (Offline-first)
-**Estado: COMPLETADA**
-
-**Logros:**
-1. Implementación de `@serwist/next` (Service Worker).
-2. Manifiesto de PWA instalado y validado (instalable en iOS/Android).
-3. Sincronización optimista y almacenamiento local (IndexedDB) para permitir usar la app sin conexión a internet.
-4. Interfaz adaptada con indicadores de estado de sincronización y validaciones robustas para Safari/iOS.
+*(Preparación, Backend Supabase, Scaffold Glass Ledger, Core Features, y PWA Offline-first completadas exitosamente).*
 
 ---
 
 ## Fase 5 — CI/CD con GitHub Actions
-**Estado: PENDIENTE (Próxima fase)**
-**Duración estimada: 1 sesión**
+**Estado: COMPLETADA**
 
-Configurar integración continua para proteger el código antes de añadir features masivos.
-
-1. Crear `.github/workflows/ci.yml`.
-2. **Jobs**: Instalar dependencias → Linting (ESLint) → Typechecking (`tsc`).
-3. Bloquear fusiones (merges) a `main` si el CI falla.
-4. *(Opcional)* Desplegar automáticamente a Vercel solo si el CI pasa exitosamente.
-
-**Entregable:** Workflow de GitHub Actions protegiendo la rama `main`.
+**Logros:**
+1. Configuración de integración continua para proteger el código.
+2. **Jobs**: Instalación de dependencias → Linting (ESLint) → Typechecking (`tsc`).
+3. Bloqueo de fusiones a `main` si el CI falla.
 
 ---
 
-## Fase 6 — Módulo de Inversiones (Criptos / Acciones / ETFs)
-**Estado: EN BACKLOG (Planificación requerida)**
+## Fase 6 — Módulo de Inversiones (Criptos / Acciones / ETFs / Yields)
+**Estado: COMPLETADA**
 
-Módulo masivo para trackear portafolios de inversión.
-
-1. **Base de Datos**: Nuevas tablas en Supabase para activos, portafolios y transacciones (compra/venta).
-2. **APIs Externas**: Integración con oráculos o APIs gratuitas (ej. Yahoo Finance, CoinGecko) para precios en tiempo real.
-3. **UI/UX**: Gráficas de rendimiento histórico, distribución del portafolio (Donut charts), PNL (Profit and Loss).
-4. **Lógica**: Cálculo de promedios de compra (DCA), rendimientos no realizados.
+**Logros:**
+1. **Base de Datos**: Tablas en Supabase para `portafolio_activos` y `cuentas_yield`.
+2. **API Proxy Interna (Yahoo Finance)**: Migración exitosa de CoinGecko a una ruta proxy server-side para cotizaciones `LIVE` de la bolsa americana (`QQQM`, `AAPL`) y Cripto sin problemas de CORS.
+3. **UX & UI (Glassmorphism)**: 
+   - Selector Global de Monedas (Conversión dinámica del Gran Total a `USD`, `MXN`, `EUR` y `BTC`).
+   - Reemplazo de formularios estáticos por modales (`AddInversionModal`, `AddCuentaYieldModal`).
+   - Componente `Loader` animado centralizado.
+4. **Analítica Patrimonial Avanzada (Fintech UX)**:
+   - *Distribución Minimalista*: Barra de distribución apilada horizontal (0 scroll extra).
+   - *Ingresos Pasivos*: Píldora/Badge inteligente que calcula rendimientos combinados de Cuentas Yield, Tarjetas de Débito y Apartados.
+   - *Timeline Histórico (Hero)*: Gráfica de `recharts` que cruza precios históricos de Yahoo Finance (con conversión dinámica de moneda) vs el portafolio actual del usuario en rangos de 12H, 1D, 1W, 1M, y 6M.
 
 ---
 
-## Fase 7 — Iteración Continua (Post-Lanzamiento)
+## Fase 7 — Iteración Continua (Post-Lanzamiento / Backlog)
 **Estado: BACKLOG**
 
 Ideas priorizadas para el futuro:
 - Exportación de reportes (PDF/Excel) de analítica.
 - Notificaciones Push (vía Web Push API) para recordatorios de pago de tarjetas.
 - Presupuestos mensuales estrictos (categorización avanzada).
+
+### Propuesta Técnica: Notificaciones de Plusvalía e Hitos Financieros (Integración Resend)
+Para lograr notificaciones automáticas por correo de crecimiento y plusvalía, la arquitectura necesitaría:
+1. **Campo `costo_promedio` en BD**: Actualmente la base de datos sólo guarda *cuántos* títulos tienes, pero no *cuánto te costaron*. Se necesita agregar una columna `costo_promedio` (o `precio_compra`) a la tabla `portafolio_activos`.
+2. **Cron Job Backend (Supabase Edge Functions o Vercel Cron)**: 
+   - Un proceso automático que corra 1 vez al día o a la semana.
+   - Consultaría a Yahoo Finance por los precios actuales.
+   - Calcularía la diferencia entre el *precio actual* y el `costo_promedio`.
+3. **Integración con Resend**:
+   - Si la plusvalía de algún activo sobrepasa un umbral (Ej. creció un +5% en la semana), el backend dispara la API de Resend (`resend.emails.send()`) con un correo HTML moderno.
 
 ---
 
@@ -121,5 +69,5 @@ Ideas priorizadas para el futuro:
 - [x] Fase 3 — Core Features (Tarjetas, Analítica, Metas, Débito)
 - [x] Fase 4 — PWA & Offline-first verificado
 - [x] Fase 5 — CI/CD activo con branch protection
-- [x] Fase 6 — Módulo de Inversiones (Criptos/ETFs)
+- [x] Fase 6 — Módulo de Inversiones y Analítica Patrimonial
 - [x] Fase 7 — Módulo de Perfil de Usuario y Modificaciones Patrimoniales

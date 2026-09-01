@@ -31,32 +31,27 @@ export async function fetchCryptoPrices(symbols: string[]): Promise<Record<strin
 
   if (symbolsToFetch.length > 0) {
     try {
-      // Mapeo básico de símbolos de CoinGecko (puedes extender esto o hacer que el usuario seleccione la ID)
-      const coingeckoMap: Record<string, string> = {
-        'BTC': 'bitcoin',
-        'ETH': 'ethereum',
-        'SOL': 'solana',
-        'USDC': 'usd-coin',
-        'USDT': 'tether'
-      };
+      // Mapeo básico para asegurar que las cryptos principales tengan formato de Yahoo Finance (BTC-USD)
+      const mappedSymbols = symbolsToFetch.map(s => {
+        const upper = s.toUpperCase();
+        if (upper === 'BTC' || upper === 'ETH' || upper === 'SOL' || upper === 'USDC' || upper === 'USDT') {
+          return `${upper}-USD`;
+        }
+        return upper;
+      });
 
-      const ids = symbolsToFetch
-        .map(s => coingeckoMap[s.toUpperCase()] || s.toLowerCase())
-        .join(',');
+      const query = mappedSymbols.join(',');
 
-      // Consultamos CoinGecko Simple Price API
-      const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=mxn,usd`);
+      // Consultamos nuestro endpoint proxy
+      const res = await fetch(`/api/prices?symbols=${query}`);
       if (res.ok) {
         const data = await res.json();
         
-        // Guardar en la caché (preferimos MXN si está, o USD)
-        // Podríamos manejar la conversión en el futuro, pero aquí asumimos MXN para simplificar o USD como fallback
-        symbolsToFetch.forEach(sym => {
-          const id = coingeckoMap[sym.toUpperCase()] || sym.toLowerCase();
-          if (data[id]) {
-            // Prioridad a MXN, luego a USD (CoinGecko provee ambos si se piden, pero devolvemos un numero flotante)
-            // Asumiremos MXN para mantenerlo simple.
-            cache.prices[sym.toUpperCase()] = data[id].mxn || data[id].usd || 0;
+        // Guardar en la caché. data contiene llaves como "BTC-USD" o "QQQM"
+        symbolsToFetch.forEach((sym, idx) => {
+          const mapped = mappedSymbols[idx];
+          if (data[mapped] !== undefined) {
+            cache.prices[sym.toUpperCase()] = data[mapped];
           }
         });
 
@@ -64,7 +59,7 @@ export async function fetchCryptoPrices(symbols: string[]): Promise<Record<strin
         localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
       }
     } catch (err) {
-      console.warn("Error fetching prices from CoinGecko", err);
+      console.warn("Error fetching prices from local API", err);
     }
   }
 
