@@ -163,10 +163,8 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
             </div>
 
             {editingMov ? (
-              <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-                <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                  <RegistroForm initialData={editingMov} onClose={() => setEditingMov(null)} />
-                </div>
+              <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', minHeight: '400px' }}>
+                <RegistroForm initialData={editingMov} onClose={() => setEditingMov(null)} />
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
