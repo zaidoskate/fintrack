@@ -35,7 +35,7 @@ export function MSITimeline({ comprasMSI }: { comprasMSI: CompraMSI[] }) {
         const bucketDate = new Date(currentYear, currentMonth + i, 1);
         const bucketAbsMonth = bucketDate.getFullYear() * 12 + bucketDate.getMonth();
         const startAbsMonth = primerYear * 12 + primerMes;
-        const endAbsMonth = startAbsMonth + compra.mesesTotales - 1;
+        const endAbsMonth = startAbsMonth + compra.mesesTotales - 1 - (compra.mesesAdelantados || 0);
 
         if (bucketAbsMonth >= startAbsMonth && bucketAbsMonth <= endAbsMonth) {
           nextMonths[i].monto += cuota;

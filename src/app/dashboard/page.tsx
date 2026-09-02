@@ -23,8 +23,10 @@ import {
   rectSortingStrategy,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useTarjetas, useComprasMSI, useMetas, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta } from '@/lib/hooks';
+import { useTarjetas, useComprasMSI, useMetas, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta, useMovimientos } from '@/lib/hooks';
+import { calcularSaldoEfectivo } from '@/lib/finance/efectivo';
 import { TarjetaCard } from '@/components/dashboard/TarjetaCard';
+import { EfectivoCard } from '@/components/dashboard/EfectivoCard';
 
 import { SortableTarjeta } from '@/components/dashboard/SortableTarjeta';
 import { TarjetaFormModal } from '@/components/dashboard/TarjetaFormModal';
@@ -32,13 +34,14 @@ import { MovimientosTarjetaModal } from '@/components/dashboard/MovimientosTarje
 import { ApartadoFormModal } from '@/components/dashboard/ApartadoFormModal';
 import { MoverDineroApartadoModal } from '@/components/dashboard/MoverDineroApartadoModal';
 import { GlassCard } from '@/components/ui';
-import { Plus, HelpCircle, LayoutGrid, List } from 'lucide-react';
+import { Plus, HelpCircle, LayoutGrid, List, Eye, EyeOff } from 'lucide-react';
 import type { TarjetaConEstado } from '@/lib/types';
 
 export default function DashboardPage() {
   const { data: tarjetas, isLoading: loadT, error: errT } = useTarjetas();
   const { data: comprasMSI = [], isLoading: loadM } = useComprasMSI();
   const { data: metas = [] } = useMetas();
+  const { data: movimientos = [] } = useMovimientos();
   
   const { mutate: crear } = useCrearTarjeta();
   const { mutate: actualizar } = useActualizarTarjeta();
@@ -55,6 +58,7 @@ export default function DashboardPage() {
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [cardOrder, setCardOrder] = useState<string[]>([]);
   const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const [showBalances, setShowBalances] = useState(true);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -75,6 +79,10 @@ export default function DashboardPage() {
     if (savedView === 'compact' || savedView === 'full') {
       setViewMode(savedView);
     }
+    const savedBalances = localStorage.getItem('fintrack_show_balances');
+    if (savedBalances !== null) {
+      setShowBalances(savedBalances === 'true');
+    }
   }, []);
 
   useEffect(() => {
@@ -85,8 +93,9 @@ export default function DashboardPage() {
         try { parsed = JSON.parse(savedOrder); } catch {}
       }
       const existingIds = new Set(tarjetas.map(t => t.id));
+      existingIds.add('efectivo');
       const validOrder = parsed.filter(id => existingIds.has(id));
-      const missingIds = tarjetas.map(t => t.id).filter(id => !validOrder.includes(id));
+      const missingIds = ['efectivo', ...tarjetas.map(t => t.id)].filter(id => !validOrder.includes(id));
       
       const newOrder = [...validOrder, ...missingIds];
       // Only set if different to avoid unnecessary renders
@@ -173,6 +182,25 @@ export default function DashboardPage() {
             aria-label="Cambiar vista de tarjetas"
           >
             {viewMode === 'full' ? <LayoutGrid size={16} /> : <List size={16} />}
+          </button>
+
+          <button
+            onClick={() => {
+              setShowBalances((prev) => {
+                const next = !prev;
+                localStorage.setItem('fintrack_show_balances', String(next));
+                return next;
+              });
+            }}
+            style={{
+              background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text-primary)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '32px', height: '32px', borderRadius: '50%',
+              transition: 'background 0.2s',
+            }}
+            aria-label="Ocultar saldos"
+          >
+            {showBalances ? <Eye size={16} /> : <EyeOff size={16} />}
           </button>
 
           <button
@@ -266,8 +294,36 @@ export default function DashboardPage() {
                   gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
                   gap: '16px',
                   marginBottom: '20px'
-                } : {}}>
+                } : {
+                  display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px'
+                }}>
                   {cardOrder.map((id) => {
+                    if (id === 'efectivo') {
+                      return (
+                        <SortableTarjeta 
+                          key="efectivo" 
+                          id="efectivo"
+                          isEditing={isEditingOrder}
+                          onLongPress={() => setIsEditingOrder(true)}
+                        >
+                          <EfectivoCard 
+                            saldo={calcularSaldoEfectivo(movimientos)} 
+                            variant={viewMode}
+                            showBalance={showBalances}
+                            onClick={() => setViewingCard({
+                              id: 'efectivo',
+                              nombre: 'Efectivo',
+                              tipo: 'Débito', // Fake tipo para omitir lógicas de crédito
+                              disponible: calcularSaldoEfectivo(movimientos),
+                              limite: 0,
+                              marca: 'Mastercard',
+                              color: 'blue'
+                            } as unknown as TarjetaConEstado)}
+                          />
+                        </SortableTarjeta>
+                      );
+                    }
+
                     const t = tarjetas.find(card => card.id === id);
                     if (!t) return null;
                     return (
@@ -283,6 +339,7 @@ export default function DashboardPage() {
                           metas={metas}
                           showFlags={showFlags}
                           variant={viewMode}
+                          showBalance={showBalances}
                           onEdit={(t) => setEditingCard(t)}
                           onDelete={eliminar}
                           onViewDetails={(t) => setViewingCard(t)}

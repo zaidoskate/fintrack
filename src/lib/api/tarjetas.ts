@@ -45,7 +45,7 @@ export async function getTarjetas(): Promise<TarjetaConEstado[]> {
 
     supabase
       .from('compras_msi')
-      .select('id, tarjeta_id, cuota_mensual, fecha_primer_cargo, fecha_ultima_cuota, meses_totales, monto_total')
+      .select('id, tarjeta_id, cuota_mensual, fecha_compra, fecha_primer_cargo, fecha_ultima_cuota, meses_totales, monto_total, meses_adelantados, descuento_por_adelanto')
       .returns<CompraMSIRow[]>(),
 
     supabase

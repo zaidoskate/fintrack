@@ -52,7 +52,7 @@ function mesLabel(iso: string): string {
 function agruparPorCategoria(movs: Movimiento[]) {
   const map: Record<string, number> = {};
   for (const m of movs) {
-    if (m.tipo !== 'Gasto') continue;
+    if (m.tipo !== 'Gasto' || m.categoria === 'Traspaso') continue;
     map[m.categoria] = (map[m.categoria] ?? 0) + m.monto;
   }
   return Object.entries(map)
@@ -64,7 +64,7 @@ function agruparPorCategoria(movs: Movimiento[]) {
 function agruparPorMes(movs: Movimiento[]) {
   const map: Record<string, number> = {};
   for (const m of movs) {
-    if (m.tipo !== 'Gasto') continue;
+    if (m.tipo !== 'Gasto' || m.categoria === 'Traspaso') continue;
     const mes = m.fecha.substring(0, 7); // YYYY-MM
     map[mes] = (map[mes] ?? 0) + m.monto;
   }
@@ -120,7 +120,7 @@ export function AnalíticaView() {
   const { data: movimientos = [], isLoading } = useMovimientos({ desde: fechaDesde(days) });
 
   const gastoTotal = useMemo(
-    () => movimientos.filter((m) => m.tipo === 'Gasto').reduce((s, m) => s + m.monto, 0),
+    () => movimientos.filter((m) => m.tipo === 'Gasto' && m.categoria !== 'Traspaso').reduce((s, m) => s + m.monto, 0),
     [movimientos],
   );
   const porCategoria = useMemo(() => agruparPorCategoria(movimientos), [movimientos]);

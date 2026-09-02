@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 interface ConfirmModalProps {
   isOpen: boolean;
   title: string;
-  message?: string;
+  message?: React.ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
   confirmText?: string;

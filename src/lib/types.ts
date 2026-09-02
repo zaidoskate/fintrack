@@ -62,6 +62,8 @@ export interface CompraMSIRow {
   cuota_mensual: number;  // campo generado por PostgreSQL
   fecha_primer_cargo: string;
   fecha_ultima_cuota: string;
+  meses_adelantados: number;
+  descuento_por_adelanto: number;
   created_at: string;
 }
 
@@ -183,6 +185,8 @@ export interface CompraMSI {
   cuotaMensual: number;
   fechaPrimerCargo: string;
   fechaUltimaCuota: string;
+  mesesAdelantados: number;
+  descuentoPorAdelanto: number;
   mesesRestantes: number;  // calculado en cliente
 }
 

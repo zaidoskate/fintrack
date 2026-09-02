@@ -283,6 +283,19 @@ export function useComprasMSI(tarjetaId?: string) {
   });
 }
 
+import { adelantarCompraMSI } from './api/compras-msi';
+
+export function useAdelantarCompraMSI() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, meses, descuento }: { id: string; meses: number; descuento: number }) => adelantarCompraMSI(id, meses, descuento),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['compras-msi'] });
+      qc.invalidateQueries({ queryKey: QK.tarjetas }); 
+    },
+  });
+}
+
 export function useCrearCompraMSI() {
   const qc = useQueryClient();
   return useMutation({

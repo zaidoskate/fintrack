@@ -235,16 +235,31 @@ export function calcularEstadoTarjeta(
   comprasMSI.forEach((msi) => {
     if (msi.tarjeta_id !== tarjeta.id) return;
     const primerCargo = new Date(msi.fecha_primer_cargo + 'T00:00:00');
-    const ultimaCuota = new Date(msi.fecha_ultima_cuota + 'T00:00:00');
+    const fechaCompra = new Date(msi.fecha_compra + 'T00:00:00');
     
-    if (hoy >= primerCargo && hoy <= ultimaCuota) {
-      gastosMSIMes += Number(msi.cuota_mensual);
+    // Si la compra ya se realizó
+    if (hoy >= fechaCompra) {
+      // 1. ¿Cuántos meses han pasado desde el primer cargo hasta el FIN del periodo actual?
+      const mFin = periodo.fin.getMonth();
+      const yFin = periodo.fin.getFullYear();
+      const mPrimer = primerCargo.getMonth();
+      const yPrimer = primerCargo.getFullYear();
       
-      // Calcular cuántas cuotas restan por cobrar para deducir del disponible
-      const mesDiff = (hoy.getFullYear() - primerCargo.getFullYear()) * 12 + (hoy.getMonth() - primerCargo.getMonth());
-      const cuotasCobradas = Math.max(0, Math.min(Number(msi.meses_totales), mesDiff + 1));
-      const cuotasRestantes = Number(msi.meses_totales) - cuotasCobradas;
-      saldoCongeladoMSI += cuotasRestantes * Number(msi.cuota_mensual);
+      const mesesTranscurridos = (yFin - yPrimer) * 12 + (mFin - mPrimer);
+      
+      // Cuotas facturadas (incluye la del periodo actual si ya llegamos a él)
+      const cuotasFacturadas = Math.max(0, mesesTranscurridos + 1);
+      
+      // 2. Si la cuota actual es >= 1 y <= totales, se cobra este mes (suma a gastos)
+      if (cuotasFacturadas > 0 && cuotasFacturadas <= msi.meses_totales) {
+        gastosMSIMes += Number(msi.cuota_mensual);
+      }
+      
+      // 3. El saldo congelado es el restante DESPUÉS de descontar cuotas facturadas y adelantadas
+      const cuotasRestantesParaCongelar = Math.max(0, Number(msi.meses_totales) - cuotasFacturadas - (msi.meses_adelantados ?? 0));
+      if (cuotasRestantesParaCongelar > 0) {
+        saldoCongeladoMSI += (cuotasRestantesParaCongelar * Number(msi.cuota_mensual)) - (Number(msi.descuento_por_adelanto) ?? 0);
+      }
     }
   });
 

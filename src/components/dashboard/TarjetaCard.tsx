@@ -12,7 +12,8 @@
 import { useState } from 'react';
 import { GlassCard, StatusPill, ConfirmModal } from '@/components/ui';
 import type { TarjetaConEstado, CompraMSI, MetaConEstado } from '@/lib/types';
-import { Pencil, Trash, ArrowRightLeft } from 'lucide-react';
+import { Pencil, Trash, ArrowRightLeft, FastForward } from 'lucide-react';
+import { useAdelantarCompraMSI } from '@/lib/hooks';
 
 /* Formatea monto MXN (es-MX, formato moneda sin decimales si son .00) */
 const fmt = new Intl.NumberFormat('es-MX', {
@@ -34,6 +35,7 @@ interface TarjetaCardProps {
   metas?: MetaConEstado[];
   showFlags?: boolean;
   variant?: 'full' | 'compact';
+  showBalance?: boolean;
   onEdit?: (tarjeta: TarjetaConEstado) => void;
   onDelete?: (tarjetaId: string) => void;
   onViewDetails?: (tarjeta: TarjetaConEstado) => void;
@@ -41,11 +43,17 @@ interface TarjetaCardProps {
   onMoveApartado?: (apartadoId: string, maxRetiro: number, maxIngreso: number) => void;
 }
 
-export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true, variant = 'full', onEdit, onDelete, onViewDetails, onAddApartado, onMoveApartado }: TarjetaCardProps) {
+export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true, variant = 'full', showBalance = true, onEdit, onDelete, onViewDetails, onAddApartado, onMoveApartado }: TarjetaCardProps) {
   const [msiOpen, setMsiOpen] = useState(false);
   const [metasOpen, setMetasOpen] = useState(false);
   const [apartadosOpen, setApartadosOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [adelantarMSI, setAdelantarMSI] = useState<string | null>(null);
+  const [adelantarMeses, setAdelantarMeses] = useState(1);
+  const [adelantarDescuento, setAdelantarDescuento] = useState(0);
+
+  const { mutate: adelantar, isPending: isAdelantando } = useAdelantarCompraMSI();
+
   const msiActivas = comprasMSI.filter((m) => m.mesesRestantes > 0);
   const esCredito = tarjeta.tipo === 'Crédito';
   const apartados = tarjeta.apartados || [];
@@ -74,7 +82,6 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
       as="article"
       style={{ 
         padding: variant === 'compact' ? '16px' : '24px', 
-        marginBottom: variant === 'compact' ? 0 : '20px', 
         cursor: onViewDetails ? 'pointer' : 'default',
         height: '100%',
         display: 'flex',
@@ -125,26 +132,61 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column' }}>
 
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        title={`¿Eliminar la tarjeta ${tarjeta.nombre}?`}
-        message="Esta acción no se puede deshacer y eliminará todos los movimientos asociados a esta tarjeta."
-        confirmText="Eliminar"
-        onConfirm={() => onDelete?.(tarjeta.id)}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
+      {showDeleteConfirm && (
+        <ConfirmModal
+          isOpen={true}
+          title="Eliminar Tarjeta"
+          message={`¿Estás seguro de eliminar la tarjeta ${tarjeta.nombre}? Esta acción no se puede deshacer y borrará todos sus datos asociados si no están respaldados.`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          isDestructive
+          onConfirm={() => {
+            onDelete?.(tarjeta.id);
+            setShowDeleteConfirm(false);
+          }}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
 
-      {/* Número enmascarado — estilo JetBrains Mono */}
-      {variant === 'full' && (
-        <div style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: '15px',
-          letterSpacing: '0.08em',
-          color: 'var(--text-secondary)',
-          marginBottom: '22px',
-        }}>
-          •••• •••• •••• ••••
-        </div>
+      {adelantarMSI && (
+        <ConfirmModal
+          isOpen={true}
+          title="Adelantar Mensualidades"
+          message={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+              <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                ¿Cuántos meses deseas adelantar?
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="48"
+                  value={adelantarMeses}
+                  onChange={(e) => setAdelantarMeses(Number(e.target.value))}
+                  style={{ width: '100%', padding: '10px', marginTop: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px' }}
+                />
+              </label>
+              <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                Descuento ofrecido por el banco (MXN, opcional)
+                <input 
+                  type="number" 
+                  min="0"
+                  step="0.01"
+                  value={adelantarDescuento}
+                  onChange={(e) => setAdelantarDescuento(Number(e.target.value))}
+                  style={{ width: '100%', padding: '10px', marginTop: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px' }}
+                />
+              </label>
+            </div>
+          }
+          confirmText={isAdelantando ? "Guardando..." : "Confirmar Adelanto"}
+          cancelText="Cancelar"
+          onConfirm={() => {
+            adelantar({ id: adelantarMSI, meses: adelantarMeses, descuento: adelantarDescuento }, {
+              onSuccess: () => setAdelantarMSI(null)
+            });
+          }}
+          onCancel={() => setAdelantarMSI(null)}
+        />
       )}
 
       {/* Fila inferior: disponible + pill */}
@@ -175,7 +217,7 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
             alignItems: 'center',
             gap: '8px'
           }}>
-            {fmt.format(tarjeta.disponible)}
+            {showBalance ? fmt.format(tarjeta.disponible) : '••••••••'}
           </div>
         </div>
 
@@ -318,17 +360,42 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                       {msi.mesesRestantes} mes{msi.mesesRestantes !== 1 ? 'es' : ''} restante{msi.mesesRestantes !== 1 ? 's' : ''}
                       {' · '}total {fmt.format(msi.montoTotal)}
+                      {msi.mesesAdelantados > 0 && ` (Adelantados: ${msi.mesesAdelantados})`}
                     </div>
                   </div>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    fontSize: '15px',
-                    color: 'var(--credito-amarillo)',
-                    textAlign: 'right',
-                  }}>
-                    {fmt.format(msi.cuotaMensual)}
-                    <div style={{ fontSize: '10px', fontWeight: 400, color: 'var(--text-muted)' }}>/mes</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      fontSize: '15px',
+                      color: 'var(--credito-amarillo)',
+                      textAlign: 'right',
+                    }}>
+                      {fmt.format(msi.cuotaMensual)}
+                      <div style={{ fontSize: '10px', fontWeight: 400, color: 'var(--text-muted)' }}>/mes</div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAdelantarMSI(msi.id);
+                        setAdelantarMeses(1);
+                        setAdelantarDescuento(0);
+                      }}
+                      title="Adelantar mensualidades"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '6px',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <FastForward size={16} />
+                    </button>
                   </div>
                 </div>
               ))}

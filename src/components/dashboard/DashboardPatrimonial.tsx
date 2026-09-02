@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { CuentaYield } from '@/lib/types';
-import { useActivos, useCuentasYield, useTarjetas, useAddActivo, useAddCuentaYield, useDeleteActivo, useDeleteCuentaYield, useUpdateActivo, useUpdateCuentaYield } from '@/lib/hooks';
+import { useActivos, useCuentasYield, useTarjetas, useMovimientos, useAddActivo, useAddCuentaYield, useDeleteActivo, useDeleteCuentaYield, useUpdateActivo, useUpdateCuentaYield } from '@/lib/hooks';
+import { calcularSaldoEfectivo } from '@/lib/finance/efectivo';
 import { AddInversionModal } from './AddInversionModal';
 import { AddCuentaYieldModal } from './AddCuentaYieldModal';
 import { PatrimonialAnalytics } from './analytics/PatrimonialAnalytics';
@@ -15,6 +16,7 @@ export function DashboardPatrimonial() {
   const { data: activos = [], isLoading: loadA } = useActivos();
   const { data: yields = [], isLoading: loadY } = useCuentasYield();
   const { data: tarjetas = [], isLoading: loadT } = useTarjetas();
+  const { data: movimientos = [], isLoading: loadM } = useMovimientos();
   
   const { mutate: addActivo, isPending: addingA } = useAddActivo();
   const { mutate: addYield, isPending: addingY } = useAddCuentaYield();
@@ -75,7 +77,8 @@ export function DashboardPatrimonial() {
 
   const totalActivos = activos.reduce((sum, a) => sum + (a.valorTotal || 0), 0);
   const totalYields = yields.reduce((sum, y) => sum + (y.valorTotalMXN || y.balanceActual), 0);
-  const granTotal = totalActivos + totalYields;
+  const balanceEfectivo = calcularSaldoEfectivo(movimientos);
+  const granTotal = totalActivos + totalYields + balanceEfectivo;
 
   const [displayCurrency, setDisplayCurrency] = useState('MXN');
   const [rates, setRates] = useState<Record<string, number>>({});
@@ -140,7 +143,7 @@ export function DashboardPatrimonial() {
     setEditTarget(null);
   };
 
-  if (loadA || loadY || loadT) {
+  if (loadA || loadY || loadT || loadM) {
     return <Loader label="Cargando portafolio..." fullHeight />;
   }
 

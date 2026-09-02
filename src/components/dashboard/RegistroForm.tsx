@@ -19,9 +19,14 @@ import {
 } from '@/lib/hooks';
 import type { Movimiento } from '@/lib/types';
 
-const CATEGORIAS = [
+const CATEGORIAS_GASTO = [
   'Comida', 'Transporte', 'Entretenimiento', 'Salud',
-  'Ropa', 'Conveniencia', 'Servicios', 'Sin categoría',
+  'Ropa', 'Conveniencia', 'Servicios', 'Traspaso', 'Sin categoría',
+];
+
+const CATEGORIAS_INGRESO = [
+  'Sueldo', 'Negocio/Ventas', 'Rendimientos', 'Préstamos',
+  'Regalos', 'Traspaso', 'Otros ingresos'
 ];
 
 const METODOS_EFECTIVO = ['Efectivo'];
@@ -41,11 +46,12 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
   /* ── Estado del formulario ─────────────────────────────────────── */
   const [tipo,       setTipo]      = useState<'Gasto' | 'Ingreso'>(initialData?.tipo || 'Gasto');
   const [monto,      setMonto]     = useState(initialData?.monto.toString() || '');
-  const [categoria,  setCat]       = useState(initialData?.categoria || CATEGORIAS[0]);
+  const [categoria,  setCat]       = useState(initialData?.categoria || CATEGORIAS_GASTO[0]);
   const [comercio,   setCom]       = useState(initialData?.comercio || '');
   const [metodo,     setMetodo]    = useState(initialData?.metodoPago || 'Efectivo');
   const [esMeses,    setEsMeses]   = useState(false);
   const [meses,      setMeses]     = useState(3);
+  const [fechaPrimerCargo, setFechaPrimerCargo] = useState('');
   const [error,      setError]     = useState<string | null>(null);
   const [exito,      setExito]     = useState(false);
 
@@ -80,7 +86,7 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
           categoria,
           montoTotal:   montoNum,
           mesesTotales: meses,
-          fechaPrimerCargo: hoyISO,
+          fechaPrimerCargo: fechaPrimerCargo || undefined,
         },
         {
           onSuccess: () => { setExito(true); setTimeout(() => { setExito(false); resetForm(); onClose?.(); }, 1500); },
@@ -138,7 +144,8 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
   };
 
   const resetForm = () => {
-    setMonto(''); setCom(''); setCat(CATEGORIAS[0]);
+    setMonto('');    setTipo('Gasto');
+    setCat(CATEGORIAS_GASTO[0]);
     setMetodo('Efectivo'); setEsMeses(false); setMeses(3);
     setTipo('Gasto'); setError(null);
   };
@@ -179,7 +186,11 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
           {(['Gasto', 'Ingreso'] as const).map((t) => (
             <button
               key={t} type="button"
-              onClick={() => { setTipo(t); setEsMeses(false); }}
+              onClick={() => {
+                setTipo(t as 'Gasto' | 'Ingreso');
+                if (t === 'Ingreso' && !CATEGORIAS_INGRESO.includes(categoria)) setCat(CATEGORIAS_INGRESO[0]);
+                if (t === 'Gasto' && !CATEGORIAS_GASTO.includes(categoria)) setCat(CATEGORIAS_GASTO[0]);
+              }}
               style={{
                 flex: 1, padding: '10px',
                 background: tipo === t
@@ -214,12 +225,12 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
         />
 
         {/* Categoría */}
-        <div style={{ zIndex: 30, position: 'relative' }}>
+        <div>
+          <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Categoría</label>
           <GlassSelect
-            options={CATEGORIAS}
             value={categoria}
-            onChange={(val: string) => setCat(val)}
-            placeholder="Selecciona categoría"
+            onChange={setCat}
+            options={tipo === 'Ingreso' ? CATEGORIAS_INGRESO : CATEGORIAS_GASTO}
           />
         </div>
 
@@ -273,6 +284,19 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
                 Cuota: {fmt.format(parseFloat(monto.replace(/[,$\s]/g,'')) / meses)}/mes
               </p>
             )}
+            
+            <label style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '6px', display: 'block' }}>
+              Mes del primer cargo (Opcional)
+            </label>
+            <input
+              type="date"
+              value={fechaPrimerCargo}
+              onChange={(e) => setFechaPrimerCargo(e.target.value)}
+              style={inputStyle}
+            />
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              Si lo dejas en blanco, se calculará automáticamente según tu fecha de corte.
+            </p>
           </div>
         )}
 

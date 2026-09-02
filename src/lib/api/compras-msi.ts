@@ -7,12 +7,23 @@ import { createClient } from '@/lib/supabase/client';
 import type { CompraMSI, CompraMSIRow } from '@/lib/types';
 
 function rowToCompraMSI(row: CompraMSIRow, hoy: Date = new Date()): CompraMSI {
-  const ultimaCuota = new Date(row.fecha_ultima_cuota + 'T00:00:00');
   const primerCargo = new Date(row.fecha_primer_cargo + 'T00:00:00');
-
-  // Meses restantes: meses entre hoy y fecha_ultima_cuota (redondeado hacia arriba)
-  const diffMs = ultimaCuota.getTime() - hoy.getTime();
-  const mesesRestantes = Math.max(0, Math.ceil(diffMs / (30.44 * 86_400_000)));
+  
+  const m = hoy.getMonth();
+  const y = hoy.getFullYear();
+  const mPrimer = primerCargo.getMonth();
+  const yPrimer = primerCargo.getFullYear();
+  
+  // Meses transcurridos calendario
+  const mesesTranscurridos = (y - yPrimer) * 12 + (m - mPrimer);
+  
+  // Si hoy es antes del primer cargo, transcurridos es 0, si ya pasó el mes es >0.
+  const cuotasCobradasCronologicas = Math.max(0, mesesTranscurridos + 1); // +1 porque el mes del primer cargo es la cuota 1
+  
+  const mesesAdelantados = row.meses_adelantados ?? 0;
+  
+  // Restantes = totales - cobradas por tiempo - adelantadas
+  const mesesRestantes = Math.max(0, row.meses_totales - cuotasCobradasCronologicas - mesesAdelantados);
 
   return {
     id:               row.id,
@@ -25,6 +36,8 @@ function rowToCompraMSI(row: CompraMSIRow, hoy: Date = new Date()): CompraMSI {
     cuotaMensual:     Number(row.cuota_mensual),
     fechaPrimerCargo: row.fecha_primer_cargo,
     fechaUltimaCuota: row.fecha_ultima_cuota,
+    mesesAdelantados,
+    descuentoPorAdelanto: Number(row.descuento_por_adelanto ?? 0),
     mesesRestantes,
   };
 
@@ -74,9 +87,31 @@ export async function crearCompraMSI(input: NuevaCompraMSIInput): Promise<Compra
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado.');
 
-  const hoyStr = new Date().toISOString().substring(0, 10);
-  const primerCargo = input.fechaPrimerCargo ?? hoyStr;
-  const fechaUltimaCuota = calcFechaUltimaCuota(primerCargo, input.mesesTotales);
+  // Obtener la tarjeta para saber el día de corte
+  const { data: tarjeta } = await supabase.from('tarjetas').select('dia_corte').eq('id', input.tarjetaId).single();
+  const diaCorte = tarjeta?.dia_corte || 1;
+
+  const hoy = new Date();
+  const y = hoy.getFullYear();
+  const m = hoy.getMonth();
+  const d = hoy.getDate();
+
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const corteEsteMes = Math.min(diaCorte, lastDay);
+
+  let primerCargoCalculado = new Date(y, m, corteEsteMes);
+  // Si compramos antes del corte, entra en el corte de ESTE mes.
+  // Si compramos el mismo día o después, entra en el corte del PRÓXIMO mes.
+  if (d >= corteEsteMes) {
+    const nextM = m === 11 ? 0 : m + 1;
+    const nextY = m === 11 ? y + 1 : y;
+    const ld = new Date(nextY, nextM + 1, 0).getDate();
+    primerCargoCalculado = new Date(nextY, nextM, Math.min(diaCorte, ld));
+  }
+
+  const hoyStr = hoy.toISOString().substring(0, 10);
+  const primerCargoStr = input.fechaPrimerCargo ?? primerCargoCalculado.toISOString().substring(0, 10);
+  const fechaUltimaCuota = calcFechaUltimaCuota(primerCargoStr, input.mesesTotales);
 
   const { data, error } = await supabase
     .from('compras_msi')
@@ -88,14 +123,34 @@ export async function crearCompraMSI(input: NuevaCompraMSIInput): Promise<Compra
       monto_total:        input.montoTotal,
       meses_totales:      input.mesesTotales,
       fecha_compra:       hoyStr,
-      fecha_primer_cargo: primerCargo,
+      fecha_primer_cargo: primerCargoStr,
       fecha_ultima_cuota: fechaUltimaCuota,
+      meses_adelantados:  0,
+      descuento_por_adelanto: 0,
     })
     .select()
     .single<CompraMSIRow>();
 
   if (error) throw error;
   return rowToCompraMSI(data);
+}
+
+export async function adelantarCompraMSI(id: string, mesesAdelantados: number, descuento: number): Promise<void> {
+  const supabase = createClient();
+  // Fetch actual para sumar
+  const { data: current } = await supabase.from('compras_msi').select('meses_adelantados, descuento_por_adelanto').eq('id', id).single();
+  const prevMeses = current?.meses_adelantados ?? 0;
+  const prevDesc = current?.descuento_por_adelanto ?? 0;
+
+  const { error } = await supabase
+    .from('compras_msi')
+    .update({ 
+      meses_adelantados: prevMeses + mesesAdelantados,
+      descuento_por_adelanto: Number(prevDesc) + descuento
+    })
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
 export async function eliminarCompraMSI(id: string): Promise<void> {
