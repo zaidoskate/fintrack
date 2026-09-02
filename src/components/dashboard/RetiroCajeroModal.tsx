@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { X, ArrowRight, Loader2 } from 'lucide-react';
 import { GlassCard, GlassSelect } from '@/components/ui';
@@ -9,6 +10,10 @@ interface RetiroCajeroModalProps {
 }
 
 export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
+
   const { data: tarjetas = [] } = useTarjetas();
   const tarjetasDebito = tarjetas.filter(t => t.tipo === 'Débito');
   
@@ -52,7 +57,7 @@ export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
     });
   };
 
-  return (
+  const modal = (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
@@ -169,4 +174,7 @@ export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
       </motion.div>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(modal, document.body);
 }
