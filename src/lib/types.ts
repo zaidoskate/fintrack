@@ -73,6 +73,7 @@ export interface PortafolioActivoRow {
   simbolo: string;
   tipo: 'crypto' | 'stock' | 'etf';
   cantidad: number;
+  inversion_inicial: number;
   created_at: string;
 }
 
@@ -195,6 +196,7 @@ export interface PortafolioActivo {
   simbolo: string;
   tipo: 'crypto' | 'stock' | 'etf';
   cantidad: number;
+  inversionInicial: number;
   precioActual?: number; // Fetcheado desde API
   valorTotal?: number;   // cantidad * precioActual
 }

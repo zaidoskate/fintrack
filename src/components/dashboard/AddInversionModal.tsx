@@ -5,7 +5,7 @@ import { X, Info, TrendingUp, CircleDollarSign, Coins } from 'lucide-react';
 
 interface AddInversionModalProps {
   onClose: () => void;
-  onSubmit: (datos: { simbolo: string; tipo: 'crypto' | 'stock' | 'etf'; cantidad: number }) => void;
+  onSubmit: (datos: { simbolo: string; tipo: 'crypto' | 'stock' | 'etf'; cantidad: number; inversionInicial: number }) => void;
   isPending: boolean;
 }
 
@@ -13,14 +13,16 @@ export function AddInversionModal({ onClose, onSubmit, isPending }: AddInversion
   const [tipo, setTipo] = useState<'crypto' | 'stock' | 'etf'>('stock');
   const [simbolo, setSimbolo] = useState('');
   const [cantidad, setCantidad] = useState('');
+  const [inversionInicial, setInversionInicial] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!simbolo || !cantidad) return;
+    if (!simbolo || !cantidad || !inversionInicial) return;
     onSubmit({
       simbolo: simbolo.toUpperCase(),
       tipo,
-      cantidad: parseFloat(cantidad)
+      cantidad: parseFloat(cantidad),
+      inversionInicial: parseFloat(inversionInicial)
     });
   };
 
@@ -127,15 +129,36 @@ export function AddInversionModal({ onClose, onSubmit, isPending }: AddInversion
                 />
               </div>
 
+              {/* Inversión Inicial */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  Inversión Inicial (MXN)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  placeholder="Ej. 1000.00"
+                  value={inversionInicial}
+                  onChange={e => setInversionInicial(e.target.value)}
+                  style={{
+                    width: '100%', padding: '14px 16px', borderRadius: '14px',
+                    background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)',
+                    color: 'var(--text-primary)', fontSize: '16px', outline: 'none'
+                  }}
+                />
+              </div>
+
               {/* Acciones */}
               <button
                 type="submit"
-                disabled={isPending || !simbolo || !cantidad}
+                disabled={isPending || !simbolo || !cantidad || !inversionInicial}
                 style={{
                   width: '100%', padding: '16px', borderRadius: '16px',
-                  background: isPending || !simbolo || !cantidad ? 'rgba(255,255,255,0.1)' : 'var(--brand)',
-                  color: isPending || !simbolo || !cantidad ? 'var(--text-muted)' : '#fff',
-                  border: 'none', fontSize: '16px', fontWeight: 600, cursor: isPending || !simbolo || !cantidad ? 'not-allowed' : 'pointer',
+                  background: isPending || !simbolo || !cantidad || !inversionInicial ? 'rgba(255,255,255,0.1)' : 'var(--brand)',
+                  color: isPending || !simbolo || !cantidad || !inversionInicial ? 'var(--text-muted)' : '#fff',
+                  border: 'none', fontSize: '16px', fontWeight: 600, cursor: isPending || !simbolo || !cantidad || !inversionInicial ? 'not-allowed' : 'pointer',
                   marginTop: '10px', transition: 'all 0.2s'
                 }}
               >

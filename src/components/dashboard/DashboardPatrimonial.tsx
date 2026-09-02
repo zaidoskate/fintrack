@@ -72,13 +72,24 @@ export function DashboardPatrimonial() {
   
   const [editTarget, setEditTarget] = useState<{ type: 'activo' | 'yield', id: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [editInversionInicial, setEditInversionInicial] = useState('');
 
 
 
   const totalActivos = activos.reduce((sum, a) => sum + (a.valorTotal || 0), 0);
-  const totalYields = yields.reduce((sum, y) => sum + (y.valorTotalMXN || y.balanceActual), 0);
+  
+  // Incluir TODO el efectivo y cuentas bancarias en el patrimonio
+  let totalBancario = 0;
+  tarjetas.filter(t => t.tipo === 'Débito').forEach(t => {
+    totalBancario += t.disponible;
+    if (t.apartados) {
+      t.apartados.forEach(a => { totalBancario += a.balanceCalculado; });
+    }
+  });
+
+  const totalYieldsPuros = yields.reduce((sum, y) => sum + (y.valorTotalMXN || y.balanceActual), 0);
   const balanceEfectivo = calcularSaldoEfectivo(movimientos);
-  const granTotal = totalActivos + totalYields + balanceEfectivo;
+  const granTotal = totalActivos + totalYieldsPuros + totalBancario + balanceEfectivo;
 
   const [displayCurrency, setDisplayCurrency] = useState('MXN');
   const [rates, setRates] = useState<Record<string, number>>({});
@@ -90,24 +101,37 @@ export function DashboardPatrimonial() {
       .catch(console.error);
   }, []);
 
-  let displayTotal = granTotal;
-  let decimals = 2;
-  if (displayCurrency === 'USD' && rates['MXN=X']) { displayTotal = granTotal / rates['MXN=X']; }
-  else if (displayCurrency === 'EUR' && rates['EURMXN=X']) { displayTotal = granTotal / rates['EURMXN=X']; }
-  else if (displayCurrency === 'BTC' && rates['BTC-USD']) { displayTotal = granTotal / rates['BTC-USD']; decimals = 6; }
+  const getConvertedValue = (valMXN: number) => {
+    if (displayCurrency === 'USD' && rates['MXN=X']) return valMXN / rates['MXN=X'];
+    if (displayCurrency === 'EUR' && rates['EURMXN=X']) return valMXN / rates['EURMXN=X'];
+    if (displayCurrency === 'BTC' && rates['BTC-USD']) return valMXN / rates['BTC-USD'];
+    return valMXN;
+  };
 
-  const fmt = new Intl.NumberFormat('es-MX', { 
-    style: 'currency', 
-    currency: displayCurrency === 'BTC' ? 'MXN' : displayCurrency, // Fallback si el browser no soporta BTC, igual reemplazamos string abajo
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  });
+  const formatConverted = (valMXN: number, minDecimals = 2) => {
+    const val = getConvertedValue(valMXN);
+    if (displayCurrency === 'BTC') return `₿ ${val.toFixed(6)}`;
+    
+    try {
+      const currencyFormatter = new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: displayCurrency,
+        minimumFractionDigits: minDecimals,
+        maximumFractionDigits: 2
+      });
+      return currencyFormatter.format(val);
+    } catch {
+      // Fallback en caso de moneda no soportada por el navegador
+      return `${displayCurrency} ${val.toFixed(2)}`;
+    }
+  };
 
-  const handleAddActivo = (datos: { simbolo: string; tipo: 'crypto' | 'stock' | 'etf'; cantidad: number }) => {
+  const handleAddActivo = (datos: { simbolo: string; tipo: 'crypto' | 'stock' | 'etf'; cantidad: number; inversionInicial: number }) => {
     addActivo({
       simbolo: datos.simbolo,
       tipo: datos.tipo,
       cantidad: datos.cantidad,
+      inversionInicial: datos.inversionInicial,
     }, {
       onSuccess: () => {
         setShowAddActivo(false);
@@ -131,16 +155,17 @@ export function DashboardPatrimonial() {
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editTarget) return;
-    const val = parseFloat(editValue);
-    if (isNaN(val) || val < 0) return;
-    
+    if (!editTarget || !editValue) return;
+
     if (editTarget.type === 'activo') {
-      updateActivo({ id: editTarget.id, campos: { cantidad: val } });
+      updateActivo({ id: editTarget.id, campos: { cantidad: parseFloat(editValue), inversionInicial: editInversionInicial ? parseFloat(editInversionInicial) : undefined } }, {
+        onSuccess: () => setEditTarget(null)
+      });
     } else {
-      updateYield({ id: editTarget.id, campos: { balance_inicial: val, ultima_actualizacion: new Date().toISOString().split('T')[0] } });
+      updateYield({ id: editTarget.id, campos: { balance_inicial: parseFloat(editValue), ultima_actualizacion: new Date().toISOString().split('T')[0] } }, {
+        onSuccess: () => setEditTarget(null)
+      });
     }
-    setEditTarget(null);
   };
 
   if (loadA || loadY || loadT || loadM) {
@@ -179,7 +204,7 @@ export function DashboardPatrimonial() {
           </button>
         </div>
         <div style={{ fontSize: '40px', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {displayCurrency === 'BTC' ? `₿ ${displayTotal.toFixed(6)}` : fmt.format(displayTotal)}
+          {formatConverted(granTotal, 0)}
           <div style={{ background: 'var(--credito-verde)', color: '#000', fontSize: '12px', padding: '4px 8px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <TrendingUp size={14} /> LIVE
           </div>
@@ -251,16 +276,30 @@ export function DashboardPatrimonial() {
                       <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between' }}>
                         <div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Valor Total</div>
-                          <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--text-primary)' }}>{fmt.format(a.valorTotal || 0)}</div>
+                          <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--text-primary)' }}>{formatConverted(a.valorTotal || 0)}</div>
+                          {(() => {
+                            const valAct = a.valorTotal || 0;
+                            const invIni = a.inversionInicial || 0;
+                            if (invIni === 0) return null;
+                            const diff = valAct - invIni;
+                            const isPositive = diff >= 0;
+                            const diffPorcentaje = (diff / invIni) * 100;
+                            
+                            return (
+                              <div style={{ fontSize: '12px', color: isPositive ? 'var(--credito-verde)' : '#ff4444', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                {isPositive ? '▲' : '▼'} {formatConverted(Math.abs(diff))} ({diffPorcentaje > 0 ? '+' : ''}{diffPorcentaje.toFixed(2)}%)
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Precio Mercado</div>
-                          <div style={{ fontSize: '14px', color: 'var(--credito-verde)', fontWeight: 500 }}>{fmt.format(a.precioActual || 0)} c/u</div>
+                          <div style={{ fontSize: '14px', color: 'var(--credito-verde)', fontWeight: 500 }}>{formatConverted(a.precioActual || 0)} c/u</div>
                         </div>
                       </div>
                     </div>
                     <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '4px' }}>
-                      <button onClick={() => { setEditTarget({ type: 'activo', id: a.id }); setEditValue(String(a.cantidad)); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
+                      <button onClick={() => { setEditTarget({ type: 'activo', id: a.id }); setEditValue(String(a.cantidad)); setEditInversionInicial(String(a.inversionInicial || 0)); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
                         <Pencil size={18} />
                       </button>
                       <button onClick={() => setDeleteTarget({ type: 'activo', id: a.id })} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
@@ -309,13 +348,13 @@ export function DashboardPatrimonial() {
                         <div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Valor Total</div>
                           <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--text-primary)' }}>
-                            {y.moneda === 'MXN' ? fmt.format(y.balanceActual) : `${y.balanceActual.toFixed(2)} ${y.moneda}`}
+                            {formatConverted(y.moneda === 'MXN' ? y.balanceActual : (y.valorTotalMXN || y.balanceActual))}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rendimiento Total</div>
                           <div style={{ fontSize: '14px', color: 'var(--credito-verde)', fontWeight: 500 }}>
-                            +{fmt.format((y.valorTotalMXN || y.balanceActual) - (y.moneda === 'MXN' ? y.balanceInicial : y.balanceInicial * ((y.valorTotalMXN || 1) / y.balanceActual)))} (MXN)
+                            +{formatConverted((y.valorTotalMXN || y.balanceActual) - (y.moneda === 'MXN' ? y.balanceInicial : y.balanceInicial * ((y.valorTotalMXN || 1) / y.balanceActual)))}
                           </div>
                         </div>
                       </div>
@@ -405,16 +444,46 @@ export function DashboardPatrimonial() {
                 Editar {editTarget.type === 'activo' ? 'cantidad' : 'balance'}
               </h2>
               <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <input
-                  type="number"
-                  step="any"
-                  value={editValue}
-                  onChange={e => setEditValue(e.target.value)}
-                  style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px', color: '#fff', boxSizing: 'border-box', fontSize: '16px' }}
-                  required
-                  autoFocus
-                />
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                    {editTarget.type === 'activo' ? 'Nueva cantidad (Posesiones)' : 'Nuevo balance inicial'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    required
+                    value={editValue}
+                    onChange={e => setEditValue(e.target.value)}
+                    style={{
+                      width: '100%', padding: '12px', borderRadius: '12px',
+                      background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'var(--text-primary)', outline: 'none'
+                    }}
+                  />
+                </div>
+                
+                {editTarget.type === 'activo' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                      Inversión Inicial (MXN)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={editInversionInicial}
+                      onChange={e => setEditInversionInicial(e.target.value)}
+                      style={{
+                        width: '100%', padding: '12px', borderRadius: '12px',
+                        background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                        color: 'var(--text-primary)', outline: 'none'
+                      }}
+                    />
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                   <button type="submit" style={{ flex: 1, background: 'var(--brand)', color: '#000', border: 'none', borderRadius: '8px', padding: '10px', fontWeight: 600, cursor: 'pointer' }}>
                     Guardar
                   </button>

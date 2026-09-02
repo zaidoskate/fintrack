@@ -35,7 +35,6 @@ import type {
   CompraMSI,
   PortafolioActivo,
   CuentaYield,
-  PortafolioActivoRow,
   CuentaYieldRow
 } from '@/lib/types';
 import type {
@@ -340,7 +339,7 @@ export function useAddActivo() {
 export function useUpdateActivo() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, campos }: { id: string; campos: Partial<PortafolioActivoRow> }) => updateActivo(id, campos),
+    mutationFn: ({ id, campos }: { id: string; campos: Partial<PortafolioActivo> }) => updateActivo(id, campos),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.activos }),
   });
 }

@@ -20,6 +20,7 @@ export async function getActivos(): Promise<PortafolioActivo[]> {
     simbolo: r.simbolo,
     tipo: r.tipo,
     cantidad: r.cantidad,
+    inversionInicial: r.inversion_inicial || 0,
   } as PortafolioActivo));
 
   // Try to fetch prices (we'll implement this with cache)
@@ -39,23 +40,37 @@ export async function getActivos(): Promise<PortafolioActivo[]> {
   }
 }
 
-export async function addActivo(activo: Omit<PortafolioActivoRow, 'id' | 'user_id' | 'created_at'>) {
+export async function addActivo(activo: Omit<PortafolioActivo, 'id' | 'precioActual' | 'valorTotal'>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
+  const row = {
+    simbolo: activo.simbolo,
+    tipo: activo.tipo,
+    cantidad: activo.cantidad,
+    inversion_inicial: activo.inversionInicial,
+    user_id: user.id
+  };
+
   const { data, error } = await supabase
     .from('portafolio_activos')
-    .insert({ ...activo, user_id: user.id })
+    .insert(row)
     .select()
     .single();
   if (error) throw error;
   return data;
 }
 
-export async function updateActivo(id: string, campos: Partial<PortafolioActivoRow>) {
+export async function updateActivo(id: string, campos: Partial<PortafolioActivo>) {
+  const row: Partial<PortafolioActivoRow> = {};
+  if (campos.simbolo !== undefined) row.simbolo = campos.simbolo;
+  if (campos.tipo !== undefined) row.tipo = campos.tipo;
+  if (campos.cantidad !== undefined) row.cantidad = campos.cantidad;
+  if (campos.inversionInicial !== undefined) row.inversion_inicial = campos.inversionInicial;
+
   const { data, error } = await supabase
     .from('portafolio_activos')
-    .update(campos)
+    .update(row)
     .eq('id', id)
     .select()
     .single();
