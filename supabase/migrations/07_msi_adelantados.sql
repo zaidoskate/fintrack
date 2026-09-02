@@ -1,5 +1,5 @@
 -- 07_msi_adelantados.sql
 -- Añade columnas para soportar el pago adelantado de MSI con descuentos.
-ALTER TABLE compras_msi 
-ADD COLUMN meses_adelantados integer DEFAULT 0 NOT NULL,
-ADD COLUMN descuento_por_adelanto numeric DEFAULT 0 NOT NULL;
+--ALTER TABLE compras_msi 
+--ADD COLUMN meses_adelantados integer DEFAULT 0 NOT NULL,
+--ADD COLUMN descuento_por_adelanto numeric DEFAULT 0 NOT NULL;
