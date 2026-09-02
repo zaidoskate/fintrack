@@ -3,14 +3,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { CuentaYield } from '@/lib/types';
-import { useActivos, useCuentasYield, useTarjetas, useMovimientos, useAddActivo, useAddCuentaYield, useDeleteActivo, useDeleteCuentaYield, useUpdateActivo, useUpdateCuentaYield } from '@/lib/hooks';
+import { useActivos, useCuentasYield, useTarjetas, useMovimientos, useAddActivo, useAddCuentaYield, useDeleteActivo, useDeleteCuentaYield, useUpdateActivo, useMoverDineroYield } from '@/lib/hooks';
 import { calcularSaldoEfectivo } from '@/lib/finance/efectivo';
 import { AddInversionModal } from './AddInversionModal';
 import { AddCuentaYieldModal } from './AddCuentaYieldModal';
 import { PatrimonialAnalytics } from './analytics/PatrimonialAnalytics';
 import { GlassCard, GlassSelect, ConfirmModal } from '@/components/ui';
 import { Loader } from '@/components/ui/Loader';
-import { Plus, Trash, TrendingUp, Wallet, Bitcoin, LineChart, DollarSign, HelpCircle, Pencil } from 'lucide-react';
+import { Plus, Trash, TrendingUp, Wallet, Bitcoin, LineChart, DollarSign, HelpCircle, Pencil, ArrowUpCircle } from 'lucide-react';
 
 export function DashboardPatrimonial() {
   const { data: activos = [], isLoading: loadA } = useActivos();
@@ -23,7 +23,7 @@ export function DashboardPatrimonial() {
   const { mutate: delActivo } = useDeleteActivo();
   const { mutate: delYield } = useDeleteCuentaYield();
   const { mutate: updateActivo } = useUpdateActivo();
-  const { mutate: updateYield } = useUpdateCuentaYield();
+  const { mutate: moverDineroYield } = useMoverDineroYield();
 
   const [activeTab, setActiveTab] = useState<'activos' | 'yields'>('activos');
 
@@ -162,7 +162,7 @@ export function DashboardPatrimonial() {
         onSuccess: () => setEditTarget(null)
       });
     } else {
-      updateYield({ id: editTarget.id, campos: { balance_inicial: parseFloat(editValue), ultima_actualizacion: new Date().toISOString().split('T')[0] } }, {
+      moverDineroYield({ id: editTarget.id, montoDelta: parseFloat(editValue) }, {
         onSuccess: () => setEditTarget(null)
       });
     }
@@ -361,8 +361,8 @@ export function DashboardPatrimonial() {
                     </div>
                     {!y.isAuto && (
                       <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '4px' }}>
-                        <button onClick={() => { setEditTarget({ type: 'yield', id: y.id }); setEditValue(String(y.moneda === 'MXN' ? y.balanceActual.toFixed(2) : y.balanceActual)); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
-                          <Pencil size={18} />
+                        <button onClick={() => { setEditTarget({ type: 'yield', id: y.id }); setEditValue(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
+                          <ArrowUpCircle size={18} />
                         </button>
                         <button onClick={() => setDeleteTarget({ type: 'yield', id: y.id })} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
                           <Trash size={18} />
@@ -441,18 +441,18 @@ export function DashboardPatrimonial() {
             <div style={{ position: 'absolute', inset: 0 }} onClick={() => setEditTarget(null)} />
             <GlassCard style={{ width: '100%', maxWidth: '320px', padding: '24px', zIndex: 1, position: 'relative' }}>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--text-primary)', marginBottom: '16px' }}>
-                Editar {editTarget.type === 'activo' ? 'cantidad' : 'balance'}
+                {editTarget.type === 'activo' ? 'Editar cantidad' : 'Abonar / Retirar'}
               </h2>
               <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                    {editTarget.type === 'activo' ? 'Nueva cantidad (Posesiones)' : 'Nuevo balance inicial'}
+                    {editTarget.type === 'activo' ? 'Nueva cantidad (Posesiones)' : 'Monto (usa - para retirar)'}
                   </label>
                   <input
                     type="number"
                     step="0.0001"
-                    min="0"
                     required
+                    placeholder={editTarget.type === 'yield' ? 'Ej. 500 o -500' : ''}
                     value={editValue}
                     onChange={e => setEditValue(e.target.value)}
                     style={{

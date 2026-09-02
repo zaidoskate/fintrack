@@ -32,30 +32,42 @@ export async function crearApartado(input: NuevoApartadoInput): Promise<Apartado
 export async function moverDineroApartado(id: string, montoDelta: number): Promise<void> {
   const supabase = createClient();
   
-  // 1. Obtener balance actual del apartado para actualizarlo
+  // 1. Obtener balance actual y rendimiento del apartado para capitalizarlo
   const { data: apartado, error: fetchErr } = await supabase
     .from('tarjeta_apartados')
-    .select('balance_inicial, ultima_actualizacion')
+    .select('balance_inicial, rendimiento_anual, ultima_actualizacion')
     .eq('id', id)
     .single();
 
   if (fetchErr) throw fetchErr;
 
-  // Calculamos el nuevo balance base sumando el montoDelta (puede ser negativo para retirar)
-  const nuevoBalance = Number(apartado.balance_inicial) + montoDelta;
+  const hoyDate = new Date();
+  const hoyT00 = new Date(hoyDate.getFullYear(), hoyDate.getMonth(), hoyDate.getDate()).getTime();
+  const fechaAct = new Date(apartado.ultima_actualizacion + 'T00:00:00').getTime();
+  const dias = Math.max(0, Math.floor((hoyT00 - fechaAct) / 86_400_000));
   
-  // OJO: Si fuéramos puristas del interés compuesto, al hacer un movimiento 
-  // deberíamos capitalizar el interés generado hasta hoy, sumarlo al balance, y resetear la fecha.
-  // Por simplicidad caveman y requerimiento del usuario, mantendremos la última actualización
-  // como hoy si se deposita, para que el nuevo cálculo de APY sea desde hoy con el nuevo balance.
-  // Pero si retira, no debería perder los intereses. Aquí lo simplificaremos: 
-  // Todo depósito o retiro consolida la fecha a hoy para el nuevo cálculo.
+  const balanceIni = Number(apartado.balance_inicial);
+  const tasaAnual = Number(apartado.rendimiento_anual) / 100;
   
+  let balanceCapitalizado = balanceIni;
+  if (tasaAnual > 0 && dias > 0) {
+    balanceCapitalizado = balanceIni * Math.pow(1 + (tasaAnual / 365), dias);
+  }
+
+  // Calculamos el nuevo balance base sumando el montoDelta
+  const nuevoBalance = balanceCapitalizado + montoDelta;
+  
+  // Hoy en formato YYYY-MM-DD local
+  const y = hoyDate.getFullYear();
+  const m = String(hoyDate.getMonth() + 1).padStart(2, '0');
+  const d = String(hoyDate.getDate()).padStart(2, '0');
+  const hoyStr = `${y}-${m}-${d}`;
+
   const { error } = await supabase
     .from('tarjeta_apartados')
     .update({
       balance_inicial: nuevoBalance,
-      ultima_actualizacion: new Date().toISOString().split('T')[0]
+      ultima_actualizacion: hoyStr
     })
     .eq('id', id);
 

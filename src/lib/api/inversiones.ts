@@ -96,7 +96,10 @@ export async function getCuentasYield(): Promise<CuentaYield[]> {
 
   const yields = (data as CuentaYieldRow[]).map(r => {
     // Calcular proyeccion de APY al dia de hoy
-    const dias = Math.floor((new Date().getTime() - new Date(r.ultima_actualizacion).getTime()) / (1000 * 60 * 60 * 24));
+    const hoyDate = new Date();
+    const hoyT00 = new Date(hoyDate.getFullYear(), hoyDate.getMonth(), hoyDate.getDate()).getTime();
+    const fechaAct = new Date(r.ultima_actualizacion + 'T00:00:00').getTime();
+    const dias = Math.max(0, Math.floor((hoyT00 - fechaAct) / 86_400_000));
     
     const apyDiario = r.apy / 100 / 365;
     const balanceProyectado = r.balance_inicial * Math.pow(1 + apyDiario, Math.max(0, dias));
@@ -164,5 +167,45 @@ export async function deleteCuentaYield(id: string) {
     .from('cuentas_yield')
     .delete()
     .eq('id', id);
+  if (error) throw error;
+}
+
+export async function moverDineroYield(id: string, montoDelta: number): Promise<void> {
+  const { data: yieldRow, error: fetchErr } = await supabase
+    .from('cuentas_yield')
+    .select('balance_inicial, apy, ultima_actualizacion')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr) throw fetchErr;
+
+  const hoyDate = new Date();
+  const hoyT00 = new Date(hoyDate.getFullYear(), hoyDate.getMonth(), hoyDate.getDate()).getTime();
+  const fechaAct = new Date(yieldRow.ultima_actualizacion + 'T00:00:00').getTime();
+  const dias = Math.max(0, Math.floor((hoyT00 - fechaAct) / 86_400_000));
+  
+  const balanceIni = Number(yieldRow.balance_inicial);
+  const apy = Number(yieldRow.apy) / 100;
+  
+  let balanceCapitalizado = balanceIni;
+  if (apy > 0 && dias > 0) {
+    balanceCapitalizado = balanceIni * Math.pow(1 + (apy / 365), dias);
+  }
+
+  const nuevoBalance = balanceCapitalizado + montoDelta;
+  
+  const y = hoyDate.getFullYear();
+  const m = String(hoyDate.getMonth() + 1).padStart(2, '0');
+  const d = String(hoyDate.getDate()).padStart(2, '0');
+  const hoyStr = `${y}-${m}-${d}`;
+
+  const { error } = await supabase
+    .from('cuentas_yield')
+    .update({
+      balance_inicial: nuevoBalance,
+      ultima_actualizacion: hoyStr
+    })
+    .eq('id', id);
+
   if (error) throw error;
 }

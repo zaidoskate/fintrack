@@ -25,8 +25,9 @@ import { getMetas, crearMeta, aportarMeta, editarMeta, eliminarMeta }
   from '@/lib/api/metas';
 import { getComprasMSI, crearCompraMSI, eliminarCompraMSI }
   from '@/lib/api/compras-msi';
-import { getActivos, addActivo, updateActivo, deleteActivo, getCuentasYield, addCuentaYield, updateCuentaYield, deleteCuentaYield }
-  from '@/lib/api/inversiones';
+import { getActivos, addActivo,  updateActivo, deleteActivo,
+  getCuentasYield, addCuentaYield, updateCuentaYield, deleteCuentaYield, moverDineroYield
+} from '@/lib/api/inversiones';
 import type {
   FiltrosMovimientos,
   TarjetaConEstado,
@@ -364,6 +365,14 @@ export function useAddCuentaYield() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: addCuentaYield,
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.yields }),
+  });
+}
+
+export function useMoverDineroYield() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, montoDelta }: { id: string; montoDelta: number }) => moverDineroYield(id, montoDelta),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.yields }),
   });
 }
