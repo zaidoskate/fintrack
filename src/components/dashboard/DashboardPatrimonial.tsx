@@ -10,7 +10,7 @@ import { AddCuentaYieldModal } from './AddCuentaYieldModal';
 import { PatrimonialAnalytics } from './analytics/PatrimonialAnalytics';
 import { GlassCard, GlassSelect, ConfirmModal } from '@/components/ui';
 import { Loader } from '@/components/ui/Loader';
-import { Plus, Trash, TrendingUp, Wallet, Bitcoin, LineChart, DollarSign, HelpCircle, Pencil, ArrowUpCircle } from 'lucide-react';
+import { Plus, Trash, TrendingUp, Wallet, Bitcoin, LineChart, DollarSign, HelpCircle, Pencil, ArrowUpCircle, Banknote } from 'lucide-react';
 
 export function DashboardPatrimonial() {
   const { data: activos = [], isLoading: loadA } = useActivos();
@@ -32,17 +32,18 @@ export function DashboardPatrimonial() {
     tarjetas.forEach(t => {
       if (t.tipo === 'Débito') {
         if (t.rendimientoAnual > 0) {
-          list.push({
-            id: `card-${t.id}`,
-            nombre: `Saldo ${t.nombre}`,
-            moneda: 'MXN',
-            apy: t.rendimientoAnual,
-            balanceInicial: t.disponible,
-            balanceActual: t.disponible,
-            valorTotalMXN: t.disponible,
-            ultimaActualizacion: new Date().toISOString().split('T')[0],
-            isAuto: true
-          });
+            list.push({
+              id: `card-${t.id}`,
+              nombre: `Saldo ${t.nombre}`,
+              moneda: 'MXN',
+              apy: t.rendimientoAnual,
+              balanceInicial: t.disponible,
+              interesAcumulado: 0,
+              balanceActual: t.disponible,
+              valorTotalMXN: t.disponible,
+              ultimaActualizacion: new Date().toISOString().split('T')[0],
+              isAuto: true
+            });
         }
         if (t.apartados) {
           t.apartados.forEach(a => {
@@ -53,6 +54,7 @@ export function DashboardPatrimonial() {
                 moneda: 'MXN',
                 apy: a.rendimientoAnual,
                 balanceInicial: a.balanceInicial,
+                interesAcumulado: a.interesAcumulado,
                 balanceActual: a.balanceCalculado,
                 valorTotalMXN: a.balanceCalculado,
                 ultimaActualizacion: a.ultimaActualizacion || new Date().toISOString().split('T')[0],
@@ -90,6 +92,25 @@ export function DashboardPatrimonial() {
   const totalYieldsPuros = yields.reduce((sum, y) => sum + (y.valorTotalMXN || y.balanceActual), 0);
   const balanceEfectivo = calcularSaldoEfectivo(movimientos);
   const granTotal = totalActivos + totalYieldsPuros + totalBancario + balanceEfectivo;
+
+  // Breakdown para mostrar debajo del Gran Total
+  let totalCryptoMXN = 0;
+  let totalEtfMXN = 0;
+  activos.forEach(a => {
+    if (a.tipo === 'crypto') totalCryptoMXN += (a.valorTotal || 0);
+    else totalEtfMXN += (a.valorTotal || 0);
+  });
+  const totalYieldMXN = yieldsCombinados.reduce((sum, y) => sum + (y.moneda === 'MXN' ? y.balanceActual : (y.valorTotalMXN || y.balanceActual)), 0);
+  
+  let totalOtrosMXN = balanceEfectivo;
+  tarjetas.forEach(t => {
+    if (t.tipo === 'Débito' && (!t.rendimientoAnual || t.rendimientoAnual === 0)) totalOtrosMXN += t.disponible;
+    if (t.tipo === 'Débito' && t.apartados) {
+      t.apartados.forEach(a => {
+        if (!a.rendimientoAnual || a.rendimientoAnual === 0) totalOtrosMXN += a.balanceCalculado;
+      });
+    }
+  });
 
   const [displayCurrency, setDisplayCurrency] = useState('MXN');
   const [rates, setRates] = useState<Record<string, number>>({});
@@ -144,6 +165,7 @@ export function DashboardPatrimonial() {
       nombre: datos.nombre,
       moneda: datos.moneda,
       balance_inicial: datos.balance_inicial,
+      interes_acumulado: 0,
       apy: datos.apy,
       ultima_actualizacion: new Date().toISOString().split('T')[0]
     }, {
@@ -178,8 +200,8 @@ export function DashboardPatrimonial() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+      <div style={{ marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Patrimonio Total
@@ -209,15 +231,44 @@ export function DashboardPatrimonial() {
             <TrendingUp size={14} /> LIVE
           </div>
         </div>
+        
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
+          {totalCryptoMXN > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Bitcoin size={14} color="var(--brand)" /> <span>Cripto: {formatConverted(totalCryptoMXN)}</span>
+            </div>
+          )}
+          {totalEtfMXN > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <LineChart size={14} color="#8b5cf6" /> <span>R. Variable: {formatConverted(totalEtfMXN)}</span>
+            </div>
+          )}
+          {totalYieldMXN > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Wallet size={14} color="#4ade80" /> <span>Yield: {formatConverted(totalYieldMXN)}</span>
+            </div>
+          )}
+          {totalOtrosMXN > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Banknote size={14} color="var(--text-muted)" /> <span>Liquidez: {formatConverted(totalOtrosMXN)}</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      <PatrimonialAnalytics activos={activos} yields={yields} tarjetas={tarjetas} />
+      <PatrimonialAnalytics 
+        activos={activos} 
+        yields={yields} 
+        tarjetas={tarjetas} 
+        displayCurrency={displayCurrency} 
+        rates={rates} 
+      />
 
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
         <button
           onClick={() => setActiveTab('activos')}
           style={{
-            flex: 1, padding: '12px', borderRadius: '12px',
+            flex: 1, padding: '8px', borderRadius: '12px',
             background: activeTab === 'activos' ? 'rgba(255,255,255,0.1)' : 'transparent',
             border: activeTab === 'activos' ? '1px solid rgba(255,255,255,0.1)' : '1px solid transparent',
             color: activeTab === 'activos' ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -230,7 +281,7 @@ export function DashboardPatrimonial() {
         <button
           onClick={() => setActiveTab('yields')}
           style={{
-            flex: 1, padding: '12px', borderRadius: '12px',
+            flex: 1, padding: '8px', borderRadius: '12px',
             background: activeTab === 'yields' ? 'rgba(255,255,255,0.1)' : 'transparent',
             border: activeTab === 'yields' ? '1px solid rgba(255,255,255,0.1)' : '1px solid transparent',
             color: activeTab === 'yields' ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -245,7 +296,7 @@ export function DashboardPatrimonial() {
       <AnimatePresence mode="wait">
         {activeTab === 'activos' && (
           <motion.div key="activos" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>Criptomonedas y acciones</h3>
               <button onClick={() => setShowAddActivo(true)} style={{ background: 'var(--brand)', color: '#000', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <Plus size={18} />

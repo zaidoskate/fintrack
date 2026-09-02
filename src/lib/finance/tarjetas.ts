@@ -160,14 +160,17 @@ export function calcularEstadoTarjeta(
       .filter(a => a.tarjeta_id === tarjeta.id)
       .map(a => {
         const balanceIni = Number(a.balance_inicial);
+        const interesAcum = Number(a.interes_acumulado || 0);
         const tasaAnual = Number(a.rendimiento_anual) / 100;
-        let balanceCalculado = balanceIni;
+        
+        const capitalBase = balanceIni + interesAcum;
+        let balanceCalculado = capitalBase;
         
         if (tasaAnual > 0) {
           const fechaAct = new Date(a.ultima_actualizacion + 'T00:00:00').getTime();
           const dias = Math.max(0, Math.floor((hoy.getTime() - fechaAct) / 86_400_000));
           // Interés compuesto
-          balanceCalculado = balanceIni * Math.pow(1 + (tasaAnual / 365), dias);
+          balanceCalculado = capitalBase * Math.pow(1 + (tasaAnual / 365), dias);
         }
 
         return {
@@ -176,6 +179,7 @@ export function calcularEstadoTarjeta(
           nombre: a.nombre,
           rendimientoAnual: Number(a.rendimiento_anual),
           balanceInicial: balanceIni,
+          interesAcumulado: interesAcum,
           balanceCalculado: Math.round(balanceCalculado * 100) / 100,
           ultimaActualizacion: a.ultima_actualizacion
         };

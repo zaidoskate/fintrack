@@ -1,0 +1,3 @@
+-- Agregando interes_acumulado a tarjeta_apartados y cuentas_yield
+-- ALTER TABLE tarjeta_apartados ADD COLUMN IF NOT EXISTS interes_acumulado NUMERIC DEFAULT 0;
+-- ALTER TABLE cuentas_yield ADD COLUMN IF NOT EXISTS interes_acumulado NUMERIC DEFAULT 0;

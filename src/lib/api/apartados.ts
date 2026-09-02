@@ -20,6 +20,7 @@ export async function crearApartado(input: NuevoApartadoInput): Promise<Apartado
       nombre: input.nombre,
       rendimiento_anual: input.rendimiento_anual,
       balance_inicial: 0,
+      interes_acumulado: 0,
       ultima_actualizacion: new Date().toISOString().split('T')[0]
     })
     .select()
@@ -35,7 +36,7 @@ export async function moverDineroApartado(id: string, montoDelta: number): Promi
   // 1. Obtener balance actual y rendimiento del apartado para capitalizarlo
   const { data: apartado, error: fetchErr } = await supabase
     .from('tarjeta_apartados')
-    .select('balance_inicial, rendimiento_anual, ultima_actualizacion')
+    .select('balance_inicial, interes_acumulado, rendimiento_anual, ultima_actualizacion')
     .eq('id', id)
     .single();
 
@@ -47,15 +48,19 @@ export async function moverDineroApartado(id: string, montoDelta: number): Promi
   const dias = Math.max(0, Math.floor((hoyT00 - fechaAct) / 86_400_000));
   
   const balanceIni = Number(apartado.balance_inicial);
+  const interesAcum = Number(apartado.interes_acumulado || 0);
   const tasaAnual = Number(apartado.rendimiento_anual) / 100;
   
-  let balanceCapitalizado = balanceIni;
+  const capitalBase = balanceIni + interesAcum;
+  let interesProyectado = 0;
   if (tasaAnual > 0 && dias > 0) {
-    balanceCapitalizado = balanceIni * Math.pow(1 + (tasaAnual / 365), dias);
+    const balanceCapitalizado = capitalBase * Math.pow(1 + (tasaAnual / 365), dias);
+    interesProyectado = balanceCapitalizado - capitalBase;
   }
 
-  // Calculamos el nuevo balance base sumando el montoDelta
-  const nuevoBalance = balanceCapitalizado + montoDelta;
+  // Calculamos el nuevo balance base sumando SOLO el montoDelta al principal
+  const nuevoBalance = balanceIni + montoDelta;
+  const nuevoInteres = interesAcum + interesProyectado;
   
   // Hoy en formato YYYY-MM-DD local
   const y = hoyDate.getFullYear();
@@ -67,6 +72,7 @@ export async function moverDineroApartado(id: string, montoDelta: number): Promi
     .from('tarjeta_apartados')
     .update({
       balance_inicial: nuevoBalance,
+      interes_acumulado: nuevoInteres,
       ultima_actualizacion: hoyStr
     })
     .eq('id', id);

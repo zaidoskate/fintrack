@@ -102,13 +102,18 @@ export async function getCuentasYield(): Promise<CuentaYield[]> {
     const dias = Math.max(0, Math.floor((hoyT00 - fechaAct) / 86_400_000));
     
     const apyDiario = r.apy / 100 / 365;
-    const balanceProyectado = r.balance_inicial * Math.pow(1 + apyDiario, Math.max(0, dias));
+    const balanceIni = r.balance_inicial;
+    const interesAcum = r.interes_acumulado || 0;
+    const capitalBase = balanceIni + interesAcum;
+    
+    const balanceProyectado = capitalBase * Math.pow(1 + apyDiario, Math.max(0, dias));
 
     return {
       id: r.id,
       nombre: r.nombre,
       moneda: r.moneda,
-      balanceInicial: r.balance_inicial,
+      balanceInicial: balanceIni,
+      interesAcumulado: interesAcum,
       apy: r.apy,
       ultimaActualizacion: r.ultima_actualizacion,
       balanceActual: balanceProyectado
@@ -173,7 +178,7 @@ export async function deleteCuentaYield(id: string) {
 export async function moverDineroYield(id: string, montoDelta: number): Promise<void> {
   const { data: yieldRow, error: fetchErr } = await supabase
     .from('cuentas_yield')
-    .select('balance_inicial, apy, ultima_actualizacion')
+    .select('balance_inicial, interes_acumulado, apy, ultima_actualizacion')
     .eq('id', id)
     .single();
 
@@ -185,14 +190,18 @@ export async function moverDineroYield(id: string, montoDelta: number): Promise<
   const dias = Math.max(0, Math.floor((hoyT00 - fechaAct) / 86_400_000));
   
   const balanceIni = Number(yieldRow.balance_inicial);
+  const interesAcum = Number(yieldRow.interes_acumulado || 0);
   const apy = Number(yieldRow.apy) / 100;
   
-  let balanceCapitalizado = balanceIni;
+  const capitalBase = balanceIni + interesAcum;
+  let interesProyectado = 0;
   if (apy > 0 && dias > 0) {
-    balanceCapitalizado = balanceIni * Math.pow(1 + (apy / 365), dias);
+    const balanceCapitalizado = capitalBase * Math.pow(1 + (apy / 365), dias);
+    interesProyectado = balanceCapitalizado - capitalBase;
   }
 
-  const nuevoBalance = balanceCapitalizado + montoDelta;
+  const nuevoBalance = balanceIni + montoDelta;
+  const nuevoInteres = interesAcum + interesProyectado;
   
   const y = hoyDate.getFullYear();
   const m = String(hoyDate.getMonth() + 1).padStart(2, '0');
@@ -203,6 +212,7 @@ export async function moverDineroYield(id: string, montoDelta: number): Promise<
     .from('cuentas_yield')
     .update({
       balance_inicial: nuevoBalance,
+      interes_acumulado: nuevoInteres,
       ultima_actualizacion: hoyStr
     })
     .eq('id', id);

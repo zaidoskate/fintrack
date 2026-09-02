@@ -83,6 +83,7 @@ export interface CuentaYieldRow {
   nombre: string;
   moneda: 'MXN' | 'USD' | 'USDC' | 'USDT';
   balance_inicial: number;
+  interes_acumulado: number;
   apy: number;
   ultima_actualizacion: string; // YYYY-MM-DD
   created_at: string;
@@ -95,6 +96,7 @@ export interface ApartadoRow {
   nombre: string;
   rendimiento_anual: number;
   balance_inicial: number;
+  interes_acumulado: number;
   ultima_actualizacion: string; // YYYY-MM-DD
   created_at: string;
 }
@@ -128,6 +130,7 @@ export interface ApartadoConEstado {
   nombre: string;
   rendimientoAnual: number; // TNA %
   balanceInicial: number;   // Balance original depositado
+  interesAcumulado: number;
   balanceCalculado: number; // Balance + Rendimientos
   ultimaActualizacion: string;
 }
@@ -206,6 +209,7 @@ export interface CuentaYield {
   nombre: string;
   moneda: 'MXN' | 'USD' | 'USDC' | 'USDT';
   balanceInicial: number;
+  interesAcumulado: number;
   apy: number;
   ultimaActualizacion: string;
   balanceActual: number; // Proyectado al día de hoy en su moneda original

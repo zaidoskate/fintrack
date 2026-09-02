@@ -12,9 +12,10 @@ interface GlassSelectProps {
   onChange: (val: string) => void;
   placeholder?: string;
   style?: React.CSSProperties;
+  size?: 'sm' | 'md';
 }
 
-export function GlassSelect({ options, value, onChange, placeholder, style }: GlassSelectProps) {
+export function GlassSelect({ options, value, onChange, placeholder, style, size = 'md' }: GlassSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -47,10 +48,10 @@ export function GlassSelect({ options, value, onChange, placeholder, style }: Gl
           justifyContent: 'space-between',
           background: 'rgba(255,255,255,0.06)',
           border: isOpen ? '1px solid var(--brand)' : '1px solid var(--border-glass)',
-          borderRadius: '10px',
-          padding: '11px 14px',
+          borderRadius: size === 'sm' ? '6px' : '10px',
+          padding: size === 'sm' ? '4px 8px' : '11px 14px',
           color: value ? 'var(--text-primary)' : 'var(--text-muted)',
-          fontSize: '15px',
+          fontSize: size === 'sm' ? '12px' : '15px',
           cursor: 'pointer',
           fontFamily: 'inherit',
           transition: 'all 0.15s ease',
@@ -58,7 +59,7 @@ export function GlassSelect({ options, value, onChange, placeholder, style }: Gl
       >
         {displayValue}
         <motion.div animate={{ rotate: isOpen ? 180 : 0 }}>
-          <ChevronDown size={18} color="var(--text-secondary)" />
+          <ChevronDown size={size === 'sm' ? 14 : 18} color="var(--text-secondary)" />
         </motion.div>
       </button>
 
@@ -103,12 +104,12 @@ export function GlassSelect({ options, value, onChange, placeholder, style }: Gl
                   style={{
                     width: '100%',
                     textAlign: 'left',
-                    padding: '10px 12px',
+                    padding: size === 'sm' ? '6px 8px' : '10px 12px',
                     background: value === optValue ? 'rgba(255,255,255,0.08)' : 'transparent',
                     border: 'none',
                     borderRadius: '8px',
                     color: value === optValue ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontSize: '14px',
+                    fontSize: size === 'sm' ? '12px' : '14px',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}

@@ -525,8 +525,9 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
                     <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
                       {a.nombre}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--credito-verde)', marginTop: '2px' }}>
-                      {a.rendimientoAnual}% APY
+                    <div style={{ fontSize: '11px', color: 'var(--credito-verde)', marginTop: '2px', display: 'flex', gap: '8px' }}>
+                      <span>{a.rendimientoAnual}% APY</span>
+                      <span>(+{fmt.format(a.balanceCalculado - a.balanceInicial)})</span>
                     </div>
                   </div>
                   <div style={{
