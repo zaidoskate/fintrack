@@ -59,6 +59,47 @@ DROP COLUMN metodo_pago;
 -- 3. Índices de Rendimiento
 CREATE INDEX IF NOT EXISTS idx_movimientos_user_fecha ON public.movimientos(user_id, fecha DESC);
 CREATE INDEX IF NOT EXISTS idx_tarjetas_user ON public.tarjetas(user_id);
+
+-- 4. Arreglar Trigger de balances (10_rls_audit_and_balances) para usar tarjeta_id
+CREATE OR REPLACE FUNCTION public.update_tarjeta_balance()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Para INSERT
+    IF TG_OP = 'INSERT' THEN
+        UPDATE public.tarjetas
+        SET balance_actual = balance_actual + (CASE WHEN NEW.tipo = 'Ingreso' THEN NEW.monto ELSE -NEW.monto END)
+        WHERE id = NEW.tarjeta_id AND tipo = 'Débito';
+        RETURN NEW;
+    
+    -- Para DELETE
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE public.tarjetas
+        SET balance_actual = balance_actual - (CASE WHEN OLD.tipo = 'Ingreso' THEN OLD.monto ELSE -OLD.monto END)
+        WHERE id = OLD.tarjeta_id AND tipo = 'Débito';
+        RETURN OLD;
+        
+    -- Para UPDATE
+    ELSIF TG_OP = 'UPDATE' THEN
+        -- Revertir OLD
+        UPDATE public.tarjetas
+        SET balance_actual = balance_actual - (CASE WHEN OLD.tipo = 'Ingreso' THEN OLD.monto ELSE -OLD.monto END)
+        WHERE id = OLD.tarjeta_id AND tipo = 'Débito';
+        
+        -- Aplicar NEW
+        UPDATE public.tarjetas
+        SET balance_actual = balance_actual + (CASE WHEN NEW.tipo = 'Ingreso' THEN NEW.monto ELSE -NEW.monto END)
+        WHERE id = NEW.tarjeta_id AND tipo = 'Débito';
+        
+        -- Opcional: si se modificó el límite de la tarjeta (aunque esto va en la tabla tarjetas)
+        IF TG_TABLE_NAME = 'tarjetas' THEN
+            NEW.balance_actual = NEW.balance_actual + (NEW.limite - COALESCE(OLD.limite, 0));
+        END IF;
+        
+        RETURN NEW;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE INDEX IF NOT EXISTS idx_compras_msi_user_tarjeta ON public.compras_msi(user_id, tarjeta_id);
 
 -- 4. ON DELETE CASCADE (En caso de que no lo tuvieran antes)

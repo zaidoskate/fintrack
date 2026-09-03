@@ -26,13 +26,21 @@ ALTER TABLE public.tarjetas
 ADD COLUMN IF NOT EXISTS balance_actual numeric(12,2) DEFAULT 0;
 
 -- Inicializar `balance_actual` para las tarjetas de Débito existentes
-UPDATE public.tarjetas t
-SET balance_actual = (
-  COALESCE(t.limite, 0) + 
-  COALESCE((SELECT SUM(m.monto) FROM public.movimientos m WHERE m.metodo_pago = t.nombre AND m.user_id = t.user_id AND m.tipo = 'Ingreso'), 0) -
-  COALESCE((SELECT SUM(m.monto) FROM public.movimientos m WHERE m.metodo_pago = t.nombre AND m.user_id = t.user_id AND m.tipo = 'Gasto'), 0)
-)
-WHERE t.tipo = 'Débito';
+-- (Seguro: Se envuelve en PL/pgSQL para evitar que aborte despliegues si la columna metodo_pago ya fue borrada)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='movimientos' AND column_name='metodo_pago') THEN
+    EXECUTE '
+      UPDATE public.tarjetas t
+      SET balance_actual = (
+        COALESCE(t.limite, 0) + 
+        COALESCE((SELECT SUM(m.monto) FROM public.movimientos m WHERE m.metodo_pago = t.nombre AND m.user_id = t.user_id AND m.tipo = ''Ingreso''), 0) -
+        COALESCE((SELECT SUM(m.monto) FROM public.movimientos m WHERE m.metodo_pago = t.nombre AND m.user_id = t.user_id AND m.tipo = ''Gasto''), 0)
+      )
+      WHERE t.tipo = ''Débito''
+    ';
+  END IF;
+END $$;
 
 -- 4. Trigger en `movimientos` para actualizar `balance_actual`
 CREATE OR REPLACE FUNCTION public.update_tarjeta_balance()
