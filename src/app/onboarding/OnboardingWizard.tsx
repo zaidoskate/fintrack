@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, Variants } from 'motion/react';
 import { Wallet, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { GlassCard } from '@/components/ui';
 import { crearTarjeta } from '@/lib/api/tarjetas';
 import { crearMovimiento } from '@/lib/api/movimientos';
@@ -12,6 +13,7 @@ import { crearApartado } from '@/lib/api/apartados';
 type AccountType = 'bank' | 'yield' | null;
 
 export function OnboardingWizard({ userName }: { userName: string }) {
+  const router = useRouter();
   const [step, setStep] = useState<number>(1);
   const [accountType, setAccountType] = useState<AccountType>(null);
   
@@ -87,7 +89,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
       localStorage.setItem('fintrack_tour_pending', 'true');
       setStep(3);
       setTimeout(() => {
-        window.location.href = '/dashboard';
+        router.push('/dashboard');
       }, 2000);
 
     } catch (err: unknown) {
@@ -97,7 +99,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
     }
   };
 
-  const fadeVariants = {
+  const fadeVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
     exit: { opacity: 0, y: -20, transition: { duration: 0.3 } }

@@ -69,7 +69,7 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
       description: 'En el Modo Patrimonial, aquí puedes registrar cuentas que te generen rendimiento pasivo (Nu, MercadoPago, etc).',
       align: 'bottom',
       onEnter: () => { 
-        setModo('patrimonial'); 
+        setModo('patrimonio'); 
         setTimeout(() => window.dispatchEvent(new CustomEvent('change-patrimonial-tab', { detail: 'yields' })), 50);
       }
     },
@@ -79,7 +79,7 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
       description: 'Y aquí podrás agregar tus ETFs, Acciones o Criptomonedas. ¡El valor se actualizará en tiempo real!',
       align: 'bottom',
       onEnter: () => { 
-        setModo('patrimonial'); 
+        setModo('patrimonio'); 
         setTimeout(() => window.dispatchEvent(new CustomEvent('change-patrimonial-tab', { detail: 'activos' })), 50);
       }
     }
