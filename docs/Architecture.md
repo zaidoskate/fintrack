@@ -144,9 +144,17 @@ Esta función vive en TypeScript, no en SQL — mantiene la lógica de negocio p
 
 El Modo Patrimonial (Inversiones) funciona como un contexto paralelo al Dashboard de Gastos.
 1. **Separación de Contexto**: Se activa mediante un toggle en Ajustes. La UI alterna entre `DashboardGastos` y `DashboardPatrimonial`.
-2. **APIs de Precios**: Los activos variables (Cripto/Stocks) almacenan solo la cantidad poseída en Supabase (`portafolio_activos`). Los precios en tiempo real se consultan a APIs públicas (ej. CoinGecko, Finnhub) en el cliente.
-3. **Caché de Precios**: Para evitar quemar los límites de tasa de las APIs gratuitas, las cotizaciones se guardan en `localStorage` con un TTL (Time-to-Live) de 15 a 60 minutos.
-4. **Cuentas Yield**: (ej. AirTM). Almacenan un balance inicial y un APY. El crecimiento pasivo se proyecta linealmente en el frontend usando la diferencia de días entre `ultima_actualizacion` y hoy.
+2. **APIs de Precios**: Los activos variables (Cripto/Stocks) almacenan solo la cantidad poseída en Supabase (`portafolio_activos`). Los precios en tiempo real se consultan a APIs públicas (Yahoo Finance) a través de un proxy interno (`/api/historical`) para evitar CORS.
+3. **Cuentas Yield y Apartados**: Almacenan el capital en `balance_inicial` y separan explícitamente el rendimiento generado en `interes_acumulado`. Esto evita la sobreescritura de rendimientos cuando el usuario realiza retiros o abonos, y permite mostrar la ganancia neta exacta. El crecimiento pasivo se proyecta linealmente en el frontend usando la diferencia de días entre `ultima_actualizacion` y hoy (capitalizándose a medianoche).
+
+---
+
+## 8. Estrategia de Onboarding (Reducción de Fricción)
+
+Para mitigar el problema del "Cold Start", el sistema se apoyará en:
+- **Flujos de Auth simplificados**: Registro sin fricción inicial.
+- **Onboarding Progresivo**: Solicitar inicialmente solo "Saldos Globales" (sin requerir historial de transacciones pasadas).
+- **Asistente de IA (Gemini Free Tier)**: Procesamiento server-side (futuro) donde imágenes/textos extraen portafolios a JSON.
 
 ---
 

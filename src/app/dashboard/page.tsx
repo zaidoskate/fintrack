@@ -141,7 +141,7 @@ export default function DashboardPage() {
   return (
     <main>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 style={{
+        <h1 id="title-tarjetas" style={{
           fontFamily: 'var(--font-display)',
           fontWeight: 500,
           fontSize: '26px',
@@ -356,6 +356,7 @@ export default function DashboardPage() {
 
           {/* Botón Agregar Tarjeta */}
           <GlassCard
+            id="btn-add-card"
             as="button"
             onClick={() => handleOpenModal()}
             style={{
@@ -379,7 +380,7 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* Modal CRUD */}
+      {/* Modales */}
       <TarjetaFormModal
         isOpen={modalOpen || editingCard !== null}
         onClose={() => { setModalOpen(false); setEditingCard(null); }}

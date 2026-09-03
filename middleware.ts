@@ -11,7 +11,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 // Rutas que requieren sesión activa
-const PROTECTED_PREFIXES = ['/dashboard', '/tarjetas', '/movimientos', '/metas', '/registro'];
+const PROTECTED_PREFIXES = ['/dashboard', '/tarjetas', '/movimientos', '/metas', '/registro', '/onboarding'];
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
