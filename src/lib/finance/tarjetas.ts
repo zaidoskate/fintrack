@@ -142,36 +142,22 @@ export function calcularEstadoTarjeta(
 ): TarjetaConEstado {
   // === LÓGICA PARA TARJETA DE DÉBITO ===
   if (tarjeta.tipo === 'Débito') {
-    // Para débito, el 'limite' actúa como el Saldo Inicial
-    let saldo = Number(tarjeta.limite) || 0;
-    
-    // Sumar todos los ingresos y restar todos los gastos históricos
-    for (const mov of movimientos) {
-      if (mov.metodo_pago.toLowerCase() !== tarjeta.nombre.toLowerCase()) continue;
-      if (mov.tipo === 'Ingreso') {
-        saldo += Number(mov.monto);
-      } else if (mov.tipo === 'Gasto') {
-        saldo -= Number(mov.monto);
-      }
-    }
+    // Para débito, el saldo principal ya viene pre-calculado desde Supabase
+    // (limite inicial + ingresos - gastos) vía Triggers.
+    let saldo = Number(tarjeta.balance_actual ?? tarjeta.limite ?? 0);
 
     // Calcular estado de apartados de esta tarjeta
     const apartados: ApartadoConEstado[] = apartadosRow
       .filter(a => a.tarjeta_id === tarjeta.id)
       .map(a => {
         const balanceIni = Number(a.balance_inicial);
-        const interesAcum = Number(a.interes_acumulado || 0);
-        const tasaAnual = Number(a.rendimiento_anual) / 100;
+        // 1. Usar el interés base guardado + el interés calculado por Postgres al vuelo
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const interesPostgres = Number((a as any).interes_dinamico_apartados || 0);
+        const interesAcum = Number(a.interes_acumulado || 0) + interesPostgres;
         
         const capitalBase = balanceIni + interesAcum;
-        let balanceCalculado = capitalBase;
-        
-        if (tasaAnual > 0) {
-          const fechaAct = new Date(a.ultima_actualizacion + 'T00:00:00').getTime();
-          const dias = Math.max(0, Math.floor((hoy.getTime() - fechaAct) / 86_400_000));
-          // Interés compuesto
-          balanceCalculado = capitalBase * Math.pow(1 + (tasaAnual / 365), dias);
-        }
+        const balanceCalculado = capitalBase;
 
         return {
           id: a.id,
@@ -202,7 +188,7 @@ export function calcularEstadoTarjeta(
       diaPago:             null,
       rendimientoAnual:    tarjeta.rendimiento_anual ?? 0,
       gastosPeriodoActual: 0,
-      disponible:          Math.round(saldo * 100) / 100, // Este es el "Saldo Actual"
+      disponible:          Math.round(saldo * 100) / 100 === 0 ? 0 : Math.round(saldo * 100) / 100, // Elimina -0
       porcentajeUso:       0,
       estadoTermometro:    'verde',
       etiquetaEstado:      'Saldo disponible',
@@ -221,7 +207,7 @@ export function calcularEstadoTarjeta(
   let pagosDelPeriodo = 0;
 
   for (const mov of movimientos) {
-    if (mov.metodo_pago.toLowerCase() !== tarjeta.nombre.toLowerCase()) continue;
+    if (mov.tarjeta_id !== tarjeta.id) continue;
     const fecha = new Date(mov.fecha + 'T00:00:00');
     if (fecha >= periodo.inicio && fecha <= periodo.fin) {
       if (mov.tipo === 'Gasto') {

@@ -15,6 +15,7 @@ export interface TarjetaRow {
   dia_corte: number | null;
   dia_pago: number | null;
   rendimiento_anual: number; // Solo para Débito
+  balance_actual: number | null; // Calculado por DB trigger (solo Débito)
   created_at: string;
 }
 
@@ -27,7 +28,8 @@ export interface MovimientoRow {
   monto: number;
   categoria: string;
   comercio: string;
-  metodo_pago: string;
+  tarjeta_id: string | null;
+  tarjetas?: { nombre: string } | null;
   created_at: string;
 }
 
@@ -221,7 +223,8 @@ export interface CuentaYield {
 export interface FiltrosMovimientos {
   desde?: string;   // YYYY-MM-DD
   hasta?: string;   // YYYY-MM-DD
-  metodoPago?: string;
   tipo?: 'Gasto' | 'Ingreso';
+  tarjetaId?: string;
   limit?: number;
+  offset?: number;
 }

@@ -21,7 +21,7 @@ function rowToMovimiento(row: MovimientoRow): Movimiento {
     monto:      Number(row.monto),
     categoria:  row.categoria,
     comercio:   row.comercio,
-    metodoPago: row.metodo_pago,
+    metodoPago: row.tarjetas?.nombre ?? 'Efectivo',
   };
 }
 
@@ -38,14 +38,20 @@ export async function getMovimientos(filtros: FiltrosMovimientos = {}): Promise<
 
   let query = supabase
     .from('movimientos')
-    .select('*')
+    .select('*, tarjetas(nombre)')
     .order('fecha', { ascending: false })
     .order('hora', { ascending: false })
-    .limit(limit);
+    .range(filtros.offset ?? 0, (filtros.offset ?? 0) + limit - 1);
 
   if (filtros.desde) query = query.gte('fecha', filtros.desde);
   if (filtros.hasta) query = query.lte('fecha', filtros.hasta);
-  if (filtros.metodoPago) query = query.eq('metodo_pago', filtros.metodoPago);
+  if (filtros.tarjetaId !== undefined) {
+    if (filtros.tarjetaId === 'Efectivo' || filtros.tarjetaId === null) {
+      query = query.is('tarjeta_id', null);
+    } else {
+      query = query.eq('tarjeta_id', filtros.tarjetaId);
+    }
+  }
   if (filtros.tipo) query = query.eq('tipo', filtros.tipo);
 
   const { data, error } = await query.returns<MovimientoRow[]>();
@@ -54,69 +60,89 @@ export async function getMovimientos(filtros: FiltrosMovimientos = {}): Promise<
   return (data ?? []).map(rowToMovimiento);
 }
 
+export async function getGastosPorCategoria(desde: string) {
+  const supabase = createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return [];
+  
+  const { data, error } = await supabase.rpc('get_gastos_por_categoria', {
+    p_user_id: userData.user.id,
+    p_desde: desde
+  });
+  if (error) throw error;
+  return data as { categoria: string; total: number }[];
+}
+
+export async function getFlujoPorMes(desde: string) {
+  const supabase = createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return [];
+  
+  const { data, error } = await supabase.rpc('get_flujo_por_mes', {
+    p_user_id: userData.user.id,
+    p_desde: desde
+  });
+  if (error) throw error;
+  return data as { mes: string; ingresos: number; gastos: number }[];
+}
+
 // ── Escritura ─────────────────────────────────────────────────────────────────
 
 export interface NuevoMovimientoInput {
-  fecha?: string;      // YYYY-MM-DD — default: hoy
-  hora?: string;       // HH:MM — default: ahora
+  fecha: string;
   tipo: 'Gasto' | 'Ingreso';
   monto: number;
-  categoria?: string;
-  comercio?: string;
-  metodoPago?: string;
+  categoria: string;
+  comercio: string;
+  tarjetaId: string | null;
 }
 
 /** Crea un movimiento para el usuario autenticado. */
-export async function crearMovimiento(input: NuevoMovimientoInput): Promise<Movimiento> {
+export async function crearMovimiento(mov: NuevoMovimientoInput) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('No autenticado.');
+  if (!user) throw new Error('No autorizado');
 
-  const hoy = new Date();
-  const fechaHoy = hoy.toISOString().substring(0, 10);
-  const horaAhora = hoy.toTimeString().substring(0, 8); // HH:MM:SS
-
-  const { data, error } = await supabase
-    .from('movimientos')
-    .insert({
-      user_id:    user.id,
-      fecha:      input.fecha      ?? fechaHoy,
-      hora:       input.hora       ?? horaAhora,
-      tipo:       input.tipo,
-      monto:      input.monto,
-      categoria:  input.categoria  ?? 'Sin categoría',
-      comercio:   input.comercio   ?? 'N/A',
-      metodo_pago: input.metodoPago ?? 'Efectivo',
-    })
-    .select()
-    .single<MovimientoRow>();
+  const { data, error } = await supabase.from('movimientos').insert({
+    user_id: user.id,
+    fecha: mov.fecha,
+    hora: new Date().toTimeString().substring(0, 8),
+    tipo: mov.tipo,
+    monto: mov.monto,
+    categoria: mov.categoria,
+    comercio: mov.comercio,
+    tarjeta_id: mov.tarjetaId,
+  }).select('*, tarjetas(nombre)').single();
 
   if (error) throw error;
   return rowToMovimiento(data);
 }
 
+export interface EditarMovimientoInput {
+  fecha?: string;
+  tipo?: 'Gasto' | 'Ingreso';
+  monto?: number;
+  categoria?: string;
+  comercio?: string;
+  tarjetaId?: string | null;
+}
+
 /** Actualiza campos de un movimiento existente (RLS valida que pertenezca al usuario). */
-export async function editarMovimiento(
-  id: string,
-  campos: Partial<NuevoMovimientoInput>,
-): Promise<Movimiento> {
+export async function editarMovimiento(id: string, mov: EditarMovimientoInput) {
   const supabase = createClient();
-
-  const patch: Record<string, unknown> = {};
-  if (campos.fecha      !== undefined) patch.fecha       = campos.fecha;
-  if (campos.hora       !== undefined) patch.hora        = campos.hora;
-  if (campos.tipo       !== undefined) patch.tipo        = campos.tipo;
-  if (campos.monto      !== undefined) patch.monto       = campos.monto;
-  if (campos.categoria  !== undefined) patch.categoria   = campos.categoria;
-  if (campos.comercio   !== undefined) patch.comercio    = campos.comercio;
-  if (campos.metodoPago !== undefined) patch.metodo_pago = campos.metodoPago;
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updatePayload: any = { ...mov };
+  if ('tarjetaId' in mov) {
+    updatePayload.tarjeta_id = mov.tarjetaId;
+    delete updatePayload.tarjetaId;
+  }
+  
   const { data, error } = await supabase
     .from('movimientos')
-    .update(patch)
+    .update(updatePayload)
     .eq('id', id)
-    .select()
-    .single<MovimientoRow>();
+    .select('*, tarjetas(nombre)')
+    .single();
 
   if (error) throw error;
   return rowToMovimiento(data);

@@ -87,9 +87,9 @@ export async function POST(req: NextRequest) {
     meses?: number;
   };
 
-  if (!token || token !== process.env.IPHONE_SHORTCUT_TOKEN) {
+  if (!token) {
     return NextResponse.json(
-      { status: 'error', message: 'Token inválido.' },
+      { status: 'error', message: 'Token requerido.' },
       { status: 401 },
     );
   }
@@ -102,9 +102,44 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const userId = process.env.MY_USER_ID!;
   const supabase = getServiceClient();
   const hoy = new Date();
+
+  // Buscar al usuario dueño del token
+  const { data: config, error: configError } = await supabase
+    .from('usuarios_config')
+    .select('id')
+    .eq('shortcut_token', token)
+    .single();
+
+  if (configError || !config) {
+    return NextResponse.json(
+      { status: 'error', message: 'Token de Shortcut inválido o usuario no encontrado.' },
+      { status: 401 },
+    );
+  }
+  const userId = config.id;
+
+  // Buscar tarjeta por nombre (metodo_pago → id en tabla tarjetas)
+  const nombreTarjeta = (metodo ?? '').trim();
+  let tarjetaId: string | null = null;
+  
+  if (nombreTarjeta && nombreTarjeta.toLowerCase() !== 'efectivo') {
+    const { data: tarjeta, error: tarjetaError } = await supabase
+      .from('tarjetas')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('nombre', nombreTarjeta)
+      .single();
+      
+    if (tarjetaError || !tarjeta) {
+      return NextResponse.json(
+        { status: 'error', message: `Tarjeta "${nombreTarjeta}" no encontrada en tu cuenta.` },
+        { status: 422 },
+      );
+    }
+    tarjetaId = tarjeta.id;
+  }
 
   // 4a. Insertar en compras_msi (cuando esMeses === true y tipo === 'Gasto')
   if (tipo === 'Gasto' && esMeses === true) {
@@ -115,30 +150,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Buscar tarjeta por nombre (metodo_pago → nombre en tabla tarjetas)
-    const nombreTarjeta = (metodo ?? '').trim();
-    const { data: tarjeta, error: tarjetaError } = await supabase
-      .from('tarjetas')
-      .select('id')
-      .eq('user_id', userId)
-      .ilike('nombre', nombreTarjeta)   // case-insensitive
-      .single();
-
-    if (tarjetaError || !tarjeta) {
+    if (!tarjetaId) {
       return NextResponse.json(
-        {
-          status: 'error',
-          message: `Tarjeta "${nombreTarjeta}" no encontrada. Verifica el nombre exacto en FinTrack.`,
-        },
+        { status: 'error', message: `No puedes registrar Compras a MSI en Efectivo. Se requiere una Tarjeta de Crédito válida.` },
         { status: 422 },
       );
     }
 
+
     const fechaUltimaCuota = calcFechaUltimaCuota(hoy, meses);
 
     const { error: msiError } = await supabase.from('compras_msi').insert({
-      user_id:            userId,
-      tarjeta_id:         tarjeta.id,
+      tarjeta_id:         tarjetaId,
       fecha_compra:       todayISO(),
       comercio:           comercio ?? 'N/A',
       categoria:          categoria ?? 'Sin categoría',
@@ -171,7 +194,7 @@ export async function POST(req: NextRequest) {
     monto:      monto,
     categoria:  categoria  ?? 'Sin categoría',
     comercio:   comercio   ?? 'N/A',
-    metodo_pago: metodo    ?? 'Efectivo',
+    tarjeta_id: tarjetaId,
   });
 
   if (movError) {

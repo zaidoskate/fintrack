@@ -9,14 +9,10 @@
  * a los del termómetro (credito-*). Nunca mezclar paletas.
  */
 
-import {
-  XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid,
-} from 'recharts';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { useMemo, useState } from 'react';
-import { useMovimientos } from '@/lib/hooks';
+import { useGastosPorCategoria, useFlujoPorMes } from '@/lib/hooks';
 import { GlassCard } from '@/components/ui';
-import type { Movimiento } from '@/lib/types';
 import { SaludFinanciera } from '@/components/dashboard/SaludFinanciera';
 
 /* ── Paleta categorías (H4 — NUNCA reutilizar credito-*) ─────────────────── */
@@ -47,32 +43,7 @@ function mesLabel(iso: string): string {
   return `${meses[parseInt(m) - 1]} '${y.slice(2)}`;
 }
 
-/* ── Agregaciones ──────────────────────────────────────────────────────────── */
-
-function agruparPorCategoria(movs: Movimiento[]) {
-  const map: Record<string, number> = {};
-  for (const m of movs) {
-    if (m.tipo !== 'Gasto' || m.categoria === 'Traspaso') continue;
-    map[m.categoria] = (map[m.categoria] ?? 0) + m.monto;
-  }
-  return Object.entries(map)
-    .map(([categoria, total]) => ({ categoria, total }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 8);
-}
-
-function agruparPorMes(movs: Movimiento[]) {
-  const map: Record<string, number> = {};
-  for (const m of movs) {
-    if (m.tipo !== 'Gasto' || m.categoria === 'Traspaso') continue;
-    const mes = m.fecha.substring(0, 7); // YYYY-MM
-    map[mes] = (map[mes] ?? 0) + m.monto;
-  }
-  return Object.entries(map)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-6)
-    .map(([mes, total]) => ({ mes: mesLabel(mes + '-01'), total }));
-}
+/* ── Agregaciones se movieron a Supabase RPC ────────────────────────────────── */
 
 /* ── Custom Tooltip ─────────────────────────────────────────────────────────── */
 function CustomTooltip({ active, payload, label }: {
@@ -117,14 +88,16 @@ export function AnalíticaView() {
   const [rango, setRango] = useState<Rango>('90d');
   const days = RANGOS.find((r) => r.value === rango)!.days;
 
-  const { data: movimientos = [], isLoading } = useMovimientos({ desde: fechaDesde(days) });
+  const { data: gastosCat = [], isLoading: loadCat } = useGastosPorCategoria(fechaDesde(days));
+  const { data: flujoMes = [], isLoading: loadMes } = useFlujoPorMes(fechaDesde(days));
+  
+  const isLoading = loadCat || loadMes;
 
-  const gastoTotal = useMemo(
-    () => movimientos.filter((m) => m.tipo === 'Gasto' && m.categoria !== 'Traspaso').reduce((s, m) => s + m.monto, 0),
-    [movimientos],
-  );
-  const porCategoria = useMemo(() => agruparPorCategoria(movimientos), [movimientos]);
-  const porMes       = useMemo(() => agruparPorMes(movimientos), [movimientos]);
+  const gastoTotal = useMemo(() => gastosCat.reduce((sum, item) => sum + item.total, 0), [gastosCat]);
+  const porCategoria = useMemo(() => gastosCat.slice(0, 8), [gastosCat]);
+  const porMes = useMemo(() => 
+    flujoMes.slice(-6).map(item => ({ mes: mesLabel(item.mes + '-01'), total: item.gastos }))
+  , [flujoMes]);
 
   return (
     <div>

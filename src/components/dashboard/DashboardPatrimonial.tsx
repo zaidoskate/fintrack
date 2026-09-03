@@ -12,6 +12,8 @@ import { GlassCard, GlassSelect, ConfirmModal } from '@/components/ui';
 import { Loader } from '@/components/ui/Loader';
 import { Plus, Trash, TrendingUp, Wallet, Bitcoin, LineChart, DollarSign, HelpCircle, Pencil, ArrowUpCircle, Banknote } from 'lucide-react';
 
+import { useSearchParams, useRouter } from 'next/navigation';
+
 export function DashboardPatrimonial() {
   const { data: activos = [], isLoading: loadA } = useActivos();
   const { data: yields = [], isLoading: loadY } = useCuentasYield();
@@ -25,18 +27,22 @@ export function DashboardPatrimonial() {
   const { mutate: updateActivo } = useUpdateActivo();
   const { mutate: moverDineroYield } = useMoverDineroYield();
 
-  const [activeTab, setActiveTab] = useState<'activos' | 'yields'>('activos');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabParam = searchParams.get('tab') as 'activos' | 'yields' | null;
+  const [activeTab, setActiveTab] = useState<'activos' | 'yields'>(tabParam || 'activos');
 
   useEffect(() => {
-    const handleTabChange = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail === 'yields' || customEvent.detail === 'activos') {
-        setActiveTab(customEvent.detail);
-      }
-    };
-    window.addEventListener('change-patrimonial-tab', handleTabChange);
-    return () => window.removeEventListener('change-patrimonial-tab', handleTabChange);
-  }, []);
+    if (tabParam && (tabParam === 'activos' || tabParam === 'yields')) {
+      // eslint-disable-next-line
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const handleTabClick = (tab: 'activos' | 'yields') => {
+    setActiveTab(tab);
+    router.push(`/dashboard?tab=${tab}`);
+  };
 
   const yieldsCombinados = useMemo(() => {
     const list: (CuentaYield & { isAuto?: boolean })[] = [...yields];
@@ -277,7 +283,7 @@ export function DashboardPatrimonial() {
 
       <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
         <button
-          onClick={() => setActiveTab('activos')}
+          onClick={() => handleTabClick('activos')}
           style={{
             flex: 1, padding: '8px', borderRadius: '12px',
             background: activeTab === 'activos' ? 'rgba(255,255,255,0.1)' : 'transparent',
@@ -290,7 +296,7 @@ export function DashboardPatrimonial() {
           <LineChart size={18} /> Renta Variable
         </button>
         <button
-          onClick={() => setActiveTab('yields')}
+          onClick={() => handleTabClick('yields')}
           style={{
             flex: 1, padding: '8px', borderRadius: '12px',
             background: activeTab === 'yields' ? 'rgba(255,255,255,0.1)' : 'transparent',

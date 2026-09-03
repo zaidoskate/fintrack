@@ -70,7 +70,7 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
       align: 'bottom',
       onEnter: () => { 
         setModo('patrimonio'); 
-        setTimeout(() => window.dispatchEvent(new CustomEvent('change-patrimonial-tab', { detail: 'yields' })), 50);
+        router.push('/dashboard?tab=yields');
       }
     },
     {
@@ -80,7 +80,7 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
       align: 'bottom',
       onEnter: () => { 
         setModo('patrimonio'); 
-        setTimeout(() => window.dispatchEvent(new CustomEvent('change-patrimonial-tab', { detail: 'activos' })), 50);
+        router.push('/dashboard?tab=activos');
       }
     }
   ];

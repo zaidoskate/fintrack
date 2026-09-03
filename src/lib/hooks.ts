@@ -19,7 +19,7 @@ import {
 import { getTarjetas, crearTarjeta, actualizarTarjeta, eliminarTarjeta }
   from '@/lib/api/tarjetas';
 import { crearApartado as apiCrearApartado, moverDineroApartado as apiMoverDineroApartado, eliminarApartado as apiEliminarApartado } from '@/lib/api/apartados';
-import { getMovimientos, crearMovimiento, editarMovimiento, eliminarMovimiento }
+import { getMovimientos, crearMovimiento, editarMovimiento, eliminarMovimiento, getGastosPorCategoria, getFlujoPorMes }
   from '@/lib/api/movimientos';
 import { getMetas, crearMeta, aportarMeta, editarMeta, eliminarMeta }
   from '@/lib/api/metas';
@@ -28,6 +28,7 @@ import { getComprasMSI, crearCompraMSI, eliminarCompraMSI }
 import { getActivos, addActivo,  updateActivo, deleteActivo,
   getCuentasYield, addCuentaYield, updateCuentaYield, deleteCuentaYield, moverDineroYield
 } from '@/lib/api/inversiones';
+import { getShortcutToken } from '@/lib/api/user';
 import type {
   FiltrosMovimientos,
   TarjetaConEstado,
@@ -41,6 +42,7 @@ import type {
 import type {
   NuevaTarjetaInput,
   NuevoMovimientoInput,
+  EditarMovimientoInput,
   NuevaMetaInput,
 } from '@/lib/api-inputs';
 import { db } from '@/lib/offline/db';
@@ -114,11 +116,44 @@ export function useEliminarTarjeta() {
 
 // ── Movimientos ───────────────────────────────────────────────────────────────
 
+import { useInfiniteQuery } from '@tanstack/react-query';
+
 export function useMovimientos(filtros?: FiltrosMovimientos) {
   return useQuery<Movimiento[]>({
     queryKey: QK.movimientos(filtros),
     queryFn:  () => getMovimientos(filtros),
     staleTime: 60_000,  // 60s — Architecture.md §4
+  });
+}
+
+export function useMovimientosPaginados(filtros?: FiltrosMovimientos) {
+  return useInfiniteQuery({
+    queryKey: ['movimientos', 'paginated', filtros],
+    queryFn: async ({ pageParam = 0 }) => {
+      return getMovimientos({ ...filtros, offset: pageParam, limit: 30 });
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      // Si devolvió menos del límite (30), ya no hay más
+      return lastPage.length === 30 ? allPages.length * 30 : undefined;
+    },
+    initialPageParam: 0,
+    staleTime: 60_000,
+  });
+}
+
+export function useGastosPorCategoria(desde: string) {
+  return useQuery({
+    queryKey: ['analytics', 'gastos_categoria', desde],
+    queryFn: () => getGastosPorCategoria(desde),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useFlujoPorMes(desde: string) {
+  return useQuery({
+    queryKey: ['analytics', 'flujo_mes', desde],
+    queryFn: () => getFlujoPorMes(desde),
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -140,13 +175,13 @@ export function useCrearMovimiento() {
       qc.setQueryData<Movimiento[]>(QK.movimientos(), (old) => {
         const fakeMov: Movimiento = {
           id: `temp-${Date.now()}`,
-          fecha: newMov.fecha || new Date().toISOString().split('T')[0],
-          hora: newMov.hora || new Date().toTimeString().slice(0,5),
+          fecha: newMov.fecha,
+          hora: new Date().toTimeString().slice(0,5),
           tipo: newMov.tipo,
           monto: newMov.monto,
-          categoria: newMov.categoria || 'Sin categoría',
-          comercio: newMov.comercio || '',
-          metodoPago: newMov.metodoPago || 'Efectivo'
+          categoria: newMov.categoria,
+          comercio: newMov.comercio,
+          metodoPago: 'Actualizando...'
         };
         return old ? [fakeMov, ...old] : [fakeMov];
       });
@@ -167,7 +202,7 @@ export function useCrearMovimiento() {
 export function useEditarMovimiento() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, campos }: { id: string; campos: Partial<NuevoMovimientoInput> }) =>
+    mutationFn: ({ id, campos }: { id: string; campos: Partial<EditarMovimientoInput> }) =>
       editarMovimiento(id, campos),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['movimientos'] });
@@ -390,5 +425,13 @@ export function useDeleteCuentaYield() {
   return useMutation({
     mutationFn: deleteCuentaYield,
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.yields }),
+  });
+}
+
+export function useShortcutToken() {
+  return useQuery({
+    queryKey: ['user', 'shortcut_token'],
+    queryFn: getShortcutToken,
+    staleTime: Infinity,
   });
 }

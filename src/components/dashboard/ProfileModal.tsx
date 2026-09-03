@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, User as UserIcon, Lock, Mail } from 'lucide-react';
+import { X, User as UserIcon, Lock, Mail, Copy, CheckCircle2 } from 'lucide-react';
 import { GlassCard } from '@/components/ui';
 import { updateUserProfile, updateUserPassword } from '@/app/auth/actions';
+import { useShortcutToken } from '@/lib/hooks';
 import type { User } from '@supabase/supabase-js';
 
 interface ProfileModalProps {
@@ -28,6 +29,9 @@ export function ProfileModal({ user, onClose, modo, setModo }: ProfileModalProps
   
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [copiedToken, setCopiedToken] = useState(false);
+
+  const { data: shortcutToken, isLoading: tokenLoading } = useShortcutToken();
 
   const lastChange = user.user_metadata?.last_password_change;
   const daysSince = lastChange ? Math.floor((new Date().getTime() - new Date(lastChange).getTime()) / (1000 * 60 * 60 * 24)) : 999;
@@ -190,6 +194,49 @@ export function ProfileModal({ user, onClose, modo, setModo }: ProfileModalProps
                   ••••••••
                 </div>
               )}
+            </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />
+
+            {/* Apple Shortcuts Token */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)' }}>Apple Shortcuts</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Tu Token personal para la app Atajos</div>
+              </div>
+              <button 
+                type="button"
+                disabled={tokenLoading || !shortcutToken}
+                onClick={() => {
+                  if (shortcutToken) {
+                    navigator.clipboard.writeText(shortcutToken);
+                    setCopiedToken(true);
+                    setTimeout(() => setCopiedToken(false), 2000);
+                  }
+                }}
+                style={{
+                  background: copiedToken ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)',
+                  color: copiedToken ? '#4ade80' : 'var(--text-primary)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {tokenLoading ? 'Cargando...' : copiedToken ? <><CheckCircle2 size={16} /> Copiado</> : <><Copy size={16} /> Copiar Token</>}
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+              <a href="https://www.icloud.com/shortcuts/a93ee327b80a4ed2ada961a1e7ad8816" target="_blank" rel="noreferrer" style={{ fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', padding: '4px 10px', borderRadius: '12px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>+ FinTrack</a>
+              <a href="https://www.icloud.com/shortcuts/0ff04b22d2e94c64aa99aed6792658c5" target="_blank" rel="noreferrer" style={{ fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', padding: '4px 10px', borderRadius: '12px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>+ Gasto</a>
+              <a href="https://www.icloud.com/shortcuts/f32fd0e003444be1a0ffcce2ebe8ccff" target="_blank" rel="noreferrer" style={{ fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', padding: '4px 10px', borderRadius: '12px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>+ Ingreso</a>
             </div>
 
             <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />

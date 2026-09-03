@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useMotionConfig } from '@/lib/motion/variants';
 import { GlassCard, Loader, ConfirmModal } from '@/components/ui';
-import { useMovimientos, useCrearMovimiento, useEliminarMovimiento } from '@/lib/hooks';
+import { useMovimientosPaginados, useCrearMovimiento, useEliminarMovimiento } from '@/lib/hooks';
 import type { TarjetaConEstado, Movimiento } from '@/lib/types';
 import { useState, useMemo } from 'react';
 import { Edit2, Trash2, Search } from 'lucide-react';
@@ -28,9 +28,17 @@ interface MovimientosTarjetaModalProps {
 
 export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjetaModalProps) {
   const { modalTransition } = useMotionConfig();
-  const { data: movimientos = [], isLoading } = useMovimientos(
-    tarjeta ? { metodoPago: tarjeta.nombre, limit: 50 } : undefined
+  const { 
+    data, 
+    isLoading, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage 
+  } = useMovimientosPaginados(
+    tarjeta ? { tarjetaId: tarjeta.id } : undefined
   );
+  
+  const movimientos = useMemo(() => data ? data.pages.flat() : [], [data]);
   
   const { mutate: crearMovimiento, isPending } = useCrearMovimiento();
   const { mutate: eliminarMov } = useEliminarMovimiento();
@@ -44,9 +52,10 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
     e.preventDefault();
     if (!tarjeta) return;
     crearMovimiento({
+      fecha: new Date().toISOString().substring(0, 10),
       tipo: 'Ingreso',
       monto: parseFloat(payAmount),
-      metodoPago: tarjeta.nombre,
+      tarjetaId: tarjeta.id,
       categoria: 'Pago de tarjeta',
       comercio: 'Pago',
     }, {
@@ -337,6 +346,27 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
                     </div>
                   </div>
                 ))}
+                
+                {hasNextPage && (
+                  <button
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      cursor: isFetchingNextPage ? 'not-allowed' : 'pointer',
+                      marginTop: '16px',
+                      marginBottom: '20px'
+                    }}
+                  >
+                    {isFetchingNextPage ? 'Cargando...' : 'Cargar más movimientos'}
+                  </button>
+                )}
               </div>
             </div>
           )}

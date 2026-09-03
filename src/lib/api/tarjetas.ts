@@ -15,7 +15,6 @@ import type {
   MovimientoRow,
   CompraMSIRow,
   TarjetaConEstado,
-  ApartadoRow,
 } from '@/lib/types';
 
 // ── Lectura ───────────────────────────────────────────────────────────────────
@@ -28,6 +27,10 @@ import type {
 export async function getTarjetas(): Promise<TarjetaConEstado[]> {
   const supabase = createClient();
 
+    const hace45Dias = new Date();
+  hace45Dias.setDate(hace45Dias.getDate() - 45);
+  const desdeStr = hace45Dias.toISOString().split('T')[0];
+
   // Tres consultas en paralelo para minimizar la latencia total
   const [tarjetasRes, movimientosRes, msiRes, apartadosRes] = await Promise.all([
     supabase
@@ -38,9 +41,9 @@ export async function getTarjetas(): Promise<TarjetaConEstado[]> {
 
     supabase
       .from('movimientos')
-      .select('id, fecha, hora, tipo, monto, metodo_pago, categoria, comercio')
+      .select('id, fecha, hora, tipo, monto, tarjeta_id, categoria, comercio')
+      .gte('fecha', desdeStr) // Optimizacion: Solo ultimos 45 dias para tarjetas de credito
       .order('fecha', { ascending: false })
-      .limit(2000)           // techo razonable para el cálculo de saldos y periodos
       .returns<MovimientoRow[]>(),
 
     supabase
@@ -50,8 +53,9 @@ export async function getTarjetas(): Promise<TarjetaConEstado[]> {
 
     supabase
       .from('tarjeta_apartados')
-      .select('*')
-      .returns<ApartadoRow[]>(),
+      .select('*, interes_dinamico_apartados')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .returns<any[]>(),
   ]);
 
   if (tarjetasRes.error) throw tarjetasRes.error;

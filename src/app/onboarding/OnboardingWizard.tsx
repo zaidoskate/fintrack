@@ -63,7 +63,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             categoria: isCredit ? 'Otros' : 'Ingreso',
             comercio: isCredit ? 'Deuda Inicial' : 'Saldo Inicial',
             fecha: today,
-            metodoPago: tarjeta.nombre
+            tarjetaId: tarjeta.id
           });
         }
 

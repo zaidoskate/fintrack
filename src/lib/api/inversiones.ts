@@ -89,24 +89,20 @@ export async function deleteActivo(id: string) {
 export async function getCuentasYield(): Promise<CuentaYield[]> {
   const { data, error } = await supabase
     .from('cuentas_yield')
-    .select('*')
+    .select('*, interes_dinamico')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
 
   const yields = (data as CuentaYieldRow[]).map(r => {
-    // Calcular proyeccion de APY al dia de hoy
-    const hoyDate = new Date();
-    const hoyT00 = new Date(hoyDate.getFullYear(), hoyDate.getMonth(), hoyDate.getDate()).getTime();
-    const fechaAct = new Date(r.ultima_actualizacion + 'T00:00:00').getTime();
-    const dias = Math.max(0, Math.floor((hoyT00 - fechaAct) / 86_400_000));
-    
-    const apyDiario = r.apy / 100 / 365;
+    // Calcular proyeccion de APY al dia de hoy con funcion de Postgres
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const interesPostgres = Number((r as any).interes_dinamico || 0);
     const balanceIni = r.balance_inicial;
-    const interesAcum = r.interes_acumulado || 0;
+    const interesAcum = (r.interes_acumulado || 0) + interesPostgres;
     const capitalBase = balanceIni + interesAcum;
     
-    const balanceProyectado = capitalBase * Math.pow(1 + apyDiario, Math.max(0, dias));
+    const balanceProyectado = capitalBase;
 
     return {
       id: r.id,

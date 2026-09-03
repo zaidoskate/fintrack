@@ -123,7 +123,8 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
       return [optimisticMov, ...old];
     });
 
-    const payload = { tipo, monto: montoNum, categoria, comercio: comercio || 'N/A', metodoPago: metodo };
+    const tarjetaId = metodo === 'Efectivo' ? null : tarjetas.find(t => t.nombre === metodo)?.id || null;
+    const payload = { tipo, monto: montoNum, categoria, comercio: comercio || 'N/A', tarjetaId };
     const mutationOpts = {
       onSuccess: () => {
         setExito(true);
@@ -139,7 +140,7 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
     if (initialData) {
       editarMov({ id: initialData.id, campos: payload }, mutationOpts);
     } else {
-      crearMov(payload, mutationOpts);
+      crearMov({ fecha: hoyISO, ...payload }, mutationOpts);
     }
   };
 

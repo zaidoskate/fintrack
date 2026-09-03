@@ -28,15 +28,14 @@ export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
     
     const val = Number(monto);
     const dateStr = new Date().toISOString().split('T')[0];
-    const timeStr = new Date().toTimeString().split(' ')[0].substring(0,5);
+    const tarjetaId = tarjetasDebito.find(t => t.nombre === origen)?.id || null;
 
     // 1. Gasto en la tarjeta de débito
     addMov({
       fecha: dateStr,
-      hora: timeStr,
       tipo: 'Gasto',
       monto: val,
-      metodoPago: origen,
+      tarjetaId: tarjetaId,
       categoria: 'Traspaso',
       comercio: 'Retiro ATM',
     }, {
@@ -44,10 +43,9 @@ export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
         // 2. Ingreso en Efectivo
         addMov({
           fecha: dateStr,
-          hora: timeStr,
           tipo: 'Ingreso',
           monto: val,
-          metodoPago: 'Efectivo',
+          tarjetaId: null,
           categoria: 'Traspaso',
           comercio: 'Retiro ATM',
         }, {
