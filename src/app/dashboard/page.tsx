@@ -6,7 +6,7 @@
  * Agrega CRUD completo de Tarjetas (Caveman style).
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   DndContext,
@@ -33,6 +33,7 @@ import { TarjetaFormModal } from '@/components/dashboard/TarjetaFormModal';
 import { MovimientosTarjetaModal } from '@/components/dashboard/MovimientosTarjetaModal';
 import { ApartadoFormModal } from '@/components/dashboard/ApartadoFormModal';
 import { MoverDineroApartadoModal } from '@/components/dashboard/MoverDineroApartadoModal';
+import { AiUploadModal } from '@/components/dashboard/AiUploadModal';
 import { GlassCard } from '@/components/ui';
 import { Plus, HelpCircle, LayoutGrid, List, Eye, EyeOff } from 'lucide-react';
 import type { TarjetaConEstado } from '@/lib/types';
@@ -56,6 +57,29 @@ export default function DashboardPage() {
   const [showFlags, setShowFlags] = useState(true);
   const [viewMode, setViewMode] = useState<'full' | 'compact'>('full');
   const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiFabHidden, setAiFabHidden] = useState(false);
+  const aiFabTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startTimer = () => {
+    if (aiFabTimerRef.current) clearTimeout(aiFabTimerRef.current);
+    aiFabTimerRef.current = setTimeout(() => {
+      setAiFabHidden(true);
+    }, 5000);
+  };
+
+  const resetAiFabTimer = () => {
+    setAiFabHidden(false);
+    startTimer();
+  };
+
+  useEffect(() => {
+    startTimer();
+    return () => {
+      if (aiFabTimerRef.current) clearTimeout(aiFabTimerRef.current);
+    };
+  }, []);
+
   const [cardOrder, setCardOrder] = useState<string[]>([]);
   const [isEditingOrder, setIsEditingOrder] = useState(false);
   const [showBalances, setShowBalances] = useState(true);
@@ -141,7 +165,7 @@ export default function DashboardPage() {
   return (
     <main>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 style={{
+        <h1 id="title-tarjetas" style={{
           fontFamily: 'var(--font-display)',
           fontWeight: 500,
           fontSize: '26px',
@@ -356,6 +380,7 @@ export default function DashboardPage() {
 
           {/* Botón Agregar Tarjeta */}
           <GlassCard
+            id="btn-add-card"
             as="button"
             onClick={() => handleOpenModal()}
             style={{
@@ -379,7 +404,55 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* Modal CRUD */}
+      {/* FABs Area */}
+      <div style={{
+        position: 'fixed',
+        bottom: '80px',
+        right: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        zIndex: 50
+      }}>
+        {/* FAB AI Asistente (Reemplaza al manual) */}
+        <motion.button
+          id="fab-registro"
+          onClick={() => {
+            if (aiFabHidden) {
+              resetAiFabTimer();
+            } else {
+              setAiModalOpen(true);
+            }
+          }}
+          onHoverStart={resetAiFabTimer}
+          onMouseMove={resetAiFabTimer}
+          onTouchStart={resetAiFabTimer}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          animate={{
+            y: aiFabHidden ? 45 : 0,
+            opacity: aiFabHidden ? 0.6 : 1
+          }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+          style={{
+            width: '56px', height: '56px', borderRadius: '28px',
+            background: 'var(--brand)',
+            color: '#fff', border: 'none',
+            boxShadow: '0 8px 32px rgba(250, 104, 111, 0.4), inset 0 2px 4px rgba(255,255,255,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+          aria-label="Asistente de IA"
+        >
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 9h.01" />
+            <path d="M16 9h.01" />
+            <path d="M7 15a6 6 0 0 0 10 0" />
+          </svg>
+        </motion.button>
+      </div>
+
+      {/* Modales */}
       <TarjetaFormModal
         isOpen={modalOpen || editingCard !== null}
         onClose={() => { setModalOpen(false); setEditingCard(null); }}
@@ -466,6 +539,12 @@ export default function DashboardPage() {
               </button>
             </GlassCard>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {aiModalOpen && (
+          <AiUploadModal onClose={() => setAiModalOpen(false)} />
         )}
       </AnimatePresence>
 

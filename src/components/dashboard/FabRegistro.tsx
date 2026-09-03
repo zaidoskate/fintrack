@@ -70,6 +70,7 @@ export function FabRegistro() {
 
       {/* FAB Button */}
       <motion.button
+        id="fab-registro"
         onClick={() => {
           if (isHidden && !isOpen) {
             setIsHidden(false);

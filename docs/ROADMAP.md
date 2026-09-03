@@ -60,6 +60,16 @@ Para lograr notificaciones automáticas por correo de crecimiento y plusvalía, 
 
 ---
 
+## Fase 8 — Reducción del Cold Start (Onboarding de Usuarios)
+**Estado: EN PLANIFICACIÓN**
+
+Para reducir la barrera de entrada a nuevos usuarios, se aplicará un sistema escalonado de simplificación:
+1. **Subfase 1 (Corto Plazo):** Onboarding Progresivo y Rediseño de Auth. Simplificar los flujos para que el usuario pueda ver el dashboard aportando solo su saldo global o su cuenta principal.
+2. **Subfase 2 (Mediano Plazo):** Importación masiva (Bulk Import) vía CSV para cargar portafolios densos.
+3. **Subfase 3 (Largo Plazo):** Asistente IA. Implementar un lector de capturas de pantalla/estado de cuenta usando la capa gratuita (Free Tier) de Google Gemini API para automatizar la carga de portafolios.
+
+---
+
 ## Checklist maestro (vista rápida)
 
 - [x] Fase 0 — Repo + Vercel creado
@@ -70,4 +80,5 @@ Para lograr notificaciones automáticas por correo de crecimiento y plusvalía, 
 - [x] Fase 4 — PWA & Offline-first verificado
 - [x] Fase 5 — CI/CD activo con branch protection
 - [x] Fase 6 — Módulo de Inversiones y Analítica Patrimonial
-- [x] Fase 7 — Módulo de Perfil de Usuario y Modificaciones Patrimoniales
+- [ ] Fase 7 — Iteración Continua (Notificaciones, Reportes)
+- [ ] Fase 8 — Reducción del Cold Start (Onboarding)

@@ -40,6 +40,7 @@ export function DashboardNav() {
           <Link
             key={tab.href}
             href={tab.href}
+            id={tab.href === '/dashboard/metas' ? 'nav-metas' : undefined}
             style={{
               flex: 1,
               display: 'flex',

@@ -27,6 +27,17 @@ export function DashboardPatrimonial() {
 
   const [activeTab, setActiveTab] = useState<'activos' | 'yields'>('activos');
 
+  useEffect(() => {
+    const handleTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail === 'yields' || customEvent.detail === 'activos') {
+        setActiveTab(customEvent.detail);
+      }
+    };
+    window.addEventListener('change-patrimonial-tab', handleTabChange);
+    return () => window.removeEventListener('change-patrimonial-tab', handleTabChange);
+  }, []);
+
   const yieldsCombinados = useMemo(() => {
     const list: (CuentaYield & { isAuto?: boolean })[] = [...yields];
     tarjetas.forEach(t => {
@@ -298,7 +309,7 @@ export function DashboardPatrimonial() {
           <motion.div key="activos" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>Criptomonedas y acciones</h3>
-              <button onClick={() => setShowAddActivo(true)} style={{ background: 'var(--brand)', color: '#000', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <button id="btn-add-activo" onClick={() => setShowAddActivo(true)} style={{ background: 'var(--brand)', color: '#000', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <Plus size={18} />
               </button>
             </div>
@@ -368,7 +379,7 @@ export function DashboardPatrimonial() {
           <motion.div key="yields" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>Cuentas de Rendimiento</h3>
-              <button onClick={() => setShowAddYield(true)} style={{ background: 'var(--brand)', color: '#000', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <button id="btn-add-yield" onClick={() => setShowAddYield(true)} style={{ background: 'var(--brand)', color: '#000', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <Plus size={18} />
               </button>
             </div>

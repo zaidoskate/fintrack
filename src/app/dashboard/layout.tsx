@@ -19,6 +19,17 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  // Cold Start Interception (Phase 1 Onboarding)
+  const [{ count: countT }, { count: countY }, { count: countA }] = await Promise.all([
+    supabase.from('tarjetas').select('*', { count: 'exact', head: true }),
+    supabase.from('cuentas_yield').select('*', { count: 'exact', head: true }),
+    supabase.from('portafolio_activos').select('*', { count: 'exact', head: true })
+  ]);
+
+  if (countT === 0 && countY === 0 && countA === 0) {
+    redirect('/onboarding');
+  }
+
   const userName = user.user_metadata?.full_name?.split(' ')[0] || 'Usuario';
 
   return (

@@ -96,7 +96,9 @@ Múltiples usuarios independientes (1 hoy, meta de 5–10 en mediano plazo), cad
 | FR-32 | (Backlog, no bloqueante) Las cuotas de compras MSI no se reflejan automáticamente en la Analítica de Gastos por categoría — limitación aceptada conscientemente, documentada como ítem de mejora futura. | Baja |
 
 ### 3.3 Módulo: Motor de Metas y Rendimientos
-El cálculo de progresos y proyecciones soporta **interés compuesto diario** (rendimientos anualizados) aplicable tanto a las metas de ahorro como a las tarjetas de débito. Un aporte a una meta actualiza únicamente `monto_actual` en la tabla `metas` — nunca genera una fila en `movimientos`, por decisión explícita del usuario.
+El cálculo de progresos y proyecciones soporta **interés compuesto diario** (rendimientos anualizados) aplicable tanto a las metas de ahorro como a las tarjetas de débito y cuentas yield. 
+- **Separación de Capital e Interés:** La base de datos debe almacenar el `balance_inicial` de cada cuenta yield y apartado de tarjeta, e ir sumando de manera aislada el `interes_acumulado`. Al hacer abonos o retiros, el sistema debe primero absorber/restar el `interes_acumulado` para no sobreescribirlo, garantizando un registro fiel de la ganancia neta histórica.
+Un aporte a una meta actualiza únicamente `monto_actual` en la tabla `metas` — nunca genera una fila en `movimientos`, por decisión explícita del usuario.
 
 ### 3.4 Módulo: Analítica de Gastos
 (FR-20 a FR-22 sin cambios respecto a v1.0, ahora consultando la tabla `movimientos` vía SQL en vez de iterar un arreglo en Apps Script.)
@@ -142,3 +144,12 @@ El cálculo de progresos y proyecciones soporta **interés compuesto diario** (r
 - Una compra MSI registrada debe reflejarse en el termómetro de crédito solo por el monto de la cuota mensual, no por el monto total, durante todos los meses en que esté activa.
 - El Shortcut de iOS, apuntando a la nueva URL con el token actualizado, sigue registrando transacciones sin fricción adicional para el usuario.
 - Verificación de seguridad obligatoria antes de invitar al segundo usuario real: crear dos cuentas de prueba, registrar datos en cada una, y confirmar mediante inspección directa de la base de datos (o intentos deliberados de consulta cruzada) que RLS bloquea el acceso cruzado.
+
+---
+
+### 6. Módulo: Onboarding y Fricción (Fase 8)
+| ID | Requisito | Prioridad |
+|---|---|---|
+| FR-36 | El sistema debe ofrecer un "Onboarding Progresivo" para que los nuevos usuarios puedan empezar a usar el Dashboard Principal y el Patrimonial con un mínimo de 1 o 2 datos (Saldos globales). | Alta |
+| FR-37 | El sistema debe evitar forzar la carga de movimientos o fechas iniciales de inversión exactas si el usuario decide hacer una carga rápida. | Alta |
+| FR-38 | El flujo de Autenticación (Login/Signup) debe reflejar el lenguaje de diseño Glassmorphism de la app, con transiciones fluidas. | Media |
