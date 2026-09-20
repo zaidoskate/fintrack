@@ -202,14 +202,16 @@ export function calcularEstadoTarjeta(
   // === LÓGICA PARA TARJETA DE CRÉDITO ===
   const periodo = getPeriodoVigente(tarjeta.dia_corte || 1, hoy);
 
-  // Gastos e Ingresos del periodo actual para la tarjeta
+  // Gastos e Ingresos históricos para la tarjeta (hasta el fin del periodo actual)
   let gastosDelPeriodo = 0;
   let pagosDelPeriodo = 0;
 
   for (const mov of movimientos) {
     if (mov.tarjeta_id !== tarjeta.id) continue;
     const fecha = new Date(mov.fecha + 'T00:00:00');
-    if (fecha >= periodo.inicio && fecha <= periodo.fin) {
+    // Sumamos TODO el historial hasta el fin del periodo actual para que la deuda se arrastre
+    // si no se ha pagado. Los pagos ('Ingreso') contrarrestan esta deuda de forma acumulativa.
+    if (fecha <= periodo.fin) {
       if (mov.tipo === 'Gasto') {
         gastosDelPeriodo += Number(mov.monto);
       } else if (mov.tipo === 'Ingreso') {
