@@ -221,7 +221,7 @@ export function calcularEstadoTarjeta(
   }
 
   // Cuotas MSI activas hoy para esta tarjeta (Architecture.md §5)
-  let gastosMSIMes = 0;
+  let gastosMSIFacturados = 0;
   let saldoCongeladoMSI = 0;
 
   comprasMSI.forEach((msi) => {
@@ -242,9 +242,10 @@ export function calcularEstadoTarjeta(
       // Cuotas facturadas (incluye la del periodo actual si ya llegamos a él)
       const cuotasFacturadas = Math.max(0, mesesTranscurridos + 1);
       
-      // 2. Si la cuota actual es >= 1 y <= totales, se cobra este mes (suma a gastos)
-      if (cuotasFacturadas > 0 && cuotasFacturadas <= msi.meses_totales) {
-        gastosMSIMes += Number(msi.cuota_mensual);
+      // 2. Sumamos todas las cuotas facturadas hasta el momento (histórico)
+      const cuotasReales = Math.min(cuotasFacturadas, Number(msi.meses_totales));
+      if (cuotasReales > 0) {
+        gastosMSIFacturados += cuotasReales * Number(msi.cuota_mensual);
       }
       
       // 3. El saldo congelado es el restante DESPUÉS de descontar cuotas facturadas y adelantadas
@@ -255,8 +256,8 @@ export function calcularEstadoTarjeta(
     }
   });
 
-  // Gastos totales = (Gastos del mes + Cuotas MSI) - Pagos realizados a la tarjeta
-  const deudaTotal = (gastosDelPeriodo + gastosMSIMes) - pagosDelPeriodo;
+  // Gastos totales = (Gastos históricos + Cuotas MSI históricas) - Pagos realizados
+  const deudaTotal = (gastosDelPeriodo + gastosMSIFacturados) - pagosDelPeriodo;
   
   // Si los pagos superan la deuda, el periodo actual queda en 0 (saldo a favor se reflejará en el disponible)
   const gastosPeriodoActual = Math.round(Math.max(0, deudaTotal) * 100) / 100;
