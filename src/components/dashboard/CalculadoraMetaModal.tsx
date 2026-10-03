@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { GlassCard, GlassSelect } from '@/components/ui';
-import { CalendarDays, Calculator, Target, Info, X } from 'lucide-react';
+import { CalendarDays, Calculator, Target, Info, X, Loader2 } from 'lucide-react';
 import type { MetaConEstado, TarjetaConEstado } from '@/lib/types';
 import { useEditarMeta } from '@/lib/hooks';
 import { triggerHaptic, playSuccessChime } from '@/lib/ui/feedback';
@@ -24,7 +24,9 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
   const [aporteFrecuencia, setAporteFrecuencia] = useState<'diario' | 'semanal' | 'quincenal' | 'mensual'>('mensual');
   const [fuenteId, setFuenteId] = useState<string>('');
 
-  const { mutate: editar, isPending: editPending } = useEditarMeta();
+  const { mutateAsync: editarAsync } = useEditarMeta();
+  const [guardandoPlan, setGuardandoPlan] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
   const faltante = Math.max(0, meta.costoObjetivo - meta.montoActual);
 
   useEffect(() => {
@@ -175,22 +177,40 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
     return { fecha: fechaAlcanzada, periodosRestantes: Math.ceil(periodosRestantes), diasRestantes: Math.ceil(diasRestantes), ahorroInteresMXN };
   }, [modo, aporteCantidad, aporteFrecuencia, faltante, selectedApy]);
 
-  const fijarPlan = () => {
+  const fijarPlan = async () => {
     let nuevaFecha: string | null = null;
     if (modo === 'fecha' && targetDate) nuevaFecha = targetDate;
-    if (modo === 'aporte' && calculoAporte) nuevaFecha = calculoAporte.fecha.toISOString().substring(0, 10);
+    if (modo === 'aporte' && calculoAporte) {
+      nuevaFecha = calculoAporte.fecha.toISOString().substring(0, 10);
+    }
 
-    if (nuevaFecha) {
-      editar(
-        { id: meta.id, campos: { fechaObjetivo: nuevaFecha } },
-        {
-          onSuccess: () => {
-            triggerHaptic('success');
-            playSuccessChime();
-            onClose();
-          }
-        }
-      );
+    if (!nuevaFecha) {
+      setErrorGuardar('Por favor selecciona una fecha válida.');
+      return;
+    }
+
+    setGuardandoPlan(true);
+    setErrorGuardar(null);
+
+    try {
+      await editarAsync({
+        id: meta.id,
+        campos: {
+          nombre: meta.nombre,
+          costoObjetivo: meta.costoObjetivo,
+          fechaObjetivo: nuevaFecha,
+        },
+      });
+
+      triggerHaptic('success');
+      playSuccessChime();
+      onClose();
+    } catch (err: unknown) {
+      console.error('Error al guardar el plan de ahorro:', err);
+      const mensaje = err instanceof Error ? err.message : 'Error al guardar la fecha en la base de datos';
+      setErrorGuardar(mensaje);
+    } finally {
+      setGuardandoPlan(false);
     }
   };
 
@@ -338,12 +358,26 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                           </div>
                         )}
 
+                        {errorGuardar && (
+                          <div style={{ marginTop: '16px', padding: '10px 12px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--credito-rojo)', fontSize: '13px', textAlign: 'center' }}>
+                            {errorGuardar}
+                          </div>
+                        )}
+
                         <button
                           onClick={fijarPlan}
-                          disabled={editPending}
-                          style={{ width: '100%', marginTop: '16px', padding: '12px', background: 'var(--brand)', border: 'none', borderRadius: '10px', color: '#1a0a0b', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}
+                          disabled={guardandoPlan}
+                          style={{ width: '100%', marginTop: '16px', padding: '12px', background: 'var(--brand)', border: 'none', borderRadius: '10px', color: '#1a0a0b', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', opacity: guardandoPlan ? 0.7 : 1 }}
                         >
-                          <Target size={16} /> Guardar plan (Meta: {targetDate})
+                          {guardandoPlan ? (
+                            <>
+                              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando plan...
+                            </>
+                          ) : (
+                            <>
+                              <Target size={16} /> Guardar plan (Meta: {targetDate})
+                            </>
+                          )}
                         </button>
                       </div>
                     ) : (
@@ -399,12 +433,26 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                           </div>
                         )}
 
+                        {errorGuardar && (
+                          <div style={{ marginTop: '16px', padding: '10px 12px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--credito-rojo)', fontSize: '13px', textAlign: 'center', width: '100%' }}>
+                            {errorGuardar}
+                          </div>
+                        )}
+
                         <button
                           onClick={fijarPlan}
-                          disabled={editPending}
-                          style={{ width: '100%', marginTop: '16px', padding: '12px', background: 'var(--brand)', border: 'none', borderRadius: '10px', color: '#1a0a0b', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}
+                          disabled={guardandoPlan}
+                          style={{ width: '100%', marginTop: '16px', padding: '12px', background: 'var(--brand)', border: 'none', borderRadius: '10px', color: '#1a0a0b', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', opacity: guardandoPlan ? 0.7 : 1 }}
                         >
-                          <Target size={16} /> Fijar esta fecha estimada
+                          {guardandoPlan ? (
+                            <>
+                              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando plan...
+                            </>
+                          ) : (
+                            <>
+                              <Target size={16} /> Fijar esta fecha estimada
+                            </>
+                          )}
                         </button>
                       </div>
                     ) : (

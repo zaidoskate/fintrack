@@ -284,7 +284,10 @@ export function useEditarMeta() {
   return useMutation({
     mutationFn: ({ id, campos }: { id: string; campos: Partial<NuevaMetaInput> }) =>
       editarMeta(id, campos),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.metas }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.metas });
+      qc.invalidateQueries({ queryKey: ['metas'] });
+    },
   });
 }
 
