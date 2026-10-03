@@ -7,10 +7,6 @@
 
 import type { MetaRow, MetaAporteRow, TarjetaRow, ApartadoRow, MetaConEstado, MetaAporte } from '@/lib/types';
 
-/** Formatea Date a YYYY-MM-DD */
-function toISODate(date: Date): string {
-  return date.toISOString().substring(0, 10);
-}
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -103,20 +99,11 @@ export function calcularEstadoMeta(
       fechaEstimada = meta.fecha_objetivo;
     }
   } else {
-    if (aportes.length > 0) {
-      const primerAporte = aportes[aportes.length - 1].fecha; // sorted desc
-      const fechaPrimer = new Date(primerAporte + 'T00:00:00').getTime();
-      const diffTime = Math.max(0, hoyTime - fechaPrimer);
-      const mesesTranscurridos = Math.max(1, diffTime / (1000 * 60 * 60 * 24 * 30.44));
-      aporteMensual = capitalAportado / mesesTranscurridos;
-    }
-
-    if (aporteMensual > 0 && faltante > 0) {
-      mesesSinRendimiento = Math.ceil(faltante / aporteMensual);
-      mesesConRendimiento = mesesSinRendimiento;
-      const fechaFin = new Date(hoy.getFullYear(), hoy.getMonth() + mesesSinRendimiento, hoy.getDate());
-      fechaEstimada = toISODate(fechaFin);
-    }
+    // Si no hay fecha objetivo, no sugerimos ni calculamos proyecciones
+    aporteMensual = 0;
+    mesesSinRendimiento = null;
+    mesesConRendimiento = null;
+    fechaEstimada = null;
   }
 
   return {

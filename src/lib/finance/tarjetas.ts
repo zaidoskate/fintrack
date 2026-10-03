@@ -78,14 +78,16 @@ export function getPeriodoVigente(diaCorte: number, hoy: Date): Periodo {
  * Calcula la fecha del próximo pago a partir del próximo corte.
  * Si diaPago <= diaCorte, el pago cae en el mes siguiente al corte.
  */
-export function calcProximoPago(proximoCorte: Date, diaPago: number): Date {
-  const m = proximoCorte.getMonth();
-  const y = proximoCorte.getFullYear();
+export function calcProximoPago(hoy: Date, diaPago: number): Date {
+  const m = hoy.getMonth();
+  const y = hoy.getFullYear();
   const lastDay = new Date(y, m + 1, 0).getDate();
   const dia = Math.min(diaPago, lastDay);
+  
   let proxP = new Date(y, m, dia);
+  const hoyMidnight = new Date(y, m, hoy.getDate());
 
-  if (proxP <= proximoCorte) {
+  if (proxP < hoyMidnight) {
     const nm = m === 11 ? 0 : m + 1;
     const ny = m === 11 ? y + 1 : y;
     const ld = new Date(ny, nm + 1, 0).getDate();
@@ -275,7 +277,7 @@ export function calcularEstadoTarjeta(
   const { estadoTermometro, etiquetaEstado } = clasificarEstado(porcentajeUso);
 
   const proxCorte = periodo.proximoCorte;
-  const proxPago  = calcProximoPago(proxCorte, tarjeta.dia_pago || 1);
+  const proxPago  = calcProximoPago(hoy, tarjeta.dia_pago || 1);
 
   return {
     id:                  tarjeta.id,

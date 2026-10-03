@@ -14,8 +14,9 @@ import {
 } from '@/lib/hooks';
 import { GlassCard, ConfirmModal, GlassSelect } from '@/components/ui';
 import type { MetaConEstado } from '@/lib/types';
-import { Pencil, Trash } from 'lucide-react';
+import { Pencil, Trash, Calculator } from 'lucide-react';
 import { triggerHaptic, playSuccessChime } from '@/lib/ui/feedback';
+import { CalculadoraMetaModal } from '@/components/dashboard/CalculadoraMetaModal';
 
 const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
 
@@ -45,6 +46,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
   const { mutate: editar, isPending: editPending } = useEditarMeta();
   const { mutate: eliminar } = useEliminarMeta();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [calculadoraOpen, setCalculadoraOpen] = useState(false);
   
   useEffect(() => {
     if (!editando) {
@@ -88,6 +90,14 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         )}
         <div style={{ display: 'flex', gap: '6px' }}>
           <button 
+            onClick={() => setCalculadoraOpen(true)} 
+            style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', padding: '4px' }} 
+            title="Simulador de ahorro"
+            aria-label="Simulador de ahorro"
+          >
+            <Calculator size={16} />
+          </button>
+          <button 
             onClick={() => setEditando((v) => !v)} 
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} 
             title="Editar"
@@ -113,6 +123,12 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         confirmText="Eliminar"
         onConfirm={() => eliminar(meta.id)}
         onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <CalculadoraMetaModal 
+        isOpen={calculadoraOpen} 
+        onClose={() => setCalculadoraOpen(false)} 
+        meta={meta} 
       />
 
       {/* Barra de progreso */}
