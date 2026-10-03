@@ -129,6 +129,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         isOpen={calculadoraOpen} 
         onClose={() => setCalculadoraOpen(false)} 
         meta={meta} 
+        tarjetasDebito={tarjetasDebito}
       />
 
       {/* Barra de progreso */}
@@ -156,12 +157,35 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         </div>
       </div>
 
-      {/* Ahorro sugerido normal */}
-      {meta.proyeccion.aportesMensualesPromedio > 0 && !editando && meta.progreso < 100 && (
-        <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
-          Ahorro sugerido: {fmt.format(meta.proyeccion.aportesMensualesPromedio)}/mes 
-          {meta.proyeccion.fechaEstimadaCumplimiento && ` para alcanzarla en ${meta.proyeccion.fechaEstimadaCumplimiento}`}
-        </div>
+      {/* Ahorro sugerido normal / Pill de simulador */}
+      {!editando && meta.progreso < 100 && (
+        <>
+          {meta.fechaObjetivo && meta.proyeccion.aportesMensualesPromedio > 0 ? (
+            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
+              Ahorro sugerido: {fmt.format(meta.proyeccion.aportesMensualesPromedio)}/mes 
+              {meta.proyeccion.fechaEstimadaCumplimiento && ` para alcanzarla el ${meta.proyeccion.fechaEstimadaCumplimiento}`}
+            </div>
+          ) : !meta.fechaObjetivo ? (
+            <button
+              onClick={() => setCalculadoraOpen(true)}
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px dashed var(--border-glass)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                fontSize: '11px',
+                color: 'var(--brand)',
+                cursor: 'pointer',
+                marginTop: '8px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Calculator size={12} /> Calcular plan de ahorro sugerido
+            </button>
+          ) : null}
+        </>
       )}
 
       {/* Ahorro sugerido dinámico (durante edición) */}

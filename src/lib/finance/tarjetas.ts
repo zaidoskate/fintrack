@@ -79,21 +79,26 @@ export function getPeriodoVigente(diaCorte: number, hoy: Date): Periodo {
  * Si diaPago <= diaCorte, el pago cae en el mes siguiente al corte.
  */
 export function calcProximoPago(hoy: Date, diaPago: number): Date {
-  const m = hoy.getMonth();
   const y = hoy.getFullYear();
-  const lastDay = new Date(y, m + 1, 0).getDate();
-  const dia = Math.min(diaPago, lastDay);
-  
-  let proxP = new Date(y, m, dia);
+  const m = hoy.getMonth();
+
+  // 1. Día de pago en el mes actual (con clamp al último día del mes)
+  const lastDayThisMonth = new Date(y, m + 1, 0).getDate();
+  const diaClamped = Math.min(diaPago, lastDayThisMonth);
+  const pagoEsteMes = new Date(y, m, diaClamped);
+
   const hoyMidnight = new Date(y, m, hoy.getDate());
 
-  if (proxP < hoyMidnight) {
-    const nm = m === 11 ? 0 : m + 1;
-    const ny = m === 11 ? y + 1 : y;
-    const ld = new Date(ny, nm + 1, 0).getDate();
-    proxP = new Date(ny, nm, Math.min(diaPago, ld));
+  // 2. Si la fecha de pago de este mes aún no vence (es hoy o en el futuro), esa es la fecha límite
+  if (pagoEsteMes >= hoyMidnight) {
+    return pagoEsteMes;
   }
-  return proxP;
+
+  // 3. Si ya pasó la fecha de pago de este mes, la siguiente es el próximo mes
+  const nextM = m === 11 ? 0 : m + 1;
+  const nextY = m === 11 ? y + 1 : y;
+  const lastDayNextMonth = new Date(nextY, nextM + 1, 0).getDate();
+  return new Date(nextY, nextM, Math.min(diaPago, lastDayNextMonth));
 }
 
 /** Formatea un Date como YYYY-MM-DD sin conversión de zona horaria */
