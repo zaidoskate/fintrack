@@ -77,7 +77,7 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEf
 
   // 3. Timeline Histórico
   const [range, setRange] = useState<'12h' | '1d' | '1w' | '1m' | '6m'>('1w');
-  const [assetFilter, setAssetFilter] = useState<'ambas' | 'cripto' | 'renta_variable'>('ambas');
+  const [assetFilter, setAssetFilter] = useState<string>('all');
   const [rawData, setRawData] = useState<Record<string, HistData>>({});
   const [loadingHist, setLoadingHist] = useState(false);
   const [activePoint, setActivePoint] = useState<{ value: number; timestamp: number } | null>(null);
@@ -134,7 +134,7 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEf
     };
 
     let flatBaselineMXN = 0;
-    if (assetFilter === 'ambas') {
+    if (assetFilter === 'all') {
       flatBaselineMXN += balanceEfectivo;
       yields.forEach(y => { flatBaselineMXN += (y.valorTotalMXN || y.balanceActual); });
       tarjetas.forEach(t => { 
@@ -152,8 +152,7 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEf
       const mxnRate = getPriceAt(rawData['MXN=X']?.timestamps || [], rawData['MXN=X']?.prices || [], ts) || 19.5;
 
       activos.forEach(a => {
-        if (assetFilter === 'cripto' && a.tipo !== 'crypto') return;
-        if (assetFilter === 'renta_variable' && a.tipo === 'crypto') return;
+        if (assetFilter !== 'all' && a.simbolo !== assetFilter) return;
 
         const sym = a.tipo === 'crypto' ? `${a.simbolo}-USD` : a.simbolo;
         const hd = rawData[sym];
@@ -226,12 +225,11 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEf
             <GlassSelect 
               size="sm"
               options={[
-                { value: 'ambas', label: 'Ambas' },
-                { value: 'cripto', label: 'Criptos' },
-                { value: 'renta_variable', label: 'R. Variable' }
+                { value: 'all', label: 'Portafolio' },
+                ...activos.map(a => ({ value: a.simbolo, label: a.simbolo }))
               ]}
               value={assetFilter} 
-              onChange={(val) => setAssetFilter(val as 'ambas' | 'cripto' | 'renta_variable')}
+              onChange={setAssetFilter}
             />
           </div>
 
@@ -253,28 +251,28 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEf
           </div>
         </div>
 
-        <div style={{ height: '180px', width: '100%' }}>
-          <div style={{ padding: '0 0 12px 4px' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
-              {formatConverted(displayValue, 2)}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 500, color: diff >= 0 ? 'var(--credito-verde)' : 'var(--credito-rojo)' }}>
-                {diff >= 0 ? '+' : ''}{formatConverted(diff, 2)} ({diff >= 0 ? '+' : ''}{diffPct.toFixed(2)}%)
-              </div>
-              {activePoint && (
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  • {(() => {
-                    const d = new Date(activePoint.timestamp * 1000);
-                    if (range === '12h' || range === '1d') return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-                    if (range === '1w') return `${d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })}, ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
-                    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-                  })()}
-                </div>
-              )}
-            </div>
+        <div style={{ padding: '0 0 12px 4px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
+            {formatConverted(displayValue, 2)}
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 500, color: diff >= 0 ? 'var(--credito-verde)' : 'var(--credito-rojo)' }}>
+              {diff >= 0 ? '+' : ''}{formatConverted(diff, 2)} ({diff >= 0 ? '+' : ''}{diffPct.toFixed(2)}%)
+            </div>
+            {activePoint && (
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                • {(() => {
+                  const d = new Date(activePoint.timestamp * 1000);
+                  if (range === '12h' || range === '1d') return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+                  if (range === '1w') return `${d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })}, ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
+                  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+                })()}
+              </div>
+            )}
+          </div>
+        </div>
 
+        <div style={{ height: '180px', width: '100%', position: 'relative', zIndex: 10 }}>
           {loadingHist ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'scale(0.8)' }}>
                <Loader label="Actualizando histórico..." />
@@ -333,7 +331,7 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEf
                 <Tooltip 
                   cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1, strokeDasharray: '3 3' }}
                   isAnimationActive={false}
-                  content={<></>} 
+                  content={() => null} 
                 />
                 <Area 
                   type="monotone" 

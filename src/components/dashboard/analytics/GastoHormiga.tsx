@@ -13,24 +13,16 @@ interface GastoHormigaProps {
 export function GastoHormiga({ movimientos }: GastoHormigaProps) {
   const { totalHormiga, porcentaje, totalGasto } = useMemo(() => {
     const hoy = new Date();
-    const currentMonth = hoy.getMonth();
-    const currentYear = hoy.getFullYear();
+    const currentMesStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 
     let totalGastoMes = 0;
     let totalHormigaMes = 0;
 
     movimientos.forEach(m => {
-      if (esGastoReal(m)) {
-        const fecha = new Date(m.fecha);
-        // Ajuste zona horaria básico (m.fecha es YYYY-MM-DD)
-        const mes = fecha.getUTCMonth();
-        const ano = fecha.getUTCFullYear();
-        
-        if (mes === currentMonth && ano === currentYear) {
-          totalGastoMes += m.monto;
-          if (m.monto <= 150) {
-            totalHormigaMes += m.monto;
-          }
+      if (esGastoReal(m) && m.fecha.startsWith(currentMesStr)) {
+        totalGastoMes += m.monto;
+        if (m.monto <= 250) {
+          totalHormigaMes += m.monto;
         }
       }
     });
@@ -54,7 +46,7 @@ export function GastoHormiga({ movimientos }: GastoHormigaProps) {
           {formatter.format(totalHormiga)}
         </div>
         <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-          Acumulado este mes en micro-gastos (≤ $150).
+          Acumulado este mes en micro-gastos (≤ $250).
         </div>
       </div>
       

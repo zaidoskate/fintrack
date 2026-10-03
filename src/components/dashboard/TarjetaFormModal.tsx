@@ -137,24 +137,18 @@ export function TarjetaFormModal({
                 />
               </div>
 
-              <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {tipo === 'Crédito' ? 'Límite de Crédito (MXN)' : 'Saldo Inicial (MXN)'}
-                  {isEditing && tipo === 'Débito' && <span title="Bloqueado" style={{ fontSize: '14px' }}>🔒</span>}
-                </label>
-                <input
-                  type="number" required min={tipo === 'Crédito' ? "1" : "0"} step="0.01" placeholder={tipo === 'Crédito' ? "20000" : "5000"}
-                  value={limite} onChange={e => setLimite(e.target.value)}
-                  className="glass-input"
-                  disabled={isEditing && tipo === 'Débito'}
-                  style={isEditing && tipo === 'Débito' ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
-                />
-                {isEditing && tipo === 'Débito' && (
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.3 }}>
-                    El saldo inicial no se puede modificar porque descuadraría tus transacciones históricas. Para sincronizar tu saldo real usa &apos;Ajustar saldo&apos;.
-                  </div>
-                )}
-              </div>
+              {!(isEditing && tipo === 'Débito') && (
+                <div>
+                  <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {tipo === 'Crédito' ? 'Límite de Crédito (MXN)' : 'Saldo Inicial (MXN)'}
+                  </label>
+                  <input
+                    type="number" required min={tipo === 'Crédito' ? "1" : "0"} step="0.01" placeholder={tipo === 'Crédito' ? "20000" : "5000"}
+                    value={limite} onChange={e => setLimite(e.target.value)}
+                    className="glass-input"
+                  />
+                </div>
+              )}
 
               <AnimatePresence>
                 {tipo === 'Crédito' && (

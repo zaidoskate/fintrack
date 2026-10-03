@@ -46,7 +46,7 @@ export async function getMovimientos(filtros: FiltrosMovimientos = {}): Promise<
   if (filtros.desde) query = query.gte('fecha', filtros.desde);
   if (filtros.hasta) query = query.lte('fecha', filtros.hasta);
   if (filtros.tarjetaId !== undefined) {
-    if (filtros.tarjetaId === 'Efectivo' || filtros.tarjetaId === null) {
+    if (filtros.tarjetaId === 'Efectivo' || filtros.tarjetaId === 'efectivo' || filtros.tarjetaId === null) {
       query = query.is('tarjeta_id', null);
     } else {
       query = query.eq('tarjeta_id', filtros.tarjetaId);

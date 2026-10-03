@@ -275,7 +275,7 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
             fontFamily: 'var(--font-mono)',
             fontWeight: 700,
             fontSize: variant === 'compact' ? '18px' : '22px',
-            color: 'var(--text-primary)',
+            color: !esCredito && tarjeta.disponible < 0 ? 'var(--credito-rojo)' : 'var(--text-primary)',
             fontVariantNumeric: 'tabular-nums',
             display: 'flex',
             alignItems: 'center',
@@ -305,14 +305,26 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
             {tarjeta.porcentajeUso.toFixed(0)}% uso
           </div>
         )}
-        {!esCredito && tarjeta.rendimientoAnual > 0 && variant === 'full' && (
+        {showFlags && !esCredito && tarjeta.disponible < 0 && variant === 'full' && (
+          <StatusPill
+            mode="thermometer"
+            variant="rojo"
+            label="Sobregiro"
+          />
+        )}
+        {showFlags && !esCredito && tarjeta.disponible < 0 && variant === 'compact' && (
+          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--credito-rojo)' }}>
+            Sobregiro
+          </div>
+        )}
+        {!esCredito && tarjeta.rendimientoAnual > 0 && tarjeta.disponible >= 0 && variant === 'full' && (
           <StatusPill
             mode="thermometer"
             variant="verde"
             label={`${tarjeta.rendimientoAnual}% rendimientos`}
           />
         )}
-        {!esCredito && tarjeta.rendimientoAnual > 0 && variant === 'compact' && (
+        {!esCredito && tarjeta.rendimientoAnual > 0 && tarjeta.disponible >= 0 && variant === 'compact' && (
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--credito-verde)' }}>
             {tarjeta.rendimientoAnual}% rendimientos
           </div>

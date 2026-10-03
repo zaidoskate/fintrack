@@ -97,7 +97,7 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
         }}
       >
         {/* Header */}
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div aria-hidden="true" style={{
               width: '40px', height: '40px', borderRadius: '12px',
@@ -111,29 +111,6 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
           </div>
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '2px', marginRight: '8px' }}>
-              <button
-                onClick={() => setModo('diario')}
-                style={{
-                  padding: '6px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                  background: modo === 'diario' ? 'rgba(255,255,255,0.12)' : 'transparent',
-                  color: modo === 'diario' ? '#fff' : 'var(--text-muted)'
-                }}
-              >
-                Diario
-              </button>
-              <button
-                onClick={() => setModo('patrimonio')}
-                style={{
-                  padding: '6px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                  background: modo === 'patrimonio' ? 'rgba(255,255,255,0.12)' : 'transparent',
-                  color: modo === 'patrimonio' ? '#fff' : 'var(--text-muted)'
-                }}
-              >
-                Patrimonio
-              </button>
-            </div>
-            
             <button
               id="btn-settings"
               onClick={() => setShowSettings(!showSettings)}
@@ -163,6 +140,31 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
             </form>
           </div>
         </header>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '2px' }}>
+            <button
+              onClick={() => setModo('diario')}
+              style={{
+                padding: '6px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                background: modo === 'diario' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                color: modo === 'diario' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              Diario
+            </button>
+            <button
+              onClick={() => setModo('patrimonio')}
+              style={{
+                padding: '6px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                background: modo === 'patrimonio' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                color: modo === 'patrimonio' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              Patrimonio
+            </button>
+          </div>
+        </div>
 
         {/* Modal de Ajustes y Perfil */}
         <AnimatePresence>

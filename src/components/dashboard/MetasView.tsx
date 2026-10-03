@@ -46,6 +46,17 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
   const { mutate: eliminar } = useEliminarMeta();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
+  useEffect(() => {
+    if (!editando) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNombreEdit(meta.nombre);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCostoEdit(String(meta.costoObjetivo));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFechaObjEdit(meta.fechaObjetivo || '');
+    }
+  }, [meta, editando]);
+  
   const { data: tarjetas = [] } = useTarjetas();
   const tarjetasDebito = tarjetas.filter(t => t.tipo === 'Débito');
   
@@ -162,7 +173,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
       {editando && (
         <button
           onClick={() => {
-            editar({ id: meta.id, campos: { nombre: nombreEdit, costoObjetivo: parseFloat(costoEdit), fechaObjetivo: fechaObjEdit || undefined } });
+            editar({ id: meta.id, campos: { nombre: nombreEdit, costoObjetivo: parseFloat(costoEdit), fechaObjetivo: fechaObjEdit || null } });
             setEditando(false);
           }}
           disabled={editPending}
@@ -178,29 +189,17 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
           {aportando ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               
-              {/* Toggle Aportar / Retirar */}
-              <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px' }}>
-                <button
-                  onClick={() => setModoAccion('Aportar')}
-                  style={{ flex: 1, padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: 'none', cursor: 'pointer', background: modoAccion === 'Aportar' ? 'rgba(255,255,255,0.12)' : 'transparent', color: modoAccion === 'Aportar' ? '#fff' : 'var(--text-muted)', transition: 'all 0.2s' }}
-                >
-                  Aportar
-                </button>
-                <button
-                  onClick={() => setModoAccion('Retirar')}
-                  style={{ flex: 1, padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: 'none', cursor: 'pointer', background: modoAccion === 'Retirar' ? 'rgba(255,255,255,0.12)' : 'transparent', color: modoAccion === 'Retirar' ? '#fff' : 'var(--text-muted)', transition: 'all 0.2s' }}
-                >
-                  Retirar
-                </button>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px', textAlign: 'center' }}>
+                {modoAccion === 'Aportar' ? 'Aportar a Meta' : 'Retirar de Meta'}
               </div>
-
               <input
                 type="number"
-                placeholder="Monto a aportar"
+                placeholder={modoAccion === 'Aportar' ? "Monto a aportar" : "Monto a retirar"}
                 value={montoAporte}
                 onChange={(e) => setMontoAporte(e.target.value)}
                 style={inputStyle}
                 min="1"
+                max={modoAccion === 'Retirar' ? meta.montoActual : undefined}
               />
               <input
                 type="date"
@@ -208,7 +207,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
                 onChange={(e) => setFechaAporte(e.target.value)}
                 style={inputStyle}
               />
-              {tarjetasDebito.length > 0 && (
+              {modoAccion === 'Aportar' && tarjetasDebito.length > 0 && (
                 <div style={{ position: 'relative', zIndex: 30 }}>
                   <GlassSelect
                     value={tarjetaOrigen}
@@ -227,7 +226,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
                   />
                 </div>
               )}
-              {apartadosDeTarjeta.length > 0 && (
+              {modoAccion === 'Aportar' && apartadosDeTarjeta.length > 0 && (
                 <div style={{ position: 'relative', zIndex: 20 }}>
                   <GlassSelect
                     value={apartadoId}
@@ -275,15 +274,28 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
                   disabled={(modoAccion === 'Aportar' ? aportaPending : retiraPending) || !montoAporte}
                   style={{ ...btnPrimary, flex: 1, background: modoAccion === 'Retirar' ? 'var(--text-primary)' : 'var(--brand)' }}
                 >
-                  {(modoAccion === 'Aportar' ? aportaPending : retiraPending) ? '…' : modoAccion}
+                  {(modoAccion === 'Aportar' ? aportaPending : retiraPending) ? '…' : (modoAccion === 'Aportar' ? 'Confirmar Aporte' : 'Confirmar Retiro')}
                 </button>
                 <button onClick={() => setAportando(false)} style={btnMuted}>Cancelar</button>
               </div>
             </div>
           ) : (
-            <button onClick={() => setAportando(true)} style={{ ...btnSecondary, width: '100%' }}>
-              Registrar aporte
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={() => { setModoAccion('Aportar'); setAportando(true); }} 
+                style={{ ...btnSecondary, flex: 1, background: 'rgba(250, 104, 111, 0.1)', color: 'var(--brand)', border: '1px solid var(--brand)' }}
+              >
+                Aportar
+              </button>
+              {meta.montoActual > 0 && (
+                <button 
+                  onClick={() => { setModoAccion('Retirar'); setAportando(true); }} 
+                  style={{ ...btnSecondary, flex: 1 }}
+                >
+                  Retirar
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

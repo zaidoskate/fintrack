@@ -1,7 +1,33 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard } from '@/components/ui';
+import { GlassSelect } from '@/components/ui/GlassSelect';
 import { X, Info, TrendingUp, CircleDollarSign, Coins } from 'lucide-react';
+
+const COMMON_TICKERS: Record<'crypto' | 'stock' | 'etf', {value: string, label: string}[]> = {
+  crypto: [
+    { value: 'BTC', label: 'Bitcoin (BTC)' },
+    { value: 'ETH', label: 'Ethereum (ETH)' },
+    { value: 'SOL', label: 'Solana (SOL)' },
+    { value: 'BNB', label: 'Binance Coin (BNB)' }
+  ],
+  stock: [
+    { value: 'AAPL', label: 'Apple Inc. (AAPL)' },
+    { value: 'MSFT', label: 'Microsoft Corp. (MSFT)' },
+    { value: 'TSLA', label: 'Tesla Inc. (TSLA)' },
+    { value: 'AMZN', label: 'Amazon (AMZN)' },
+    { value: 'GOOGL', label: 'Alphabet Inc. (GOOGL)' },
+    { value: 'NVDA', label: 'Nvidia Corp. (NVDA)' }
+  ],
+  etf: [
+    { value: 'VOO', label: 'Vanguard S&P 500 (VOO)' },
+    { value: 'VUG', label: 'Vanguard Growth (VUG)' },
+    { value: 'QQQ', label: 'Invesco QQQ Trust (QQQ)' },
+    { value: 'QQQM', label: 'Invesco NASDAQ 100 (QQQM)' },
+    { value: 'VTI', label: 'Vanguard Total Stock (VTI)' },
+    { value: 'SCHD', label: 'Schwab US Dividend Equity (SCHD)' }
+  ]
+};
 
 interface AddInversionModalProps {
   onClose: () => void;
@@ -12,6 +38,7 @@ interface AddInversionModalProps {
 export function AddInversionModal({ onClose, onSubmit, isPending }: AddInversionModalProps) {
   const [tipo, setTipo] = useState<'crypto' | 'stock' | 'etf'>('stock');
   const [simbolo, setSimbolo] = useState('');
+  const [isCustomSimbolo, setIsCustomSimbolo] = useState(false);
   const [cantidad, setCantidad] = useState('');
   const [inversionInicial, setInversionInicial] = useState('');
 
@@ -84,22 +111,57 @@ export function AddInversionModal({ onClose, onSubmit, isPending }: AddInversion
               </div>
 
               {/* Símbolo */}
-              <div>
+              <div style={{ position: 'relative', zIndex: 10 }}>
                 <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                   Símbolo (Ticker)
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={tipo === 'crypto' ? "Ej. BTC" : "Ej. QQQM o AAPL"}
-                  value={simbolo}
-                  onChange={e => setSimbolo(e.target.value.toUpperCase())}
-                  style={{
-                    width: '100%', padding: '14px 16px', borderRadius: '14px',
-                    background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)',
-                    color: 'var(--text-primary)', fontSize: '16px', outline: 'none', textTransform: 'uppercase'
-                  }}
-                />
+                
+                {!isCustomSimbolo ? (
+                  <GlassSelect
+                    options={[
+                      ...COMMON_TICKERS[tipo],
+                      { value: 'other', label: 'Otro (Ingresar manualmente)' }
+                    ]}
+                    value={simbolo}
+                    onChange={(val) => {
+                      if (val === 'other') {
+                        setIsCustomSimbolo(true);
+                        setSimbolo('');
+                      } else {
+                        setSimbolo(val);
+                      }
+                    }}
+                    placeholder={tipo === 'crypto' ? "Ej. BTC" : "Ej. QQQM o AAPL"}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      required
+                      placeholder={tipo === 'crypto' ? "Ej. BTC" : "Ej. QQQM o AAPL"}
+                      value={simbolo}
+                      onChange={e => setSimbolo(e.target.value.toUpperCase())}
+                      style={{
+                        flex: 1, padding: '14px 16px', borderRadius: '14px',
+                        background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)',
+                        color: 'var(--text-primary)', fontSize: '16px', outline: 'none', textTransform: 'uppercase'
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setIsCustomSimbolo(false); setSimbolo(''); }}
+                      style={{
+                        padding: '0 16px', borderRadius: '14px',
+                        background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)',
+                        color: 'var(--text-muted)', cursor: 'pointer', fontSize: '14px'
+                      }}
+                    >
+                      Volver
+                    </button>
+                  </div>
+                )}
+                
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
                   <Info size={14} color="var(--brand)" />
                   {tipo === 'crypto' 

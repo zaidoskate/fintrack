@@ -50,7 +50,7 @@ export async function getMetas(): Promise<MetaConEstado[]> {
 export interface NuevaMetaInput {
   nombre: string;
   costoObjetivo: number;
-  fechaObjetivo?: string;
+  fechaObjetivo?: string | null;
 }
 
 /** Crea una meta de ahorro para el usuario autenticado. */
