@@ -32,7 +32,7 @@ function ProgressBar({ pct }: { pct: number }) {
 }
 
 /* ── Card individual de meta ────────────────────────────────────────────────── */
-function MetaCard({ meta }: { meta: MetaConEstado }) {
+function MetaCard({ meta, onOpenCalculadora }: { meta: MetaConEstado; onOpenCalculadora: (m: MetaConEstado) => void }) {
   const [aportando, setAportando] = useState(false);
   const [montoAporte, setMontoAporte] = useState('');
   const [editando, setEditando] = useState(false);
@@ -46,8 +46,6 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
   const { mutate: editar, isPending: editPending } = useEditarMeta();
   const { mutate: eliminar } = useEliminarMeta();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [calculadoraOpen, setCalculadoraOpen] = useState(false);
-  
   useEffect(() => {
     if (!editando) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -90,7 +88,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         )}
         <div style={{ display: 'flex', gap: '6px' }}>
           <button 
-            onClick={() => setCalculadoraOpen(true)} 
+            onClick={() => onOpenCalculadora(meta)} 
             style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', padding: '4px' }} 
             title="Simulador de ahorro"
             aria-label="Simulador de ahorro"
@@ -125,12 +123,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         onCancel={() => setShowDeleteConfirm(false)}
       />
 
-      <CalculadoraMetaModal 
-        isOpen={calculadoraOpen} 
-        onClose={() => setCalculadoraOpen(false)} 
-        meta={meta} 
-        tarjetasDebito={tarjetasDebito}
-      />
+
 
       {/* Barra de progreso */}
       <ProgressBar pct={meta.progreso} />
@@ -167,7 +160,7 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
             </div>
           ) : !meta.fechaObjetivo ? (
             <button
-              onClick={() => setCalculadoraOpen(true)}
+              onClick={() => onOpenCalculadora(meta)}
               style={{
                 background: 'rgba(255,255,255,0.04)',
                 border: '1px dashed var(--border-glass)',
@@ -451,7 +444,9 @@ function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 /* ── Vista principal ────────────────────────────────────────────────────────── */
 export function MetasView() {
   const [creando, setCreando] = useState(false);
+  const [metaParaSimulador, setMetaParaSimulador] = useState<MetaConEstado | null>(null);
   const { data: metas = [], isLoading, error } = useMetas();
+  const { data: tarjetas = [] } = useTarjetas();
 
   return (
     <div>
@@ -478,9 +473,18 @@ export function MetasView() {
 
       {metas.map((m, i) => (
         <div key={m.id} style={{ position: 'relative', zIndex: metas.length - i }}>
-          <MetaCard meta={m} />
+          <MetaCard meta={m} onOpenCalculadora={(m) => setMetaParaSimulador(m)} />
         </div>
       ))}
+
+      {metaParaSimulador && (
+        <CalculadoraMetaModal
+          isOpen={true}
+          onClose={() => setMetaParaSimulador(null)}
+          meta={metaParaSimulador}
+          tarjetasDebito={tarjetas.filter(t => t.tipo === 'Débito')}
+        />
+      )}
     </div>
   );
 }

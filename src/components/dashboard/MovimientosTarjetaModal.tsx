@@ -5,7 +5,8 @@ import { useMotionConfig } from '@/lib/motion/variants';
 import { GlassCard, Loader, ConfirmModal } from '@/components/ui';
 import { useMovimientosPaginados, useCrearMovimiento, useEliminarMovimiento } from '@/lib/hooks';
 import type { TarjetaConEstado, Movimiento } from '@/lib/types';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Edit2, Trash2, Search } from 'lucide-react';
 import { RegistroForm } from './RegistroForm';
 
@@ -27,6 +28,7 @@ interface MovimientosTarjetaModalProps {
 }
 
 export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjetaModalProps) {
+  const [mounted, setMounted] = useState(false);
   const { modalTransition } = useMotionConfig();
   const { 
     data, 
@@ -47,6 +49,11 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
   const [editingMov, setEditingMov] = useState<Movimiento | null>(null);
   const [movToDelete, setMovToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   const handlePaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +136,9 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
     return groups;
   }, [movimientos, searchTerm, tarjeta]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {tarjeta && (
         <motion.div
@@ -139,7 +148,7 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 100,
+            zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -266,13 +275,15 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
               </div>
             )}
 
-            <div style={{ 
-              flex: 1, 
-              minHeight: 0, 
-              overflowY: 'auto', 
-              paddingRight: '10px',
+            <div style={{
+              flex: 1,
+              minHeight: 0,
+              maxHeight: '45vh',
+              overflowY: 'scroll',
               WebkitOverflowScrolling: 'touch',
-              overscrollBehavior: 'contain'
+              touchAction: 'pan-y',
+              overscrollBehavior: 'contain',
+              paddingRight: '6px'
             }}>
               {isLoading && (
                   <div style={{ padding: '40px' }}>
@@ -384,6 +395,7 @@ export function MovimientosTarjetaModal({ tarjeta, onClose }: MovimientosTarjeta
           </GlassCard>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

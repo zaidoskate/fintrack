@@ -102,7 +102,7 @@ export const GlassCard = forwardRef<HTMLElement, GlassCardProps>(function GlassC
       )}
 
       {/* Contenido sobre el glow */}
-      <div style={{ position: 'relative', zIndex: 1 }}>
+      <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         {children}
       </div>
     </MotionComponent>

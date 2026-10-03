@@ -1236,241 +1236,6 @@ export function ApartadoFormModal({ isOpen, onClose, tarjeta }: Props) {
 }
 </file>
 
-<file path="src/components/dashboard/CalculadoraMetaModal.tsx">
-import { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { GlassCard } from '@/components/ui';
-import { CalendarDays, Calculator, Target } from 'lucide-react';
-import type { MetaConEstado } from '@/lib/types';
-
-const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
-
-interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  meta: MetaConEstado;
-}
-
-export function CalculadoraMetaModal({ isOpen, onClose, meta }: Props) {
-  const [modo, setModo] = useState<'fecha' | 'aporte'>('fecha');
-  const [targetDate, setTargetDate] = useState('');
-  const [aporteCantidad, setAporteCantidad] = useState('');
-  const [aporteFrecuencia, setAporteFrecuencia] = useState<'diario' | 'semanal' | 'quincenal' | 'mensual'>('mensual');
-
-  const faltante = Math.max(0, meta.costoObjetivo - meta.montoActual);
-
-  // Reiniciar estado al abrir
-  useEffect(() => {
-    if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTargetDate(meta.fechaObjetivo || '');
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAporteCantidad('');
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAporteFrecuencia('mensual');
-    }
-  }, [isOpen, meta]);
-
-  // Cálculos para Modo A: Calcular aporte según fecha
-  const calculoFecha = useMemo(() => {
-    if (modo !== 'fecha' || !targetDate || faltante <= 0) return null;
-    const fechaObj = new Date(targetDate + 'T00:00:00');
-    const hoy = new Date();
-    hoy.setHours(0,0,0,0);
-    const diffTime = Math.max(0, fechaObj.getTime() - hoy.getTime());
-    const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diasRestantes <= 0) return null;
-
-    return {
-      diario: faltante / diasRestantes,
-      semanal: faltante / (diasRestantes / 7),
-      quincenal: faltante / (diasRestantes / 15.22),
-      mensual: faltante / (diasRestantes / 30.44),
-      diasRestantes
-    };
-  }, [modo, targetDate, faltante]);
-
-  // Cálculos para Modo B: Calcular fecha según aporte
-  const calculoAporte = useMemo(() => {
-    const cantidad = parseFloat(aporteCantidad);
-    if (modo !== 'aporte' || !cantidad || cantidad <= 0 || faltante <= 0) return null;
-
-    const periodosRestantes = faltante / cantidad;
-    let diasRestantes = 0;
-    
-    switch(aporteFrecuencia) {
-      case 'diario': diasRestantes = periodosRestantes; break;
-      case 'semanal': diasRestantes = periodosRestantes * 7; break;
-      case 'quincenal': diasRestantes = periodosRestantes * 15.22; break;
-      case 'mensual': diasRestantes = periodosRestantes * 30.44; break;
-    }
-
-    const fechaAlcanzada = new Date();
-    fechaAlcanzada.setDate(fechaAlcanzada.getDate() + Math.ceil(diasRestantes));
-
-    return {
-      fecha: fechaAlcanzada,
-      periodosRestantes: Math.ceil(periodosRestantes),
-      diasRestantes: Math.ceil(diasRestantes)
-    };
-  }, [modo, aporteCantidad, aporteFrecuencia, faltante]);
-
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-          background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', padding: '16px'
-        }}
-      >
-        <div style={{ position: 'absolute', inset: 0 }} onClick={onClose} />
-        
-        <GlassCard style={{ width: '100%', maxWidth: '420px', padding: '24px', zIndex: 1, position: 'relative', marginBottom: 'env(safe-area-inset-bottom, 20px)', maxHeight: '90vh', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
-              <Calculator size={18} />
-            </div>
-            <div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--text-primary)', margin: 0 }}>Simulador de Ahorro</h2>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Te faltan {fmt.format(faltante)} para tu meta</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
-            <button
-              onClick={() => setModo('fecha')}
-              style={{
-                flex: 1, padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                background: modo === 'fecha' ? 'rgba(255,255,255,0.12)' : 'transparent',
-                color: modo === 'fecha' ? '#fff' : 'var(--text-muted)'
-              }}
-            >
-              Definir Fecha
-            </button>
-            <button
-              onClick={() => setModo('aporte')}
-              style={{
-                flex: 1, padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                background: modo === 'aporte' ? 'rgba(255,255,255,0.12)' : 'transparent',
-                color: modo === 'aporte' ? '#fff' : 'var(--text-muted)'
-              }}
-            >
-              Definir Aporte
-            </button>
-          </div>
-
-          {faltante <= 0 ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--credito-verde)' }}>
-              ¡Ya has alcanzado esta meta!
-            </div>
-          ) : (
-            <div style={{ minHeight: '220px' }}>
-              <AnimatePresence mode="wait">
-                {modo === 'fecha' ? (
-                  <motion.div key="fecha" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>¿Para cuándo lo quieres?</label>
-                      <input 
-                        type="date" 
-                        value={targetDate} 
-                        onChange={(e) => setTargetDate(e.target.value)} 
-                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px' }}
-                      />
-                    </div>
-                    
-                    {calculoFecha ? (
-                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', borderRadius: '12px', padding: '16px' }}>
-                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Target size={14} /> Para llegar en {calculoFecha.diasRestantes} días deberás ahorrar:
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Diariamente</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{fmt.format(calculoFecha.diario)}</span>
-                          </div>
-                          <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Semanalmente</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{fmt.format(calculoFecha.semanal)}</span>
-                          </div>
-                          <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '14px', color: 'var(--brand)' }}>Mensualmente</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 700, color: 'var(--brand)' }}>{fmt.format(calculoFecha.mensual)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                        Selecciona una fecha futura para ver tus proyecciones.
-                      </div>
-                    )}
-                  </motion.div>
-                ) : (
-                  <motion.div key="aporte" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>¿Cuánto puedes aportar?</label>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <input 
-                          type="number" 
-                          placeholder="Monto"
-                          value={aporteCantidad} 
-                          onChange={(e) => setAporteCantidad(e.target.value)} 
-                          style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px' }}
-                        />
-                        <select
-                          value={aporteFrecuencia}
-                          onChange={(e) => setAporteFrecuencia(e.target.value as 'diario' | 'semanal' | 'quincenal' | 'mensual')}
-                          style={{ width: '130px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '10px', padding: '12px', color: 'var(--text-primary)', fontSize: '14px', appearance: 'none' }}
-                        >
-                          <option value="diario">Al día</option>
-                          <option value="semanal">A la sem</option>
-                          <option value="quincenal">A la quin</option>
-                          <option value="mensual">Al mes</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {calculoAporte ? (
-                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                        <CalendarDays size={24} color="var(--brand)" style={{ marginBottom: '12px' }} />
-                        <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Lograrás tu meta en aprox. <strong>{calculoAporte.periodosRestantes} pagos</strong> ({calculoAporte.diasRestantes} días)
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                          Fecha estimada de cumplimiento:
-                        </div>
-                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {calculoAporte.fecha.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                        Ingresa un monto para ver cuándo lograrás tu meta.
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-
-          <button onClick={onClose} style={{ width: '100%', marginTop: '20px', padding: '14px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '12px', color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer' }}>
-            Cerrar Simulador
-          </button>
-        </GlassCard>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-</file>
-
 <file path="src/components/dashboard/EfectivoCard.tsx">
 import { useState } from 'react';
 
@@ -4399,6 +4164,417 @@ export function AddInversionModal({ onClose, onSubmit, isPending }: AddInversion
     </AnimatePresence>
   );
 }
+</file>
+
+<file path="src/components/dashboard/CalculadoraMetaModal.tsx">
+import { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { GlassCard, GlassSelect } from '@/components/ui';
+import { CalendarDays, Calculator, Target, Info } from 'lucide-react';
+import type { MetaConEstado, TarjetaConEstado } from '@/lib/types';
+import { useEditarMeta } from '@/lib/hooks';
+import { triggerHaptic, playSuccessChime } from '@/lib/ui/feedback';
+
+const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
+
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  meta: MetaConEstado;
+  tarjetasDebito: TarjetaConEstado[];
+}
+
+export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: Props) {
+  const [modo, setModo] = useState<'fecha' | 'aporte'>('fecha');
+  const [targetDate, setTargetDate] = useState('');
+  const [aporteCantidad, setAporteCantidad] = useState('');
+  const [aporteFrecuencia, setAporteFrecuencia] = useState<'diario' | 'semanal' | 'quincenal' | 'mensual'>('mensual');
+  const [fuenteId, setFuenteId] = useState<string>(''); // id de tarjeta o apartado
+
+  const { mutate: editar, isPending: editPending } = useEditarMeta();
+
+  const faltante = Math.max(0, meta.costoObjetivo - meta.montoActual);
+
+  // Generar opciones de fuentes de rendimiento
+  const opcionesFuentes = useMemo(() => {
+    const opts = [{ value: '', label: 'Sin cuenta asociada (0% APY)', apy: 0 }];
+    tarjetasDebito.forEach(t => {
+      if (t.rendimientoAnual > 0) {
+        opts.push({ value: t.id, label: `${t.nombre} (${t.rendimientoAnual}% APY)`, apy: t.rendimientoAnual });
+      }
+      if (t.apartados) {
+        t.apartados.forEach(a => {
+          if (a.rendimientoAnual > 0) {
+            opts.push({ value: a.id, label: `${a.nombre} (${a.rendimientoAnual}% APY)`, apy: a.rendimientoAnual });
+          }
+        });
+      }
+    });
+    return opts;
+  }, [tarjetasDebito]);
+
+  // Si la meta ya tiene un aporte previo, preseleccionar esa fuente (tarjeta o apartado) si aún existe
+  useEffect(() => {
+    if (isOpen && meta.aportes.length > 0) {
+      const ultimo = meta.aportes[0]; // están ordenados desc
+      const srcId = ultimo.apartadoId || ultimo.tarjetaOrigenId;
+      if (srcId && opcionesFuentes.some(o => o.value === srcId)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setFuenteId(srcId);
+      }
+    }
+  }, [isOpen, meta.aportes, opcionesFuentes]);
+
+  const selectedApy = opcionesFuentes.find(o => o.value === fuenteId)?.apy || 0;
+
+  // Reiniciar estado al abrir
+  useEffect(() => {
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTargetDate(meta.fechaObjetivo || '');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAporteCantidad('');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAporteFrecuencia('mensual');
+    }
+  }, [isOpen, meta.fechaObjetivo]);
+
+  // Funciones rápidas para fecha
+  const addMonths = (m: number) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + m);
+    setTargetDate(d.toISOString().substring(0, 10));
+  };
+  const setEndOfYear = () => {
+    const d = new Date(new Date().getFullYear(), 11, 31);
+    setTargetDate(d.toISOString().substring(0, 10));
+  };
+
+  // Cálculos para Modo A: Calcular aporte según fecha
+  const calculoFecha = useMemo(() => {
+    if (modo !== 'fecha' || !targetDate || faltante <= 0) return null;
+    const fechaObj = new Date(targetDate + 'T00:00:00');
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+    const diffTime = Math.max(0, fechaObj.getTime() - hoy.getTime());
+    const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diasRestantes <= 0) return null;
+
+    let cuotaDiaria = faltante / diasRestantes;
+    let cuotaSemanal = faltante / (diasRestantes / 7);
+    let cuotaQuincenal = faltante / (diasRestantes / 15.22);
+    let cuotaMensual = faltante / (diasRestantes / 30.44);
+
+    let ahorroInteresMXN = 0;
+
+    if (selectedApy > 0) {
+      const dr = (selectedApy / 100) / 365;
+      const d = diasRestantes;
+      // Formula FV = P * (((1+r)^t - 1) / r) => P = FV * r / (((1+r)^t - 1))
+      cuotaDiaria = (faltante * dr) / (Math.pow(1 + dr, d) - 1);
+      
+      const totalAportado = cuotaDiaria * d;
+      ahorroInteresMXN = Math.max(0, faltante - totalAportado);
+
+      // Aproximaciones para las demás frecuencias
+      cuotaSemanal = cuotaDiaria * 7;
+      cuotaQuincenal = cuotaDiaria * 15.22;
+      cuotaMensual = cuotaDiaria * 30.44;
+    }
+
+    return {
+      diario: cuotaDiaria,
+      semanal: cuotaSemanal,
+      quincenal: cuotaQuincenal,
+      mensual: cuotaMensual,
+      ahorroInteresMXN,
+      diasRestantes
+    };
+  }, [modo, targetDate, faltante, selectedApy]);
+
+  // Cálculos para Modo B: Calcular fecha según aporte
+  const calculoAporte = useMemo(() => {
+    const cantidad = parseFloat(aporteCantidad);
+    if (modo !== 'aporte' || !cantidad || cantidad <= 0 || faltante <= 0) return null;
+
+    let periodosRestantes = faltante / cantidad;
+    let diasRestantes = 0;
+    
+    // Convertir todo a ritmo diario para simplificar interés
+    let aporteDiario = cantidad;
+    switch(aporteFrecuencia) {
+      case 'diario': aporteDiario = cantidad; break;
+      case 'semanal': aporteDiario = cantidad / 7; break;
+      case 'quincenal': aporteDiario = cantidad / 15.22; break;
+      case 'mensual': aporteDiario = cantidad / 30.44; break;
+    }
+
+    let ahorroInteresMXN = 0;
+
+    if (selectedApy > 0) {
+      const dr = (selectedApy / 100) / 365;
+      // t = ln(FV*r/P + 1) / ln(1+r)
+      const t = Math.log((faltante * dr) / aporteDiario + 1) / Math.log(1 + dr);
+      diasRestantes = t;
+      
+      const totalAportado = aporteDiario * diasRestantes;
+      ahorroInteresMXN = Math.max(0, faltante - totalAportado);
+      
+      periodosRestantes = diasRestantes / (aporteDiario === cantidad ? 1 : (aporteFrecuencia === 'semanal' ? 7 : (aporteFrecuencia === 'quincenal' ? 15.22 : 30.44)));
+    } else {
+      diasRestantes = periodosRestantes * (aporteFrecuencia === 'diario' ? 1 : (aporteFrecuencia === 'semanal' ? 7 : (aporteFrecuencia === 'quincenal' ? 15.22 : 30.44)));
+    }
+
+    const fechaAlcanzada = new Date();
+    fechaAlcanzada.setDate(fechaAlcanzada.getDate() + Math.ceil(diasRestantes));
+
+    return {
+      fecha: fechaAlcanzada,
+      periodosRestantes: Math.ceil(periodosRestantes),
+      diasRestantes: Math.ceil(diasRestantes),
+      ahorroInteresMXN
+    };
+  }, [modo, aporteCantidad, aporteFrecuencia, faltante, selectedApy]);
+
+  const fijarPlan = () => {
+    let nuevaFecha: string | null = null;
+    if (modo === 'fecha' && targetDate) nuevaFecha = targetDate;
+    if (modo === 'aporte' && calculoAporte) nuevaFecha = calculoAporte.fecha.toISOString().substring(0, 10);
+    
+    if (nuevaFecha) {
+      editar(
+        { id: meta.id, campos: { fechaObjetivo: nuevaFecha } },
+        {
+          onSuccess: () => {
+            triggerHaptic('success');
+            playSuccessChime();
+            onClose();
+          }
+        }
+      );
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0, 0, 0, 0.78)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', padding: '16px'
+        }}
+      >
+        <div style={{ position: 'absolute', inset: 0 }} onClick={onClose} />
+        
+        <GlassCard style={{ width: '100%', maxWidth: '440px', padding: '24px', zIndex: 1, position: 'relative', maxHeight: '90vh', overflowY: 'auto', background: 'rgba(18, 18, 20, 0.85)', boxShadow: '0 24px 60px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
+              <Calculator size={18} />
+            </div>
+            <div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--text-primary)', margin: 0 }}>Simulador de Ahorro</h2>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Te faltan {fmt.format(faltante)} para tu meta</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', padding: '4px', marginBottom: '16px' }}>
+            <button
+              onClick={() => setModo('fecha')}
+              style={{
+                flex: 1, padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                background: modo === 'fecha' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                color: modo === 'fecha' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              Definir Fecha
+            </button>
+            <button
+              onClick={() => setModo('aporte')}
+              style={{
+                flex: 1, padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                background: modo === 'aporte' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                color: modo === 'aporte' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              Definir Aporte
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '20px', zIndex: 20, position: 'relative' }}>
+             <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Instrumento de inversión (Opcional)</label>
+             <GlassSelect 
+               value={fuenteId}
+               onChange={(val) => setFuenteId(val)}
+               options={opcionesFuentes.map(o => ({ value: o.value, label: o.label }))}
+               placeholder="Selecciona tarjeta o apartado"
+             />
+          </div>
+
+          {faltante <= 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--credito-verde)' }}>
+              ¡Ya has alcanzado esta meta!
+            </div>
+          ) : (
+            <div style={{ minHeight: '260px' }}>
+              <AnimatePresence mode="wait">
+                {modo === 'fecha' ? (
+                  <motion.div key="fecha" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>¿Para cuándo lo quieres?</label>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button onClick={() => addMonths(3)} style={presetBtn}>+3m</button>
+                          <button onClick={() => addMonths(6)} style={presetBtn}>+6m</button>
+                          <button onClick={() => addMonths(12)} style={presetBtn}>+1a</button>
+                          <button onClick={setEndOfYear} style={presetBtn}>Fin de año</button>
+                        </div>
+                      </div>
+                      <input 
+                        type="date" 
+                        value={targetDate} 
+                        onChange={(e) => setTargetDate(e.target.value)} 
+                        style={{ width: '100%', background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
+                      />
+                    </div>
+                    
+                    {calculoFecha ? (
+                      <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '16px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Diariamente</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{fmt.format(calculoFecha.diario)} <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/ día</span></span>
+                          </div>
+                          <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Semanalmente</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{fmt.format(calculoFecha.semanal)} <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/ sem</span></span>
+                          </div>
+                          <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Quincenalmente</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{fmt.format(calculoFecha.quincenal)} <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/ quin</span></span>
+                          </div>
+                          <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '16px', color: 'var(--brand)', fontWeight: 600 }}>Mensualmente</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: 'var(--brand)' }}>{fmt.format(calculoFecha.mensual)} <span style={{ fontSize: '12px', color: 'var(--brand)', opacity: 0.8 }}>/ mes</span></span>
+                          </div>
+                        </div>
+
+                        {calculoFecha.ahorroInteresMXN > 0 && (
+                          <div style={{ marginTop: '16px', padding: '10px 12px', background: 'rgba(168, 255, 120, 0.08)', borderRadius: '8px', border: '1px solid rgba(168, 255, 120, 0.2)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                            <Info size={16} color="var(--credito-verde)" style={{ marginTop: '2px', flexShrink: 0 }} />
+                            <div style={{ fontSize: '12px', color: 'var(--credito-verde)', lineHeight: 1.4 }}>
+                              Con tu rendimiento del {selectedApy}% APY, te ahorras <strong>{fmt.format(calculoFecha.ahorroInteresMXN)} MXN</strong> en aportaciones directas por interés compuesto.
+                            </div>
+                          </div>
+                        )}
+
+                        <button 
+                          onClick={fijarPlan}
+                          disabled={editPending}
+                          style={{ width: '100%', marginTop: '16px', padding: '12px', background: 'var(--brand)', border: 'none', borderRadius: '10px', color: '#1a0a0b', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Target size={16} /> Guardar plan (Meta: {targetDate})
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        Selecciona una fecha futura para ver tus proyecciones.
+                      </div>
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div key="aporte" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>¿Cuánto puedes aportar?</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input 
+                          type="number" 
+                          placeholder="Monto"
+                          value={aporteCantidad} 
+                          onChange={(e) => setAporteCantidad(e.target.value)} 
+                          style={{ flex: 1, background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
+                        />
+                        <select
+                          value={aporteFrecuencia}
+                          onChange={(e) => setAporteFrecuencia(e.target.value as 'diario' | 'semanal' | 'quincenal' | 'mensual')}
+                          style={{ width: '130px', background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', padding: '12px', color: 'var(--text-primary)', fontSize: '14px', appearance: 'none', outline: 'none' }}
+                        >
+                          <option value="diario" style={{ color: 'black' }}>Al día</option>
+                          <option value="semanal" style={{ color: 'black' }}>A la sem</option>
+                          <option value="quincenal" style={{ color: 'black' }}>A la quin</option>
+                          <option value="mensual" style={{ color: 'black' }}>Al mes</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {calculoAporte ? (
+                      <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                        <CalendarDays size={28} color="var(--brand)" style={{ marginBottom: '12px' }} />
+                        <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Lograrás tu meta en aprox. <strong>{calculoAporte.periodosRestantes} pagos</strong>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                          Fecha exacta estimada de cumplimiento:
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {calculoAporte.fecha.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </div>
+
+                        {calculoAporte.ahorroInteresMXN > 0 && (
+                          <div style={{ marginTop: '16px', padding: '10px 12px', background: 'rgba(168, 255, 120, 0.08)', borderRadius: '8px', border: '1px solid rgba(168, 255, 120, 0.2)', display: 'flex', gap: '8px', alignItems: 'flex-start', textAlign: 'left', width: '100%' }}>
+                            <Info size={16} color="var(--credito-verde)" style={{ marginTop: '2px', flexShrink: 0 }} />
+                            <div style={{ fontSize: '12px', color: 'var(--credito-verde)', lineHeight: 1.4 }}>
+                              Con tu rendimiento del {selectedApy}% APY, te ahorras <strong>{fmt.format(calculoAporte.ahorroInteresMXN)} MXN</strong> en aportaciones directas.
+                            </div>
+                          </div>
+                        )}
+
+                        <button 
+                          onClick={fijarPlan}
+                          disabled={editPending}
+                          style={{ width: '100%', marginTop: '16px', padding: '12px', background: 'var(--brand)', border: 'none', borderRadius: '10px', color: '#1a0a0b', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Target size={16} /> Fijar esta fecha estimada como mi meta
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        Ingresa un monto para ver cuándo lograrás tu meta.
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '14px', cursor: 'pointer', padding: '8px 16px', fontWeight: 500 }}>
+              Cerrar Simulador
+            </button>
+          </div>
+        </GlassCard>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+const presetBtn: React.CSSProperties = {
+  background: 'rgba(255, 255, 255, 0.06)',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
+  color: 'var(--text-secondary)',
+  fontSize: '11px',
+  padding: '4px 8px',
+  borderRadius: '6px',
+  cursor: 'pointer'
+};
 </file>
 
 <file path="src/components/ui/GlassCard.tsx">
@@ -8859,7 +9035,7 @@ export async function moverDineroYield(id: string, montoDelta: number): Promise<
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
     "idb-keyval": "^6.3.0",
-    "lucide-react": "^1.34.0",
+    "lucide-react": "^1.51.0",
     "motion": "^13.1.1",
     "next": "16.3.1",
     "react": "19.2.8",
@@ -10720,513 +10896,6 @@ export default function DashboardPage() {
 }
 </file>
 
-<file path="src/components/dashboard/MetasView.tsx">
-'use client';
-
-/**
- * MetasView — Motor de Metas FR-15 a FR-19 con CRUD completo.
- * GlassCard por meta, progreso circular, aportes y creación/edición/eliminación.
- * Usa useMetas(), useCrearMeta(), useAportarMeta(), useEliminarMeta() — NFR-06b.
- */
-
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import {
-  useMetas, useCrearMeta, useAportarMeta,
-  useEditarMeta, useEliminarMeta, useTarjetas, useRetirarDeMeta
-} from '@/lib/hooks';
-import { GlassCard, ConfirmModal, GlassSelect } from '@/components/ui';
-import type { MetaConEstado } from '@/lib/types';
-import { Pencil, Trash, Calculator } from 'lucide-react';
-import { triggerHaptic, playSuccessChime } from '@/lib/ui/feedback';
-import { CalculadoraMetaModal } from '@/components/dashboard/CalculadoraMetaModal';
-
-const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
-
-/* ── Barra de progreso ──────────────────────────────────────────────────────── */
-function ProgressBar({ pct }: { pct: number }) {
-  const clipped = Math.min(pct, 100);
-  const color = clipped >= 100 ? 'var(--credito-verde)' : clipped >= 50 ? 'var(--brand)' : 'var(--credito-amarillo)';
-  return (
-    <div style={{ position: 'relative', height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden', margin: '12px 0 6px' }}>
-      <div style={{ height: '100%', width: `${clipped}%`, background: color, borderRadius: '3px', transition: 'width 0.6s ease' }} />
-    </div>
-  );
-}
-
-/* ── Card individual de meta ────────────────────────────────────────────────── */
-function MetaCard({ meta }: { meta: MetaConEstado }) {
-  const [aportando, setAportando] = useState(false);
-  const [montoAporte, setMontoAporte] = useState('');
-  const [editando, setEditando] = useState(false);
-  const [nombreEdit, setNombreEdit] = useState(meta.nombre);
-  const [costoEdit, setCostoEdit] = useState(String(meta.costoObjetivo));
-  const [fechaObjEdit, setFechaObjEdit] = useState(meta.fechaObjetivo || '');
-  const [modoAccion, setModoAccion] = useState<'Aportar' | 'Retirar'>('Aportar');
-
-  const { mutate: aportar, isPending: aportaPending } = useAportarMeta();
-  const { mutate: retirar, isPending: retiraPending } = useRetirarDeMeta();
-  const { mutate: editar, isPending: editPending } = useEditarMeta();
-  const { mutate: eliminar } = useEliminarMeta();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [calculadoraOpen, setCalculadoraOpen] = useState(false);
-  
-  useEffect(() => {
-    if (!editando) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setNombreEdit(meta.nombre);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCostoEdit(String(meta.costoObjetivo));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFechaObjEdit(meta.fechaObjetivo || '');
-    }
-  }, [meta, editando]);
-  
-  const { data: tarjetas = [] } = useTarjetas();
-  const tarjetasDebito = tarjetas.filter(t => t.tipo === 'Débito');
-  
-  const [tarjetaOrigen, setTarjetaOrigen] = useState('');
-  const [apartadoId, setApartadoId] = useState('');
-  const [fechaAporte, setFechaAporte] = useState(new Date().toISOString().split('T')[0]);
-
-  const tarjetaSeleccionada = tarjetasDebito.find(t => t.id === tarjetaOrigen);
-  const apartadosDeTarjeta = tarjetaSeleccionada?.apartados || [];
-
-  return (
-    <GlassCard
-      glow={meta.progreso >= 100 ? 'verde' : 'none'}
-      as="article"
-      style={{ overflow: 'visible', padding: '20px 24px', marginBottom: '16px' }}
-    >
-      {/* Cabecera */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        {editando ? (
-          <input
-            value={nombreEdit}
-            onChange={(e) => setNombreEdit(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '8px', padding: '4px 10px', color: 'var(--text-primary)', fontSize: '15px', flex: 1, marginRight: '8px' }}
-          />
-        ) : (
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: '16px', color: 'var(--text-primary)' }}>
-            {meta.nombre}
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button 
-            onClick={() => setCalculadoraOpen(true)} 
-            style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', padding: '4px' }} 
-            title="Simulador de ahorro"
-            aria-label="Simulador de ahorro"
-          >
-            <Calculator size={16} />
-          </button>
-          <button 
-            onClick={() => setEditando((v) => !v)} 
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} 
-            title="Editar"
-            aria-label="Editar meta"
-          >
-            <Pencil size={16} />
-          </button>
-          <button 
-            onClick={() => setShowDeleteConfirm(true)} 
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} 
-            title="Eliminar"
-            aria-label="Eliminar meta"
-          >
-            <Trash size={16} />
-          </button>
-        </div>
-      </div>
-
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        title={`¿Eliminar la meta ${meta.nombre}?`}
-        message="Esta acción no se puede deshacer y borrará todo el progreso registrado."
-        confirmText="Eliminar"
-        onConfirm={() => eliminar(meta.id)}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
-
-      <CalculadoraMetaModal 
-        isOpen={calculadoraOpen} 
-        onClose={() => setCalculadoraOpen(false)} 
-        meta={meta} 
-      />
-
-      {/* Barra de progreso */}
-      <ProgressBar pct={meta.progreso} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', flexWrap: 'wrap', gap: '8px' }}>
-        <span>{meta.progreso.toFixed(1)}% completado</span>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span>Meta: {editando ? (
-            <input
-              type="number"
-              value={costoEdit}
-              onChange={(e) => setCostoEdit(e.target.value)}
-              style={{ width: '80px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '6px', padding: '2px 6px', color: 'var(--text-primary)', fontSize: '11px', textAlign: 'right' }}
-            />
-          ) : fmt.format(meta.costoObjetivo)}</span>
-          
-          {editando && (
-            <input
-              type="date"
-              value={fechaObjEdit}
-              onChange={(e) => setFechaObjEdit(e.target.value)}
-              style={{ width: '110px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '6px', padding: '2px 6px', color: 'var(--text-primary)', fontSize: '11px' }}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Ahorro sugerido normal */}
-      {meta.proyeccion.aportesMensualesPromedio > 0 && !editando && meta.progreso < 100 && (
-        <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
-          Ahorro sugerido: {fmt.format(meta.proyeccion.aportesMensualesPromedio)}/mes 
-          {meta.proyeccion.fechaEstimadaCumplimiento && ` para alcanzarla en ${meta.proyeccion.fechaEstimadaCumplimiento}`}
-        </div>
-      )}
-
-      {/* Ahorro sugerido dinámico (durante edición) */}
-      {editando && (
-        <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
-          {(() => {
-            const costoObjetivoNum = parseFloat(costoEdit) || 0;
-            const faltanteEdit = Math.max(0, costoObjetivoNum - meta.montoActual);
-            let sugerenciaMensualEdit = faltanteEdit;
-            let mesesStr = '';
-            
-            if (fechaObjEdit) {
-              const fechaObj = new Date(fechaObjEdit + 'T00:00:00');
-              const hoyTime = new Date().getTime();
-              const diffTime = Math.max(0, fechaObj.getTime() - hoyTime);
-              const mesesRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30.44));
-              if (mesesRestantes > 0) {
-                sugerenciaMensualEdit = faltanteEdit / mesesRestantes;
-                mesesStr = ` (en ${mesesRestantes} mes${mesesRestantes > 1 ? 'es' : ''})`;
-              }
-            }
-            
-            if (sugerenciaMensualEdit > 0 && faltanteEdit > 0) {
-              return <>Proyección ajustada: {fmt.format(sugerenciaMensualEdit)}/mes{mesesStr}</>;
-            }
-            return null;
-          })()}
-        </div>
-      )}
-
-      {/* Montos consolidados y compactos */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '12px' }}>
-        <div>
-          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '2px' }}>Ahorrado Total</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '18px', color: 'var(--text-primary)' }}>
-            {fmt.format(meta.montoActual)}
-          </div>
-        </div>
-        
-        {meta.rendimientoGenerado > 0 && (
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '2px' }}>Capital depositado</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              {fmt.format(meta.capitalAportado)}
-              <span style={{ color: 'var(--credito-verde)', marginLeft: '6px', fontWeight: 600 }}>
-                +{fmt.format(meta.rendimientoGenerado)}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Guardar edición */}
-      {editando && (
-        <button
-          onClick={() => {
-            editar({ id: meta.id, campos: { nombre: nombreEdit, costoObjetivo: parseFloat(costoEdit), fechaObjetivo: fechaObjEdit || null } });
-            setEditando(false);
-          }}
-          disabled={editPending}
-          style={{ ...btnPrimary, marginTop: '12px', width: '100%' }}
-        >
-          {editPending ? 'Guardando…' : 'Guardar cambios'}
-        </button>
-      )}
-
-      {/* Sección de aporte */}
-      {!editando && meta.progreso < 100 && (
-        <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
-          {aportando ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px', textAlign: 'center' }}>
-                {modoAccion === 'Aportar' ? 'Aportar a Meta' : 'Retirar de Meta'}
-              </div>
-              <input
-                type="number"
-                placeholder={modoAccion === 'Aportar' ? "Monto a aportar" : "Monto a retirar"}
-                value={montoAporte}
-                onChange={(e) => setMontoAporte(e.target.value)}
-                style={inputStyle}
-                min="1"
-                max={modoAccion === 'Retirar' ? meta.montoActual : undefined}
-              />
-              <input
-                type="date"
-                value={fechaAporte}
-                onChange={(e) => setFechaAporte(e.target.value)}
-                style={inputStyle}
-              />
-              {modoAccion === 'Aportar' && tarjetasDebito.length > 0 && (
-                <div style={{ position: 'relative', zIndex: 30 }}>
-                  <GlassSelect
-                    value={tarjetaOrigen}
-                    onChange={(val) => {
-                      setTarjetaOrigen(val);
-                      setApartadoId(''); // reset apartado al cambiar de tarjeta
-                    }}
-                    options={[
-                      { value: '', label: 'Sin tarjeta (efectivo)' },
-                      ...tarjetasDebito.map(t => ({
-                        value: t.id,
-                        label: `${t.nombre} ${t.rendimientoAnual > 0 ? `(${t.rendimientoAnual}% APY)` : ''}`
-                      }))
-                    ]}
-                    placeholder="Selecciona tarjeta"
-                  />
-                </div>
-              )}
-              {modoAccion === 'Aportar' && apartadosDeTarjeta.length > 0 && (
-                <div style={{ position: 'relative', zIndex: 20 }}>
-                  <GlassSelect
-                    value={apartadoId}
-                    onChange={(val) => setApartadoId(val)}
-                    options={[
-                      { value: '', label: 'Balance general (sin apartado)' },
-                      ...apartadosDeTarjeta.map(a => ({
-                        value: a.id,
-                        label: `${a.nombre} (${a.rendimientoAnual}% APY)`
-                      }))
-                    ]}
-                    placeholder="Selecciona apartado"
-                  />
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                <button
-                  onClick={() => {
-                    const monto = parseFloat(montoAporte);
-                    if (monto > 0) {
-                      if (modoAccion === 'Aportar') {
-                        aportar(
-                          { id: meta.id, monto, tarjetaId: tarjetaOrigen || undefined, apartadoId: apartadoId || undefined, fecha: fechaAporte }, 
-                          { onSuccess: () => { 
-                              triggerHaptic('success');
-                              playSuccessChime();
-                              setAportando(false); 
-                              setMontoAporte(''); 
-                              setTarjetaOrigen(''); 
-                              setApartadoId(''); 
-                          } }
-                        );
-                      } else {
-                        retirar(
-                          { id: meta.id, monto },
-                          { onSuccess: () => {
-                              triggerHaptic('success');
-                              setAportando(false);
-                              setMontoAporte('');
-                          }}
-                        )
-                      }
-                    }
-                  }}
-                  disabled={(modoAccion === 'Aportar' ? aportaPending : retiraPending) || !montoAporte}
-                  style={{ ...btnPrimary, flex: 1, background: modoAccion === 'Retirar' ? 'var(--text-primary)' : 'var(--brand)' }}
-                >
-                  {(modoAccion === 'Aportar' ? aportaPending : retiraPending) ? '…' : (modoAccion === 'Aportar' ? 'Confirmar Aporte' : 'Confirmar Retiro')}
-                </button>
-                <button onClick={() => setAportando(false)} style={btnMuted}>Cancelar</button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                onClick={() => { setModoAccion('Aportar'); setAportando(true); }} 
-                style={{ ...btnSecondary, flex: 1, background: 'rgba(250, 104, 111, 0.1)', color: 'var(--brand)', border: '1px solid var(--brand)' }}
-              >
-                Aportar
-              </button>
-              {meta.montoActual > 0 && (
-                <button 
-                  onClick={() => { setModoAccion('Retirar'); setAportando(true); }} 
-                  style={{ ...btnSecondary, flex: 1 }}
-                >
-                  Retirar
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-      {!editando && meta.progreso >= 100 && (
-        <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--credito-verde)' }}>
-          Meta cumplida
-        </div>
-      )}
-    </GlassCard>
-  );
-}
-
-/* ── Formulario nueva meta ──────────────────────────────────────────────────── */
-function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [nombre, setNombre] = useState('');
-  const [costo, setCosto] = useState('');
-  const [fechaObj, setFechaObj] = useState('');
-  const { mutate: crear, isPending } = useCrearMeta();
-
-  useEffect(() => {
-    if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setNombre('');
-      setCosto('');
-      setFechaObj('');
-    }
-  }, [isOpen]);
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nombre || !costo) return;
-    crear(
-      { nombre, costoObjetivo: parseFloat(costo), fechaObjetivo: fechaObj || undefined },
-      { onSuccess: onClose },
-    );
-  };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-            background: 'rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(4px)',
-          }}
-        >
-          <div style={{ position: 'absolute', inset: 0 }} onClick={onClose} />
-          
-          <GlassCard style={{ width: '100%', maxWidth: '380px', padding: '24px', zIndex: 1, marginBottom: 0 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--text-primary)', marginBottom: '20px' }}>
-              Nueva meta
-            </h2>
-            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <input required placeholder="Nombre de la meta" value={nombre} onChange={(e) => setNombre(e.target.value)} style={inputStyle} />
-              <input required type="number" placeholder="Costo objetivo (MXN)" value={costo} onChange={(e) => setCosto(e.target.value)} style={inputStyle} min="1" />
-              <div>
-                <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Fecha objetivo (Opcional)</label>
-                <input type="date" value={fechaObj} onChange={(e) => setFechaObj(e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button type="submit" disabled={isPending} style={{ ...btnPrimary, flex: 1 }}>
-                  {isPending ? 'Creando…' : 'Crear meta'}
-                </button>
-                <button type="button" onClick={onClose} style={{ ...btnSecondary, flex: 1 }}>Cancelar</button>
-              </div>
-            </form>
-          </GlassCard>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-/* ── Vista principal ────────────────────────────────────────────────────────── */
-export function MetasView() {
-  const [creando, setCreando] = useState(false);
-  const { data: metas = [], isLoading, error } = useMetas();
-
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: '26px', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            Metas
-          </h1>
-        </div>
-        <button onClick={() => setCreando(true)} style={btnPrimary}>+ Nueva</button>
-      </div>
-
-      <NuevaMetaForm isOpen={creando} onClose={() => setCreando(false)} />
-
-      {isLoading && <div style={{ height: '120px', borderRadius: '22px', background: 'var(--surface-glass)', border: '1px solid var(--border-glass)', animation: 'pulse 1.5s ease-in-out infinite' }} />}
-
-      {error && <GlassCard glow="rojo" style={{ padding: '16px 20px' }}><p style={{ color: 'var(--credito-rojo)', fontSize: '14px' }}>Error: {error.message}</p></GlassCard>}
-
-      {!isLoading && !error && metas.length === 0 && !creando && (
-        <GlassCard style={{ padding: '40px 24px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Aún no tienes metas. Toca <strong>+ Nueva</strong> para empezar.</p>
-        </GlassCard>
-      )}
-
-      {metas.map((m, i) => (
-        <div key={m.id} style={{ position: 'relative', zIndex: metas.length - i }}>
-          <MetaCard meta={m} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Estilos comunes ─────────────────────────────────────────────────────────── */
-const inputStyle: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid var(--border-glass)',
-  borderRadius: '10px',
-  padding: '10px 14px',
-  color: 'var(--text-primary)',
-  fontSize: '14px',
-  outline: 'none',
-  flex: 1,
-};
-
-const btnPrimary: React.CSSProperties = {
-  background: 'var(--brand)',
-  border: 'none',
-  borderRadius: '10px',
-  padding: '10px 18px',
-  color: '#1a0a0b',
-  fontSize: '14px',
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const btnSecondary: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid var(--border-glass)',
-  borderRadius: '10px',
-  padding: '10px 16px',
-  color: 'var(--text-secondary)',
-  fontSize: '14px',
-  cursor: 'pointer',
-};
-
-const btnMuted: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: 'var(--text-muted)',
-  cursor: 'pointer',
-  fontSize: '15px',
-  padding: '2px 4px',
-};
-</file>
-
 <file path="src/components/dashboard/MovimientosTarjetaModal.tsx">
 'use client';
 
@@ -12512,6 +12181,537 @@ export const esGastoReal = (m: { tipo: string; categoria?: string }) =>
   m.tipo === 'Gasto' && m.categoria && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria);
 </file>
 
+<file path="src/components/dashboard/MetasView.tsx">
+'use client';
+
+/**
+ * MetasView — Motor de Metas FR-15 a FR-19 con CRUD completo.
+ * GlassCard por meta, progreso circular, aportes y creación/edición/eliminación.
+ * Usa useMetas(), useCrearMeta(), useAportarMeta(), useEliminarMeta() — NFR-06b.
+ */
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  useMetas, useCrearMeta, useAportarMeta,
+  useEditarMeta, useEliminarMeta, useTarjetas, useRetirarDeMeta
+} from '@/lib/hooks';
+import { GlassCard, ConfirmModal, GlassSelect } from '@/components/ui';
+import type { MetaConEstado } from '@/lib/types';
+import { Pencil, Trash, Calculator } from 'lucide-react';
+import { triggerHaptic, playSuccessChime } from '@/lib/ui/feedback';
+import { CalculadoraMetaModal } from '@/components/dashboard/CalculadoraMetaModal';
+
+const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
+
+/* ── Barra de progreso ──────────────────────────────────────────────────────── */
+function ProgressBar({ pct }: { pct: number }) {
+  const clipped = Math.min(pct, 100);
+  const color = clipped >= 100 ? 'var(--credito-verde)' : clipped >= 50 ? 'var(--brand)' : 'var(--credito-amarillo)';
+  return (
+    <div style={{ position: 'relative', height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden', margin: '12px 0 6px' }}>
+      <div style={{ height: '100%', width: `${clipped}%`, background: color, borderRadius: '3px', transition: 'width 0.6s ease' }} />
+    </div>
+  );
+}
+
+/* ── Card individual de meta ────────────────────────────────────────────────── */
+function MetaCard({ meta }: { meta: MetaConEstado }) {
+  const [aportando, setAportando] = useState(false);
+  const [montoAporte, setMontoAporte] = useState('');
+  const [editando, setEditando] = useState(false);
+  const [nombreEdit, setNombreEdit] = useState(meta.nombre);
+  const [costoEdit, setCostoEdit] = useState(String(meta.costoObjetivo));
+  const [fechaObjEdit, setFechaObjEdit] = useState(meta.fechaObjetivo || '');
+  const [modoAccion, setModoAccion] = useState<'Aportar' | 'Retirar'>('Aportar');
+
+  const { mutate: aportar, isPending: aportaPending } = useAportarMeta();
+  const { mutate: retirar, isPending: retiraPending } = useRetirarDeMeta();
+  const { mutate: editar, isPending: editPending } = useEditarMeta();
+  const { mutate: eliminar } = useEliminarMeta();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [calculadoraOpen, setCalculadoraOpen] = useState(false);
+  
+  useEffect(() => {
+    if (!editando) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNombreEdit(meta.nombre);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCostoEdit(String(meta.costoObjetivo));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFechaObjEdit(meta.fechaObjetivo || '');
+    }
+  }, [meta, editando]);
+  
+  const { data: tarjetas = [] } = useTarjetas();
+  const tarjetasDebito = tarjetas.filter(t => t.tipo === 'Débito');
+  
+  const [tarjetaOrigen, setTarjetaOrigen] = useState('');
+  const [apartadoId, setApartadoId] = useState('');
+  const [fechaAporte, setFechaAporte] = useState(new Date().toISOString().split('T')[0]);
+
+  const tarjetaSeleccionada = tarjetasDebito.find(t => t.id === tarjetaOrigen);
+  const apartadosDeTarjeta = tarjetaSeleccionada?.apartados || [];
+
+  return (
+    <GlassCard
+      glow={meta.progreso >= 100 ? 'verde' : 'none'}
+      as="article"
+      style={{ overflow: 'visible', padding: '20px 24px', marginBottom: '16px' }}
+    >
+      {/* Cabecera */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        {editando ? (
+          <input
+            value={nombreEdit}
+            onChange={(e) => setNombreEdit(e.target.value)}
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '8px', padding: '4px 10px', color: 'var(--text-primary)', fontSize: '15px', flex: 1, marginRight: '8px' }}
+          />
+        ) : (
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: '16px', color: 'var(--text-primary)' }}>
+            {meta.nombre}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button 
+            onClick={() => setCalculadoraOpen(true)} 
+            style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', padding: '4px' }} 
+            title="Simulador de ahorro"
+            aria-label="Simulador de ahorro"
+          >
+            <Calculator size={16} />
+          </button>
+          <button 
+            onClick={() => setEditando((v) => !v)} 
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} 
+            title="Editar"
+            aria-label="Editar meta"
+          >
+            <Pencil size={16} />
+          </button>
+          <button 
+            onClick={() => setShowDeleteConfirm(true)} 
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} 
+            title="Eliminar"
+            aria-label="Eliminar meta"
+          >
+            <Trash size={16} />
+          </button>
+        </div>
+      </div>
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title={`¿Eliminar la meta ${meta.nombre}?`}
+        message="Esta acción no se puede deshacer y borrará todo el progreso registrado."
+        confirmText="Eliminar"
+        onConfirm={() => eliminar(meta.id)}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <CalculadoraMetaModal 
+        isOpen={calculadoraOpen} 
+        onClose={() => setCalculadoraOpen(false)} 
+        meta={meta} 
+        tarjetasDebito={tarjetasDebito}
+      />
+
+      {/* Barra de progreso */}
+      <ProgressBar pct={meta.progreso} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', flexWrap: 'wrap', gap: '8px' }}>
+        <span>{meta.progreso.toFixed(1)}% completado</span>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span>Meta: {editando ? (
+            <input
+              type="number"
+              value={costoEdit}
+              onChange={(e) => setCostoEdit(e.target.value)}
+              style={{ width: '80px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '6px', padding: '2px 6px', color: 'var(--text-primary)', fontSize: '11px', textAlign: 'right' }}
+            />
+          ) : fmt.format(meta.costoObjetivo)}</span>
+          
+          {editando && (
+            <input
+              type="date"
+              value={fechaObjEdit}
+              onChange={(e) => setFechaObjEdit(e.target.value)}
+              style={{ width: '110px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '6px', padding: '2px 6px', color: 'var(--text-primary)', fontSize: '11px' }}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Ahorro sugerido normal / Pill de simulador */}
+      {!editando && meta.progreso < 100 && (
+        <>
+          {meta.fechaObjetivo && meta.proyeccion.aportesMensualesPromedio > 0 ? (
+            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
+              Ahorro sugerido: {fmt.format(meta.proyeccion.aportesMensualesPromedio)}/mes 
+              {meta.proyeccion.fechaEstimadaCumplimiento && ` para alcanzarla el ${meta.proyeccion.fechaEstimadaCumplimiento}`}
+            </div>
+          ) : !meta.fechaObjetivo ? (
+            <button
+              onClick={() => setCalculadoraOpen(true)}
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px dashed var(--border-glass)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                fontSize: '11px',
+                color: 'var(--brand)',
+                cursor: 'pointer',
+                marginTop: '8px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Calculator size={12} /> Calcular plan de ahorro sugerido
+            </button>
+          ) : null}
+        </>
+      )}
+
+      {/* Ahorro sugerido dinámico (durante edición) */}
+      {editando && (
+        <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
+          {(() => {
+            const costoObjetivoNum = parseFloat(costoEdit) || 0;
+            const faltanteEdit = Math.max(0, costoObjetivoNum - meta.montoActual);
+            let sugerenciaMensualEdit = faltanteEdit;
+            let mesesStr = '';
+            
+            if (fechaObjEdit) {
+              const fechaObj = new Date(fechaObjEdit + 'T00:00:00');
+              const hoyTime = new Date().getTime();
+              const diffTime = Math.max(0, fechaObj.getTime() - hoyTime);
+              const mesesRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30.44));
+              if (mesesRestantes > 0) {
+                sugerenciaMensualEdit = faltanteEdit / mesesRestantes;
+                mesesStr = ` (en ${mesesRestantes} mes${mesesRestantes > 1 ? 'es' : ''})`;
+              }
+            }
+            
+            if (sugerenciaMensualEdit > 0 && faltanteEdit > 0) {
+              return <>Proyección ajustada: {fmt.format(sugerenciaMensualEdit)}/mes{mesesStr}</>;
+            }
+            return null;
+          })()}
+        </div>
+      )}
+
+      {/* Montos consolidados y compactos */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '12px' }}>
+        <div>
+          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '2px' }}>Ahorrado Total</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '18px', color: 'var(--text-primary)' }}>
+            {fmt.format(meta.montoActual)}
+          </div>
+        </div>
+        
+        {meta.rendimientoGenerado > 0 && (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '2px' }}>Capital depositado</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              {fmt.format(meta.capitalAportado)}
+              <span style={{ color: 'var(--credito-verde)', marginLeft: '6px', fontWeight: 600 }}>
+                +{fmt.format(meta.rendimientoGenerado)}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Guardar edición */}
+      {editando && (
+        <button
+          onClick={() => {
+            editar({ id: meta.id, campos: { nombre: nombreEdit, costoObjetivo: parseFloat(costoEdit), fechaObjetivo: fechaObjEdit || null } });
+            setEditando(false);
+          }}
+          disabled={editPending}
+          style={{ ...btnPrimary, marginTop: '12px', width: '100%' }}
+        >
+          {editPending ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      )}
+
+      {/* Sección de aporte */}
+      {!editando && meta.progreso < 100 && (
+        <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+          {aportando ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px', textAlign: 'center' }}>
+                {modoAccion === 'Aportar' ? 'Aportar a Meta' : 'Retirar de Meta'}
+              </div>
+              <input
+                type="number"
+                placeholder={modoAccion === 'Aportar' ? "Monto a aportar" : "Monto a retirar"}
+                value={montoAporte}
+                onChange={(e) => setMontoAporte(e.target.value)}
+                style={inputStyle}
+                min="1"
+                max={modoAccion === 'Retirar' ? meta.montoActual : undefined}
+              />
+              <input
+                type="date"
+                value={fechaAporte}
+                onChange={(e) => setFechaAporte(e.target.value)}
+                style={inputStyle}
+              />
+              {modoAccion === 'Aportar' && tarjetasDebito.length > 0 && (
+                <div style={{ position: 'relative', zIndex: 30 }}>
+                  <GlassSelect
+                    value={tarjetaOrigen}
+                    onChange={(val) => {
+                      setTarjetaOrigen(val);
+                      setApartadoId(''); // reset apartado al cambiar de tarjeta
+                    }}
+                    options={[
+                      { value: '', label: 'Sin tarjeta (efectivo)' },
+                      ...tarjetasDebito.map(t => ({
+                        value: t.id,
+                        label: `${t.nombre} ${t.rendimientoAnual > 0 ? `(${t.rendimientoAnual}% APY)` : ''}`
+                      }))
+                    ]}
+                    placeholder="Selecciona tarjeta"
+                  />
+                </div>
+              )}
+              {modoAccion === 'Aportar' && apartadosDeTarjeta.length > 0 && (
+                <div style={{ position: 'relative', zIndex: 20 }}>
+                  <GlassSelect
+                    value={apartadoId}
+                    onChange={(val) => setApartadoId(val)}
+                    options={[
+                      { value: '', label: 'Balance general (sin apartado)' },
+                      ...apartadosDeTarjeta.map(a => ({
+                        value: a.id,
+                        label: `${a.nombre} (${a.rendimientoAnual}% APY)`
+                      }))
+                    ]}
+                    placeholder="Selecciona apartado"
+                  />
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <button
+                  onClick={() => {
+                    const monto = parseFloat(montoAporte);
+                    if (monto > 0) {
+                      if (modoAccion === 'Aportar') {
+                        aportar(
+                          { id: meta.id, monto, tarjetaId: tarjetaOrigen || undefined, apartadoId: apartadoId || undefined, fecha: fechaAporte }, 
+                          { onSuccess: () => { 
+                              triggerHaptic('success');
+                              playSuccessChime();
+                              setAportando(false); 
+                              setMontoAporte(''); 
+                              setTarjetaOrigen(''); 
+                              setApartadoId(''); 
+                          } }
+                        );
+                      } else {
+                        retirar(
+                          { id: meta.id, monto },
+                          { onSuccess: () => {
+                              triggerHaptic('success');
+                              setAportando(false);
+                              setMontoAporte('');
+                          }}
+                        )
+                      }
+                    }
+                  }}
+                  disabled={(modoAccion === 'Aportar' ? aportaPending : retiraPending) || !montoAporte}
+                  style={{ ...btnPrimary, flex: 1, background: modoAccion === 'Retirar' ? 'var(--text-primary)' : 'var(--brand)' }}
+                >
+                  {(modoAccion === 'Aportar' ? aportaPending : retiraPending) ? '…' : (modoAccion === 'Aportar' ? 'Confirmar Aporte' : 'Confirmar Retiro')}
+                </button>
+                <button onClick={() => setAportando(false)} style={btnMuted}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={() => { setModoAccion('Aportar'); setAportando(true); }} 
+                style={{ ...btnSecondary, flex: 1, background: 'rgba(250, 104, 111, 0.1)', color: 'var(--brand)', border: '1px solid var(--brand)' }}
+              >
+                Aportar
+              </button>
+              {meta.montoActual > 0 && (
+                <button 
+                  onClick={() => { setModoAccion('Retirar'); setAportando(true); }} 
+                  style={{ ...btnSecondary, flex: 1 }}
+                >
+                  Retirar
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {!editando && meta.progreso >= 100 && (
+        <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--credito-verde)' }}>
+          Meta cumplida
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+/* ── Formulario nueva meta ──────────────────────────────────────────────────── */
+function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [nombre, setNombre] = useState('');
+  const [costo, setCosto] = useState('');
+  const [fechaObj, setFechaObj] = useState('');
+  const { mutate: crear, isPending } = useCrearMeta();
+
+  useEffect(() => {
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNombre('');
+      setCosto('');
+      setFechaObj('');
+    }
+  }, [isOpen]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nombre || !costo) return;
+    crear(
+      { nombre, costoObjetivo: parseFloat(costo), fechaObjetivo: fechaObj || undefined },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div style={{ position: 'absolute', inset: 0 }} onClick={onClose} />
+          
+          <GlassCard style={{ width: '100%', maxWidth: '380px', padding: '24px', zIndex: 1, marginBottom: 0 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--text-primary)', marginBottom: '20px' }}>
+              Nueva meta
+            </h2>
+            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <input required placeholder="Nombre de la meta" value={nombre} onChange={(e) => setNombre(e.target.value)} style={inputStyle} />
+              <input required type="number" placeholder="Costo objetivo (MXN)" value={costo} onChange={(e) => setCosto(e.target.value)} style={inputStyle} min="1" />
+              <div>
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Fecha objetivo (Opcional)</label>
+                <input type="date" value={fechaObj} onChange={(e) => setFechaObj(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button type="submit" disabled={isPending} style={{ ...btnPrimary, flex: 1 }}>
+                  {isPending ? 'Creando…' : 'Crear meta'}
+                </button>
+                <button type="button" onClick={onClose} style={{ ...btnSecondary, flex: 1 }}>Cancelar</button>
+              </div>
+            </form>
+          </GlassCard>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/* ── Vista principal ────────────────────────────────────────────────────────── */
+export function MetasView() {
+  const [creando, setCreando] = useState(false);
+  const { data: metas = [], isLoading, error } = useMetas();
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px' }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: '26px', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            Metas
+          </h1>
+        </div>
+        <button onClick={() => setCreando(true)} style={btnPrimary}>+ Nueva</button>
+      </div>
+
+      <NuevaMetaForm isOpen={creando} onClose={() => setCreando(false)} />
+
+      {isLoading && <div style={{ height: '120px', borderRadius: '22px', background: 'var(--surface-glass)', border: '1px solid var(--border-glass)', animation: 'pulse 1.5s ease-in-out infinite' }} />}
+
+      {error && <GlassCard glow="rojo" style={{ padding: '16px 20px' }}><p style={{ color: 'var(--credito-rojo)', fontSize: '14px' }}>Error: {error.message}</p></GlassCard>}
+
+      {!isLoading && !error && metas.length === 0 && !creando && (
+        <GlassCard style={{ padding: '40px 24px', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Aún no tienes metas. Toca <strong>+ Nueva</strong> para empezar.</p>
+        </GlassCard>
+      )}
+
+      {metas.map((m, i) => (
+        <div key={m.id} style={{ position: 'relative', zIndex: metas.length - i }}>
+          <MetaCard meta={m} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Estilos comunes ─────────────────────────────────────────────────────────── */
+const inputStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid var(--border-glass)',
+  borderRadius: '10px',
+  padding: '10px 14px',
+  color: 'var(--text-primary)',
+  fontSize: '14px',
+  outline: 'none',
+  flex: 1,
+};
+
+const btnPrimary: React.CSSProperties = {
+  background: 'var(--brand)',
+  border: 'none',
+  borderRadius: '10px',
+  padding: '10px 18px',
+  color: '#1a0a0b',
+  fontSize: '14px',
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+
+const btnSecondary: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid var(--border-glass)',
+  borderRadius: '10px',
+  padding: '10px 16px',
+  color: 'var(--text-secondary)',
+  fontSize: '14px',
+  cursor: 'pointer',
+};
+
+const btnMuted: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  color: 'var(--text-muted)',
+  cursor: 'pointer',
+  fontSize: '15px',
+  padding: '2px 4px',
+};
+</file>
+
 <file path="src/lib/hooks.ts">
 'use client';
 
@@ -13089,21 +13289,26 @@ export function getPeriodoVigente(diaCorte: number, hoy: Date): Periodo {
  * Si diaPago <= diaCorte, el pago cae en el mes siguiente al corte.
  */
 export function calcProximoPago(hoy: Date, diaPago: number): Date {
-  const m = hoy.getMonth();
   const y = hoy.getFullYear();
-  const lastDay = new Date(y, m + 1, 0).getDate();
-  const dia = Math.min(diaPago, lastDay);
-  
-  let proxP = new Date(y, m, dia);
+  const m = hoy.getMonth();
+
+  // 1. Día de pago en el mes actual (con clamp al último día del mes)
+  const lastDayThisMonth = new Date(y, m + 1, 0).getDate();
+  const diaClamped = Math.min(diaPago, lastDayThisMonth);
+  const pagoEsteMes = new Date(y, m, diaClamped);
+
   const hoyMidnight = new Date(y, m, hoy.getDate());
 
-  if (proxP < hoyMidnight) {
-    const nm = m === 11 ? 0 : m + 1;
-    const ny = m === 11 ? y + 1 : y;
-    const ld = new Date(ny, nm + 1, 0).getDate();
-    proxP = new Date(ny, nm, Math.min(diaPago, ld));
+  // 2. Si la fecha de pago de este mes aún no vence (es hoy o en el futuro), esa es la fecha límite
+  if (pagoEsteMes >= hoyMidnight) {
+    return pagoEsteMes;
   }
-  return proxP;
+
+  // 3. Si ya pasó la fecha de pago de este mes, la siguiente es el próximo mes
+  const nextM = m === 11 ? 0 : m + 1;
+  const nextY = m === 11 ? y + 1 : y;
+  const lastDayNextMonth = new Date(nextY, nextM + 1, 0).getDate();
+  return new Date(nextY, nextM, Math.min(diaPago, lastDayNextMonth));
 }
 
 /** Formatea un Date como YYYY-MM-DD sin conversión de zona horaria */
