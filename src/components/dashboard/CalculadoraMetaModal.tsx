@@ -87,31 +87,59 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
     if (modo !== 'fecha' || !targetDate || faltante <= 0) return null;
     const fechaObj = new Date(targetDate + 'T00:00:00');
     const hoy = new Date();
-    hoy.setHours(0,0,0,0);
-    const diffTime = Math.max(0, fechaObj.getTime() - hoy.getTime());
+    hoy.setHours(0, 0, 0, 0);
+    const diffTime = fechaObj.getTime() - hoy.getTime();
     const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
+    // No permitir fechas pasadas o el mismo día
     if (diasRestantes <= 0) return null;
 
-    let cuotaDiaria = faltante / diasRestantes;
-    let cuotaSemanal = faltante / (diasRestantes / 7);
-    let cuotaQuincenal = faltante / (diasRestantes / 15.22);
-    let cuotaMensual = faltante / (diasRestantes / 30.44);
-    let ahorroInteresMXN = 0;
+    // Número real de cuotas/periodos disponibles hasta la fecha objetivo
+    const numDias = diasRestantes;
+    const numSemanas = Math.max(1, Math.ceil(diasRestantes / 7));
+    const numQuincenas = Math.max(1, Math.ceil(diasRestantes / 15.22));
+    const numMeses = Math.max(1, Math.ceil(diasRestantes / 30.44));
 
-    if (selectedApy > 0) {
+    // Cálculo de interés compuesto (solo aplica si el plazo es de al menos 30 días)
+    let ahorroInteresMXN = 0;
+    let capitalObjetivo = faltante;
+
+    if (selectedApy > 0 && diasRestantes >= 30) {
       const dr = (selectedApy / 100) / 365;
-      const d = diasRestantes;
-      cuotaDiaria = (faltante * dr) / (Math.pow(1 + dr, d) - 1);
-      const totalAportado = cuotaDiaria * d;
+      // FV = P * (((1+r)^t - 1) / r) => P_diario
+      const cuotaDiariaConInteres = (faltante * dr) / (Math.pow(1 + dr, diasRestantes) - 1);
+      const totalAportado = cuotaDiariaConInteres * diasRestantes;
       ahorroInteresMXN = Math.max(0, faltante - totalAportado);
-      cuotaSemanal = cuotaDiaria * 7;
-      cuotaQuincenal = cuotaDiaria * 15.22;
-      cuotaMensual = cuotaDiaria * 30.44;
+      capitalObjetivo = totalAportado;
     }
 
-    return { diario: cuotaDiaria, semanal: cuotaSemanal, quincenal: cuotaQuincenal, mensual: cuotaMensual, ahorroInteresMXN, diasRestantes };
+    // Las cuotas periódicas se distribuyen entre el número de pagos reales
+    // Jamás una cuota puede ser mayor al faltante total
+    const cuotaDiaria = Math.min(faltante, capitalObjetivo / numDias);
+    const cuotaSemanal = Math.min(faltante, capitalObjetivo / numSemanas);
+    const cuotaQuincenal = Math.min(faltante, capitalObjetivo / numQuincenas);
+    const cuotaMensual = Math.min(faltante, capitalObjetivo / numMeses);
+
+    return {
+      diario: cuotaDiaria,
+      semanal: cuotaSemanal,
+      quincenal: cuotaQuincenal,
+      mensual: cuotaMensual,
+      ahorroInteresMXN,
+      diasRestantes,
+      numDias,
+      numSemanas,
+      numQuincenas,
+      numMeses,
+      esCortoPlazo: diasRestantes < 30
+    };
   }, [modo, targetDate, faltante, selectedApy]);
+
+  const minDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().substring(0, 10);
+  }, []);
 
   const calculoAporte = useMemo(() => {
     const cantidad = parseFloat(aporteCantidad);
@@ -119,9 +147,9 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
 
     let periodosRestantes = faltante / cantidad;
     let diasRestantes = 0;
-    
+
     let aporteDiario = cantidad;
-    switch(aporteFrecuencia) {
+    switch (aporteFrecuencia) {
       case 'diario': aporteDiario = cantidad; break;
       case 'semanal': aporteDiario = cantidad / 7; break;
       case 'quincenal': aporteDiario = cantidad / 15.22; break;
@@ -151,7 +179,7 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
     let nuevaFecha: string | null = null;
     if (modo === 'fecha' && targetDate) nuevaFecha = targetDate;
     if (modo === 'aporte' && calculoAporte) nuevaFecha = calculoAporte.fecha.toISOString().substring(0, 10);
-    
+
     if (nuevaFecha) {
       editar(
         { id: meta.id, campos: { fechaObjetivo: nuevaFecha } },
@@ -180,8 +208,8 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
         }}
       >
         <div style={{ position: 'absolute', inset: 0 }} onClick={onClose} />
-        
-        <GlassCard style={{ width: '100%', maxWidth: '440px', padding: '24px', zIndex: 1, position: 'relative', maxHeight: '90vh', overflowY: 'auto', background: 'rgba(18, 12, 14, 0.94)', boxShadow: '0 24px 60px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
+
+        <GlassCard style={{ width: '100%', maxWidth: '440px', padding: '24px', zIndex: 1, position: 'relative', maxHeight: '90vh', overflowY: 'auto', background: 'rgba(18, 12, 14, 0.94)', boxShadow: '0 24px 60px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.08)', boxSizing: 'border-box', overflowX: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
@@ -221,13 +249,13 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
           </div>
 
           <div style={{ marginBottom: '20px', zIndex: 20, position: 'relative' }}>
-             <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Instrumento de inversión (Opcional)</label>
-             <GlassSelect 
-               value={fuenteId}
-               onChange={(val) => setFuenteId(val)}
-               options={opcionesFuentes.map(o => ({ value: o.value, label: o.label }))}
-               placeholder="Selecciona tarjeta o apartado"
-             />
+            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'block' }}>Instrumento de inversión (Opcional)</label>
+            <GlassSelect
+              value={fuenteId}
+              onChange={(val) => setFuenteId(val)}
+              options={opcionesFuentes.map(o => ({ value: o.value, label: o.label }))}
+              placeholder="Selecciona tarjeta o apartado"
+            />
           </div>
 
           {faltante <= 0 ? (
@@ -247,14 +275,30 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                         <button onClick={() => addMonths(12)} style={presetBtn}>+1 año</button>
                         <button onClick={setEndOfYear} style={presetBtn}>Fin de año</button>
                       </div>
-                      <input 
-                        type="date" 
-                        value={targetDate} 
-                        onChange={(e) => setTargetDate(e.target.value)} 
-                        style={{ width: '100%', background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
+                      <input
+                        type="date"
+                        value={targetDate}
+                        onChange={(e) => setTargetDate(e.target.value)}
+                        min={minDate}
+                        style={{
+                          width: '100%',
+                          maxWidth: '100%',
+                          minWidth: 0,
+                          boxSizing: 'border-box',
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                          color: 'var(--text-primary)',
+                          fontSize: '15px',
+                          outline: 'none',
+                          display: 'block',
+                          WebkitAppearance: 'none',
+                          appearance: 'none',
+                        }}
                       />
                     </div>
-                    
+
                     {calculoFecha ? (
                       <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '16px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -285,7 +329,16 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                           </div>
                         )}
 
-                        <button 
+                        {calculoFecha.esCortoPlazo && (
+                          <div style={{ marginTop: '16px', padding: '10px 12px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                            <Info size={16} color="var(--text-secondary)" style={{ marginTop: '2px', flexShrink: 0 }} />
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                              Meta para {calculoFecha.diasRestantes} días ({calculoFecha.diasRestantes === 1 ? 'mañana' : `${calculoFecha.numSemanas} sem`}): cuotas calculadas en base a los pagos restantes.
+                            </div>
+                          </div>
+                        )}
+
+                        <button
                           onClick={fijarPlan}
                           disabled={editPending}
                           style={{ width: '100%', marginTop: '16px', padding: '12px', background: 'var(--brand)', border: 'none', borderRadius: '10px', color: '#1a0a0b', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}
@@ -304,11 +357,11 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                     <div style={{ marginBottom: '16px' }}>
                       <label style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>¿Cuánto puedes aportar?</label>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           placeholder="Monto"
-                          value={aporteCantidad} 
-                          onChange={(e) => setAporteCantidad(e.target.value)} 
+                          value={aporteCantidad}
+                          onChange={(e) => setAporteCantidad(e.target.value)}
                           style={{ flex: 1, background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
                         />
                         <select
@@ -317,8 +370,8 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                           style={{ width: '130px', background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', padding: '12px', color: 'var(--text-primary)', fontSize: '14px', appearance: 'none', outline: 'none' }}
                         >
                           <option value="diario" style={{ color: 'black' }}>Al día</option>
-                          <option value="semanal" style={{ color: 'black' }}>A la sem</option>
-                          <option value="quincenal" style={{ color: 'black' }}>A la quin</option>
+                          <option value="semanal" style={{ color: 'black' }}>A la semana</option>
+                          <option value="quincenal" style={{ color: 'black' }}>A la quincena</option>
                           <option value="mensual" style={{ color: 'black' }}>Al mes</option>
                         </select>
                       </div>
@@ -346,7 +399,7 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                           </div>
                         )}
 
-                        <button 
+                        <button
                           onClick={fijarPlan}
                           disabled={editPending}
                           style={{ width: '100%', marginTop: '16px', padding: '12px', background: 'var(--brand)', border: 'none', borderRadius: '10px', color: '#1a0a0b', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}
