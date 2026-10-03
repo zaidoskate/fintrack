@@ -10,6 +10,22 @@ interface HistData {
   currency: string;
 }
 
+// Tooltip invisible para extraer el estado activo hacia el padre sin errores de React
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function StateLifterTooltip({ active, payload, setActivePoint }: any) {
+  useEffect(() => {
+    if (active && payload && payload.length > 0) {
+      setActivePoint({
+        value: payload[0].payload.total,
+        timestamp: payload[0].payload.timestamp
+      });
+    } else {
+      setActivePoint(null);
+    }
+  }, [active, payload, setActivePoint]);
+  return null;
+}
+
 export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEfectivo = 0, displayCurrency, rates }: { activos: PortafolioActivo[]; yields: CuentaYield[]; tarjetas?: TarjetaConEstado[]; balanceEfectivo?: number; displayCurrency: string; rates: Record<string, number> }) {
   const getConvertedValue = (valMXN: number) => {
     if (displayCurrency === 'USD' && rates['MXN=X']) return valMXN / rates['MXN=X'];
@@ -286,15 +302,6 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEf
               <AreaChart 
                 data={histData} 
                 margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                onMouseMove={(e: any) => {
-                  if (e && e.activePayload && e.activePayload.length > 0) {
-                    setActivePoint({
-                      value: e.activePayload[0].payload.total,
-                      timestamp: e.activePayload[0].payload.timestamp
-                    });
-                  }
-                }}
                 onMouseLeave={() => setActivePoint(null)}
               >
                 <defs>
@@ -331,7 +338,7 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEf
                 <Tooltip 
                   cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1, strokeDasharray: '3 3' }}
                   isAnimationActive={false}
-                  content={() => null} 
+                  content={<StateLifterTooltip setActivePoint={setActivePoint} />}
                 />
                 <Area 
                   type="monotone" 

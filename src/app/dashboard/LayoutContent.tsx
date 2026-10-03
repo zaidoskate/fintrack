@@ -141,7 +141,7 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
           </div>
         </header>
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '19px' }}>
           <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '2px' }}>
             <button
               onClick={() => setModo('diario')}

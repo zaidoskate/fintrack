@@ -19,50 +19,40 @@ export function triggerHaptic(type: 'light' | 'success' | 'warning') {
   }
 }
 
-/**
- * Sintetiza un chime suave y elegante usando Web Audio API.
- * Emite dos tonos suaves (880Hz y 1760Hz) con un decaimiento corto.
- */
 export function playSuccessChime() {
-  if (typeof window === 'undefined' || !window.AudioContext) return;
+  if (typeof window === 'undefined') return;
   
   try {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    
     const ctx = new AudioContextClass();
     
-    // Tono base (A5)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(880, ctx.currentTime);
+    // Un arpegio brillante: C6 (1046.5Hz), E6 (1318.5Hz), G6 (1567.9Hz)
+    const notes = [1046.5, 1318.5, 1567.9];
+    const duration = 0.8;
     
-    // Armónico (A6)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(1760, ctx.currentTime);
-    
-    // Envolventes
-    gain1.gain.setValueAtTime(0, ctx.currentTime);
-    gain1.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.02);
-    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    
-    gain2.gain.setValueAtTime(0, ctx.currentTime);
-    gain2.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.03);
-    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    
-    osc1.start(ctx.currentTime);
-    osc1.stop(ctx.currentTime + 0.2);
-    
-    osc2.start(ctx.currentTime + 0.03); // Ligeramente desfasado
-    osc2.stop(ctx.currentTime + 0.23);
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      
+      const startTime = ctx.currentTime + (i * 0.1); // Arpegio separado por 100ms
+      
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05); // Attack más marcado
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration); // Decay largo
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.1);
+    });
   } catch (err) {
     console.warn('AudioContext no soportado o bloqueado', err);
   }
 }
+

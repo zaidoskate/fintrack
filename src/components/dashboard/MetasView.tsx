@@ -140,10 +140,39 @@ function MetaCard({ meta }: { meta: MetaConEstado }) {
         </div>
       </div>
 
+      {/* Ahorro sugerido normal */}
       {meta.proyeccion.aportesMensualesPromedio > 0 && !editando && meta.progreso < 100 && (
         <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
           Ahorro sugerido: {fmt.format(meta.proyeccion.aportesMensualesPromedio)}/mes 
           {meta.proyeccion.fechaEstimadaCumplimiento && ` para alcanzarla en ${meta.proyeccion.fechaEstimadaCumplimiento}`}
+        </div>
+      )}
+
+      {/* Ahorro sugerido dinámico (durante edición) */}
+      {editando && (
+        <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
+          {(() => {
+            const costoObjetivoNum = parseFloat(costoEdit) || 0;
+            const faltanteEdit = Math.max(0, costoObjetivoNum - meta.montoActual);
+            let sugerenciaMensualEdit = faltanteEdit;
+            let mesesStr = '';
+            
+            if (fechaObjEdit) {
+              const fechaObj = new Date(fechaObjEdit + 'T00:00:00');
+              const hoyTime = new Date().getTime();
+              const diffTime = Math.max(0, fechaObj.getTime() - hoyTime);
+              const mesesRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30.44));
+              if (mesesRestantes > 0) {
+                sugerenciaMensualEdit = faltanteEdit / mesesRestantes;
+                mesesStr = ` (en ${mesesRestantes} mes${mesesRestantes > 1 ? 'es' : ''})`;
+              }
+            }
+            
+            if (sugerenciaMensualEdit > 0 && faltanteEdit > 0) {
+              return <>Proyección ajustada: {fmt.format(sugerenciaMensualEdit)}/mes{mesesStr}</>;
+            }
+            return null;
+          })()}
         </div>
       )}
 
