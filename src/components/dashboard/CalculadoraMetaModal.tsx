@@ -197,12 +197,12 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
         exit={{ opacity: 0 }}
         style={{
           position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', padding: '16px'
+          background: 'rgba(0, 0, 0, 0.78)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', padding: '16px'
         }}
       >
         <div style={{ position: 'absolute', inset: 0 }} onClick={onClose} />
         
-        <GlassCard style={{ width: '100%', maxWidth: '440px', padding: '24px', zIndex: 1, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+        <GlassCard style={{ width: '100%', maxWidth: '440px', padding: '24px', zIndex: 1, position: 'relative', maxHeight: '90vh', overflowY: 'auto', background: 'rgba(18, 18, 20, 0.85)', boxShadow: '0 24px 60px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
               <Calculator size={18} />
@@ -269,12 +269,12 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                         type="date" 
                         value={targetDate} 
                         onChange={(e) => setTargetDate(e.target.value)} 
-                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
+                        style={{ width: '100%', background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
                       />
                     </div>
                     
                     {calculoFecha ? (
-                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', borderRadius: '12px', padding: '16px' }}>
+                      <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '16px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Diariamente</span>
@@ -330,12 +330,12 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                           placeholder="Monto"
                           value={aporteCantidad} 
                           onChange={(e) => setAporteCantidad(e.target.value)} 
-                          style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
+                          style={{ flex: 1, background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }}
                         />
                         <select
                           value={aporteFrecuencia}
                           onChange={(e) => setAporteFrecuencia(e.target.value as 'diario' | 'semanal' | 'quincenal' | 'mensual')}
-                          style={{ width: '130px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '10px', padding: '12px', color: 'var(--text-primary)', fontSize: '14px', appearance: 'none', outline: 'none' }}
+                          style={{ width: '130px', background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', padding: '12px', color: 'var(--text-primary)', fontSize: '14px', appearance: 'none', outline: 'none' }}
                         >
                           <option value="diario" style={{ color: 'black' }}>Al día</option>
                           <option value="semanal" style={{ color: 'black' }}>A la sem</option>
@@ -346,7 +346,7 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
                     </div>
 
                     {calculoAporte ? (
-                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                      <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                         <CalendarDays size={28} color="var(--brand)" style={{ marginBottom: '12px' }} />
                         <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                           Lograrás tu meta en aprox. <strong>{calculoAporte.periodosRestantes} pagos</strong>
@@ -398,8 +398,8 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
 }
 
 const presetBtn: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.08)',
-  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(255, 255, 255, 0.06)',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
   color: 'var(--text-secondary)',
   fontSize: '11px',
   padding: '4px 8px',
