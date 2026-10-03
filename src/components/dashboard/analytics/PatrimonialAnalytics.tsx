@@ -15,12 +15,20 @@ interface HistData {
 function StateLifterTooltip({ active, payload, setActivePoint }: any) {
   useEffect(() => {
     if (active && payload && payload.length > 0) {
-      setActivePoint({
-        value: payload[0].payload.total,
-        timestamp: payload[0].payload.timestamp
+      const newVal = payload[0].payload.total;
+      const newTs = payload[0].payload.timestamp;
+      
+      setActivePoint((prev: { value: number; timestamp: number } | null) => {
+        if (prev && prev.value === newVal && prev.timestamp === newTs) {
+          return prev; // Evita re-render infinito
+        }
+        return { value: newVal, timestamp: newTs };
       });
     } else {
-      setActivePoint(null);
+      setActivePoint((prev: { value: number; timestamp: number } | null) => {
+        if (prev === null) return prev;
+        return null;
+      });
     }
   }, [active, payload, setActivePoint]);
   return null;
