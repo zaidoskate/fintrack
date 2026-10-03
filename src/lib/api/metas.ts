@@ -17,19 +17,32 @@ import type { MetaRow, MetaAporteRow, TarjetaRow, ApartadoRow, MetaConEstado } f
 export async function getMetas(): Promise<MetaConEstado[]> {
   const supabase = createClient();
 
-  const [metasRes, aportesRes, tarjetasRes, apartadosRes] = await Promise.all([
-    supabase.from('metas').select('*').order('created_at', { ascending: true }).returns<MetaRow[]>(),
-    supabase.from('meta_aportes').select('*').returns<MetaAporteRow[]>(),
-    supabase.from('tarjetas').select('id, nombre, rendimiento_anual').returns<TarjetaRow[]>(),
-    supabase.from('tarjeta_apartados').select('*').returns<ApartadoRow[]>()
-  ]);
+  const { data: metasData, error } = await supabase
+    .from('metas')
+    .select('*, meta_aportes(*, tarjetas!tarjeta_origen_id(id, nombre, rendimiento_anual), tarjeta_apartados!apartado_id(id, nombre, rendimiento_anual))')
+    .order('created_at', { ascending: true });
 
-  if (metasRes.error) throw metasRes.error;
-  if (aportesRes.error) throw aportesRes.error;
-  if (tarjetasRes.error) throw tarjetasRes.error;
-  if (apartadosRes.error) throw apartadosRes.error;
+  if (error) throw error;
 
-  return calcularEstadoMetas(metasRes.data ?? [], aportesRes.data ?? [], tarjetasRes.data ?? [], apartadosRes.data ?? []);
+  const metas: MetaRow[] = [];
+  const aportes: MetaAporteRow[] = [];
+  const tarjetasMap = new Map<string, TarjetaRow>();
+  const apartadosMap = new Map<string, ApartadoRow>();
+
+  for (const m of metasData || []) {
+    const { meta_aportes, ...metaData } = m;
+    metas.push(metaData as MetaRow);
+    if (meta_aportes) {
+      for (const ap of (meta_aportes as Array<MetaAporteRow & { tarjetas?: TarjetaRow; tarjeta_apartados?: ApartadoRow }>)) {
+        const { tarjetas, tarjeta_apartados, ...apData } = ap;
+        aportes.push(apData as MetaAporteRow);
+        if (tarjetas && !tarjetasMap.has(tarjetas.id)) tarjetasMap.set(tarjetas.id, tarjetas as TarjetaRow);
+        if (tarjeta_apartados && !apartadosMap.has(tarjeta_apartados.id)) apartadosMap.set(tarjeta_apartados.id, tarjeta_apartados as ApartadoRow);
+      }
+    }
+  }
+
+  return calcularEstadoMetas(metas, aportes, Array.from(tarjetasMap.values()), Array.from(apartadosMap.values()));
 }
 
 // ── Escritura ─────────────────────────────────────────────────────────────────
@@ -37,6 +50,7 @@ export async function getMetas(): Promise<MetaConEstado[]> {
 export interface NuevaMetaInput {
   nombre: string;
   costoObjetivo: number;
+  fechaObjetivo?: string;
 }
 
 /** Crea una meta de ahorro para el usuario autenticado. */
@@ -51,6 +65,7 @@ export async function crearMeta(input: NuevaMetaInput): Promise<MetaConEstado> {
       user_id:            user.id,
       nombre:             input.nombre,
       costo_objetivo:     input.costoObjetivo,
+      fecha_objetivo:     input.fechaObjetivo || null,
     })
     .select()
     .single<MetaRow>();
@@ -103,6 +118,7 @@ export async function editarMeta(
   const patch: Record<string, unknown> = {};
   if (campos.nombre             !== undefined) patch.nombre             = campos.nombre;
   if (campos.costoObjetivo      !== undefined) patch.costo_objetivo     = campos.costoObjetivo;
+  if (campos.fechaObjetivo      !== undefined) patch.fecha_objetivo     = campos.fechaObjetivo || null;
 
   const { data, error } = await supabase
     .from('metas')
@@ -121,5 +137,26 @@ export async function editarMeta(
 export async function eliminarMeta(id: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from('metas').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** Retiros Parciales en Metas (Soporta emergencias sin borrar histórico) */
+export async function retirarDeMeta(id: string, monto: number): Promise<void> {
+  if (monto <= 0) throw new Error('El monto del retiro debe ser positivo.');
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado.');
+
+  const { error } = await supabase
+    .from('meta_aportes')
+    .insert({
+      user_id: user.id,
+      meta_id: id,
+      monto: -monto, // monto negativo para descontar
+      fecha: new Date().toISOString().split('T')[0],
+      tarjeta_origen_id: null,
+      apartado_id: null
+    });
+
   if (error) throw error;
 }

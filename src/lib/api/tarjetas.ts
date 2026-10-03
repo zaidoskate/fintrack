@@ -15,6 +15,7 @@ import type {
   MovimientoRow,
   CompraMSIRow,
   TarjetaConEstado,
+  ApartadoRow,
 } from '@/lib/types';
 
 // ── Lectura ───────────────────────────────────────────────────────────────────
@@ -27,10 +28,6 @@ import type {
 export async function getTarjetas(): Promise<TarjetaConEstado[]> {
   const supabase = createClient();
 
-    const hace45Dias = new Date();
-  hace45Dias.setDate(hace45Dias.getDate() - 45);
-  const desdeStr = hace45Dias.toISOString().split('T')[0];
-
   // Tres consultas en paralelo para minimizar la latencia total
   const [tarjetasRes, movimientosRes, msiRes, apartadosRes] = await Promise.all([
     supabase
@@ -42,7 +39,6 @@ export async function getTarjetas(): Promise<TarjetaConEstado[]> {
     supabase
       .from('movimientos')
       .select('id, fecha, hora, tipo, monto, tarjeta_id, categoria, comercio')
-      .gte('fecha', desdeStr) // Optimizacion: Solo ultimos 45 dias para tarjetas de credito
       .order('fecha', { ascending: false })
       .returns<MovimientoRow[]>(),
 
@@ -54,8 +50,7 @@ export async function getTarjetas(): Promise<TarjetaConEstado[]> {
     supabase
       .from('tarjeta_apartados')
       .select('*, interes_dinamico_apartados')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .returns<any[]>(),
+      .returns<(ApartadoRow & { interes_dinamico_apartados?: number })[]>(),
   ]);
 
   if (tarjetasRes.error) throw tarjetasRes.error;
@@ -80,6 +75,7 @@ export interface NuevaTarjetaInput {
   diaCorte: number | null;
   diaPago: number | null;
   rendimientoAnual?: number;
+  gastoInicialCiclo?: number;
 }
 
 /** Crea una tarjeta para el usuario autenticado. */
@@ -98,6 +94,7 @@ export async function crearTarjeta(input: NuevaTarjetaInput): Promise<TarjetaRow
       dia_corte: input.diaCorte,
       dia_pago:  input.diaPago,
       rendimiento_anual: input.rendimientoAnual ?? 0,
+      gasto_inicial_ciclo: input.gastoInicialCiclo ?? 0,
     })
     .select()
     .single<TarjetaRow>();
@@ -112,6 +109,13 @@ export async function actualizarTarjeta(
   campos: Partial<Omit<NuevaTarjetaInput, never>>,
 ): Promise<void> {
   const supabase = createClient();
+  
+  // No permitir que actualizarTarjeta sobreescriba limite en tarjetas de débito.
+  const { data: tarjeta } = await supabase.from('tarjetas').select('tipo').eq('id', id).single();
+  if (tarjeta?.tipo === 'Débito') {
+    delete campos.limite;
+  }
+
   const { error } = await supabase
     .from('tarjetas')
     .update({

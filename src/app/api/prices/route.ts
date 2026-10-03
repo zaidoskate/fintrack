@@ -57,5 +57,9 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json(finalPrices);
+  return NextResponse.json(finalPrices, {
+    headers: {
+      'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300'
+    }
+  });
 }

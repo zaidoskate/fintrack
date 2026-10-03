@@ -60,30 +60,36 @@ export async function getMovimientos(filtros: FiltrosMovimientos = {}): Promise<
   return (data ?? []).map(rowToMovimiento);
 }
 
+import { CATEGORIAS_TRANSFERENCIA } from '@/lib/types';
+
 export async function getGastosPorCategoria(desde: string) {
-  const supabase = createClient();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return [];
-  
-  const { data, error } = await supabase.rpc('get_gastos_por_categoria', {
-    p_user_id: userData.user.id,
-    p_desde: desde
-  });
-  if (error) throw error;
-  return data as { categoria: string; total: number }[];
+  const movs = await getMovimientos({ desde, limit: 5000 });
+  const map: Record<string, number> = {};
+  for (const m of movs) {
+    if (m.tipo === 'Gasto' && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria)) {
+      map[m.categoria] = (map[m.categoria] || 0) + m.monto;
+    }
+  }
+  return Object.entries(map)
+    .map(([categoria, total]) => ({ categoria, total }))
+    .sort((a, b) => b.total - a.total);
 }
 
 export async function getFlujoPorMes(desde: string) {
-  const supabase = createClient();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return [];
-  
-  const { data, error } = await supabase.rpc('get_flujo_por_mes', {
-    p_user_id: userData.user.id,
-    p_desde: desde
-  });
-  if (error) throw error;
-  return data as { mes: string; ingresos: number; gastos: number }[];
+  const movs = await getMovimientos({ desde, limit: 5000 });
+  const map: Record<string, { ingresos: number; gastos: number }> = {};
+  for (const m of movs) {
+    const mes = m.fecha.substring(0, 7); // YYYY-MM
+    if (!map[mes]) map[mes] = { ingresos: 0, gastos: 0 };
+    if (m.tipo === 'Ingreso' && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria)) {
+      map[mes].ingresos += m.monto;
+    } else if (m.tipo === 'Gasto' && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria)) {
+      map[mes].gastos += m.monto;
+    }
+  }
+  return Object.entries(map)
+    .map(([mes, vals]) => ({ mes, ingresos: vals.ingresos, gastos: vals.gastos }))
+    .sort((a, b) => a.mes.localeCompare(b.mes));
 }
 
 // ── Escritura ─────────────────────────────────────────────────────────────────
@@ -130,8 +136,7 @@ export interface EditarMovimientoInput {
 /** Actualiza campos de un movimiento existente (RLS valida que pertenezca al usuario). */
 export async function editarMovimiento(id: string, mov: EditarMovimientoInput) {
   const supabase = createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updatePayload: any = { ...mov };
+  const updatePayload: Record<string, unknown> = { ...mov };
   if ('tarjetaId' in mov) {
     updatePayload.tarjeta_id = mov.tarjetaId;
     delete updatePayload.tarjetaId;
@@ -152,5 +157,27 @@ export async function editarMovimiento(id: string, mov: EditarMovimientoInput) {
 export async function eliminarMovimiento(id: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from('movimientos').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function traspasoEfectivo(tarjetaOrigenId: string, monto: number) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autorizado');
+
+  const now = new Date();
+  const fecha = now.toISOString().split('T')[0];
+  const hora = now.toTimeString().substring(0, 8);
+
+  const { error } = await supabase.rpc('traspaso_debito_efectivo', {
+    p_tarjeta_origen_id: tarjetaOrigenId,
+    p_tarjeta_destino_id: null,
+    p_monto: monto,
+    p_fecha: fecha,
+    p_hora: hora,
+    p_categoria: 'Traspaso',
+    p_comercio: 'Retiro ATM'
+  });
+
   if (error) throw error;
 }

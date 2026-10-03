@@ -7,8 +7,27 @@
  *   - movimientos: 60s
  *   - tarjetas/metas: 5 min
  */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { useState, useEffect } from 'react';
+import { get, set, del } from 'idb-keyval';
+import type { Persister } from '@tanstack/react-query-persist-client';
+
+function createIDBPersister(idbValidKey: IDBValidKey = 'reactQuery'): Persister {
+  return {
+    persistClient: async (client: unknown) => {
+      await set(idbValidKey, client);
+    },
+    restoreClient: async () => {
+      return await get(idbValidKey);
+    },
+    removeClient: async () => {
+      await del(idbValidKey);
+    },
+  };
+}
+
+const idbPersister = createIDBPersister('fintrack-query-cache');
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -16,9 +35,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Valores conservadores — cada hook puede sobreescribir
             staleTime:            60_000,   // 60s default
-            gcTime:               5 * 60_000,
+            gcTime:               24 * 60 * 60 * 1000, // 24 hours
             retry:                1,
             refetchOnWindowFocus: true,
           },
@@ -26,7 +44,40 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       }),
   );
 
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'SYNC_NOW') {
+          // You could trigger a sync processing here if it was pending
+        }
+      });
+
+      // Handle Service Worker updates
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (!reg) return;
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Notifica al usuario de nueva version
+                window.dispatchEvent(new CustomEvent('sw-update-available', {
+                  detail: { worker: newWorker }
+                }));
+              }
+            });
+          }
+        });
+      });
+    }
+  }, []);
+
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: idbPersister }}
+    >
+      {children}
+    </PersistQueryClientProvider>
   );
 }

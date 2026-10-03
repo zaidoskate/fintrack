@@ -1,10 +1,10 @@
 import { db, type OutboxRequest } from './db';
-import { crearMovimiento, editarMovimiento, eliminarMovimiento } from '@/lib/api/movimientos';
+import { crearMovimiento, editarMovimiento, eliminarMovimiento, traspasoEfectivo } from '@/lib/api/movimientos';
 import { crearTarjeta, actualizarTarjeta, eliminarTarjeta } from '@/lib/api/tarjetas';
 import { crearMeta, editarMeta, eliminarMeta, aportarMeta } from '@/lib/api/metas';
 import { crearCompraMSI, eliminarCompraMSI } from '@/lib/api/compras-msi';
 import { QueryClient } from '@tanstack/react-query';
-import { QK } from '@/lib/hooks';
+
 
 export async function forceSync(queryClient: QueryClient) {
   if (!navigator.onLine) return; // Si no hay red explícita, ni lo intentamos
@@ -23,54 +23,56 @@ export async function forceSync(queryClient: QueryClient) {
       const error = err as Error;
       console.error(`Error sincronizando acción offline: ${item.action}`, error);
       // Si el error es claramente de red, detenemos el loop y reintentaremos luego.
-      if (error.message === 'Failed to fetch' || !navigator.onLine) {
+      if (error.message === 'Failed to fetch' || !navigator.onLine || error.message.includes('timeout')) {
         break;
       }
-      // Si el error es del servidor (ej. 400 Bad Request, RLS, etc.),
-      // puede ser que el payload esté corrupto.
-      // Dependiendo del caso, podríamos borrarlo para no atorar la cola, 
-      // pero por ahora lo dejamos o alertamos. 
-      // Si quieres que no bloquee:
-      // await db.outbox.delete(item.id!);
+      
+      // Errores irrecuperables (400, integridad, validación) se borran para evitar Head-of-Line Blocking
+      console.warn(`Descartando acción irrecuperable: ${item.action}`, error);
+      if (item.id) {
+        await db.outbox.delete(item.id);
+      }
     }
   }
 
   // Al finalizar de vaciar (o parcialmente) la cola, invalidamos para refrescar UI
-  queryClient.invalidateQueries({ queryKey: QK.movimientos() });
-  queryClient.invalidateQueries({ queryKey: QK.tarjetas });
-  queryClient.invalidateQueries({ queryKey: QK.metas });
-  queryClient.invalidateQueries({ queryKey: QK.msi() });
+  queryClient.invalidateQueries({ queryKey: ['movimientos'] });
+  queryClient.invalidateQueries({ queryKey: ['tarjetas'] });
+  queryClient.invalidateQueries({ queryKey: ['metas'] });
+  queryClient.invalidateQueries({ queryKey: ['compras-msi'] });
 }
 
 async function processAction(item: OutboxRequest) {
   switch (item.action) {
     case 'crearMovimiento':
-      return await crearMovimiento(item.payload);
+      return await crearMovimiento(item.payload as Parameters<typeof crearMovimiento>[0]);
     case 'editarMovimiento':
-      return await editarMovimiento(item.payload.id, item.payload.campos);
+      return await editarMovimiento((item.payload as { id: string }).id, (item.payload as { campos: Parameters<typeof editarMovimiento>[1] }).campos);
     case 'eliminarMovimiento':
-      return await eliminarMovimiento(item.payload.id);
+      return await eliminarMovimiento((item.payload as { id: string }).id);
+    case 'traspasoEfectivo':
+      return await traspasoEfectivo((item.payload as { tarjetaOrigenId: string }).tarjetaOrigenId, (item.payload as { monto: number }).monto);
       
     case 'crearTarjeta':
-      return await crearTarjeta(item.payload);
+      return await crearTarjeta(item.payload as Parameters<typeof crearTarjeta>[0]);
     case 'actualizarTarjeta':
-      return await actualizarTarjeta(item.payload.id, item.payload.campos);
+      return await actualizarTarjeta((item.payload as { id: string }).id, (item.payload as { campos: Parameters<typeof actualizarTarjeta>[1] }).campos);
     case 'eliminarTarjeta':
-      return await eliminarTarjeta(item.payload.id);
+      return await eliminarTarjeta((item.payload as { id: string }).id);
 
     case 'crearMeta':
-      return await crearMeta(item.payload);
+      return await crearMeta(item.payload as Parameters<typeof crearMeta>[0]);
     case 'editarMeta':
-      return await editarMeta(item.payload.id, item.payload.campos);
+      return await editarMeta((item.payload as { id: string }).id, (item.payload as { campos: Parameters<typeof editarMeta>[1] }).campos);
     case 'aportarMeta':
-      return await aportarMeta(item.payload.id, item.payload.monto);
+      return await aportarMeta((item.payload as { id: string }).id, (item.payload as { monto: number }).monto);
     case 'eliminarMeta':
-      return await eliminarMeta(item.payload.id);
+      return await eliminarMeta((item.payload as { id: string }).id);
 
     case 'crearCompraMSI':
-      return await crearCompraMSI(item.payload);
+      return await crearCompraMSI(item.payload as Parameters<typeof crearCompraMSI>[0]);
     case 'eliminarCompraMSI':
-      return await eliminarCompraMSI(item.payload.id);
+      return await eliminarCompraMSI((item.payload as { id: string }).id);
       
     default:
       console.warn('Acción desconocida en el outbox:', item.action);

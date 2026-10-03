@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { X, ArrowRight, Loader2 } from 'lucide-react';
 import { GlassCard, GlassSelect } from '@/components/ui';
-import { useTarjetas, useCrearMovimiento } from '@/lib/hooks';
+import { useTarjetas, useTraspasoEfectivo } from '@/lib/hooks';
 
 interface RetiroCajeroModalProps {
   onClose: () => void;
@@ -20,38 +20,21 @@ export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
   const [origen, setOrigen] = useState(tarjetasDebito[0]?.nombre || '');
   const [monto, setMonto] = useState('');
   
-  const { mutate: addMov, isPending } = useCrearMovimiento();
+  const { mutate: realizarTraspaso, isPending } = useTraspasoEfectivo();
 
   const handleRetiro = (e: React.FormEvent) => {
     e.preventDefault();
     if (!origen || !monto || isNaN(Number(monto)) || Number(monto) <= 0) return;
     
     const val = Number(monto);
-    const dateStr = new Date().toISOString().split('T')[0];
-    const tarjetaId = tarjetasDebito.find(t => t.nombre === origen)?.id || null;
+    const tarjetaId = tarjetasDebito.find(t => t.nombre === origen)?.id;
+    if (!tarjetaId) return;
 
-    // 1. Gasto en la tarjeta de débito
-    addMov({
-      fecha: dateStr,
-      tipo: 'Gasto',
-      monto: val,
-      tarjetaId: tarjetaId,
-      categoria: 'Traspaso',
-      comercio: 'Retiro ATM',
+    realizarTraspaso({
+      tarjetaOrigenId: tarjetaId,
+      monto: val
     }, {
-      onSuccess: () => {
-        // 2. Ingreso en Efectivo
-        addMov({
-          fecha: dateStr,
-          tipo: 'Ingreso',
-          monto: val,
-          tarjetaId: null,
-          categoria: 'Traspaso',
-          comercio: 'Retiro ATM',
-        }, {
-          onSuccess: () => onClose()
-        });
-      }
+      onSuccess: () => onClose()
     });
   };
 

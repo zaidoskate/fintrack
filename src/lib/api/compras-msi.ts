@@ -137,18 +137,11 @@ export async function crearCompraMSI(input: NuevaCompraMSIInput): Promise<Compra
 
 export async function adelantarCompraMSI(id: string, mesesAdelantados: number, descuento: number): Promise<void> {
   const supabase = createClient();
-  // Fetch actual para sumar
-  const { data: current } = await supabase.from('compras_msi').select('meses_adelantados, descuento_por_adelanto').eq('id', id).single();
-  const prevMeses = current?.meses_adelantados ?? 0;
-  const prevDesc = current?.descuento_por_adelanto ?? 0;
-
-  const { error } = await supabase
-    .from('compras_msi')
-    .update({ 
-      meses_adelantados: prevMeses + mesesAdelantados,
-      descuento_por_adelanto: Number(prevDesc) + descuento
-    })
-    .eq('id', id);
+  const { error } = await supabase.rpc('adelantar_compra_msi', {
+    p_id: id,
+    p_meses: mesesAdelantados,
+    p_descuento: descuento
+  });
 
   if (error) throw error;
 }

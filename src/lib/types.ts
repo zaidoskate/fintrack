@@ -16,6 +16,7 @@ export interface TarjetaRow {
   dia_pago: number | null;
   rendimiento_anual: number; // Solo para Débito
   balance_actual: number | null; // Calculado por DB trigger (solo Débito)
+  gasto_inicial_ciclo?: number; // Para calibración de ciclo en Crédito
   created_at: string;
 }
 
@@ -38,6 +39,7 @@ export interface MetaRow {
   user_id: string;
   nombre: string;
   costo_objetivo: number;
+  fecha_objetivo?: string; // YYYY-MM-DD
   created_at: string;
 }
 
@@ -114,6 +116,7 @@ export interface TarjetaConEstado {
   diaCorte: number | null;
   diaPago: number | null;
   rendimientoAnual: number; // TNA % para Débito
+  gastoInicialCiclo?: number;
   gastosPeriodoActual: number;
   disponible: number;    // Límite disponible (Crédito) o Saldo actual (Débito)
   porcentajeUso: number; // 0 para Débito
@@ -154,6 +157,7 @@ export interface MetaConEstado {
   id: string;
   nombre: string;
   costoObjetivo: number;
+  fechaObjetivo?: string;
   montoActual: number;      // Calculado sumando aportes + rendimientos
   capitalAportado: number;  // Suma neta de aportes
   rendimientoGenerado: number; // Suma de rendimientos
@@ -228,3 +232,8 @@ export interface FiltrosMovimientos {
   limit?: number;
   offset?: number;
 }
+
+export const CATEGORIAS_TRANSFERENCIA = ['Pago de tarjeta', 'Traspaso', 'Ajuste de balance'] as const;
+
+export const esGastoReal = (m: { tipo: string; categoria?: string }) => 
+  m.tipo === 'Gasto' && m.categoria && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria);

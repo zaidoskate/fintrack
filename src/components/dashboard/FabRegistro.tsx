@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus } from 'lucide-react';
 import { RegistroForm } from '@/components/dashboard/RegistroForm';
+import { triggerHaptic } from '@/lib/ui/feedback';
 
 export function FabRegistro() {
   const [isOpen, setIsOpen] = useState(false);
@@ -72,6 +73,7 @@ export function FabRegistro() {
       <motion.button
         id="fab-registro"
         onClick={() => {
+          triggerHaptic('light');
           if (isHidden && !isOpen) {
             setIsHidden(false);
           } else {

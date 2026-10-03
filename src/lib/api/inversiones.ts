@@ -2,9 +2,8 @@ import { createClient } from '@/lib/supabase/client';
 import type { PortafolioActivoRow, CuentaYieldRow, PortafolioActivo, CuentaYield } from '@/lib/types';
 import { fetchCryptoPrices } from '../api-prices'; 
 
-const supabase = createClient();
-
 export async function getActivos(): Promise<PortafolioActivo[]> {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('portafolio_activos')
     .select('*')
@@ -41,8 +40,32 @@ export async function getActivos(): Promise<PortafolioActivo[]> {
 }
 
 export async function addActivo(activo: Omit<PortafolioActivo, 'id' | 'precioActual' | 'valorTotal'>) {
+  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
+
+  // Verificar si ya existe
+  const { data: existente } = await supabase
+    .from('portafolio_activos')
+    .select('*')
+    .eq('simbolo', activo.simbolo)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (existente) {
+    const row = {
+      cantidad: existente.cantidad + activo.cantidad,
+      inversion_inicial: (existente.inversion_inicial || 0) + activo.inversionInicial
+    };
+    const { data, error } = await supabase
+      .from('portafolio_activos')
+      .update(row)
+      .eq('id', existente.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
 
   const row = {
     simbolo: activo.simbolo,
@@ -62,6 +85,7 @@ export async function addActivo(activo: Omit<PortafolioActivo, 'id' | 'precioAct
 }
 
 export async function updateActivo(id: string, campos: Partial<PortafolioActivo>) {
+  const supabase = createClient();
   const row: Partial<PortafolioActivoRow> = {};
   if (campos.simbolo !== undefined) row.simbolo = campos.simbolo;
   if (campos.tipo !== undefined) row.tipo = campos.tipo;
@@ -79,6 +103,7 @@ export async function updateActivo(id: string, campos: Partial<PortafolioActivo>
 }
 
 export async function deleteActivo(id: string) {
+  const supabase = createClient();
   const { error } = await supabase
     .from('portafolio_activos')
     .delete()
@@ -87,6 +112,7 @@ export async function deleteActivo(id: string) {
 }
 
 export async function getCuentasYield(): Promise<CuentaYield[]> {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('cuentas_yield')
     .select('*, interes_dinamico')
@@ -96,8 +122,7 @@ export async function getCuentasYield(): Promise<CuentaYield[]> {
 
   const yields = (data as CuentaYieldRow[]).map(r => {
     // Calcular proyeccion de APY al dia de hoy con funcion de Postgres
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const interesPostgres = Number((r as any).interes_dinamico || 0);
+    const interesPostgres = Number((r as CuentaYieldRow & { interes_dinamico?: number }).interes_dinamico || 0);
     const balanceIni = r.balance_inicial;
     const interesAcum = (r.interes_acumulado || 0) + interesPostgres;
     const capitalBase = balanceIni + interesAcum;
@@ -119,9 +144,9 @@ export async function getCuentasYield(): Promise<CuentaYield[]> {
   const hasExtranjera = yields.some(y => y.moneda !== 'MXN');
   if (hasExtranjera) {
     try {
-      // Tomar USDT como referencia para el USD a MXN (crypto stablecoin)
-      const prices = await fetchCryptoPrices(['USDT']);
-      const rate = prices['USDT'] || 19.5; 
+      // Tomar MXN=X como referencia para el USD a MXN (cotización oficial)
+      const prices = await fetchCryptoPrices(['MXN=X']);
+      const rate = prices['MXN=X'] || 19.5; 
       
       return yields.map(y => ({
         ...y,
@@ -140,6 +165,7 @@ export async function getCuentasYield(): Promise<CuentaYield[]> {
 }
 
 export async function addCuentaYield(cuenta: Omit<CuentaYieldRow, 'id' | 'user_id' | 'created_at'>) {
+  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
@@ -153,6 +179,7 @@ export async function addCuentaYield(cuenta: Omit<CuentaYieldRow, 'id' | 'user_i
 }
 
 export async function updateCuentaYield(id: string, campos: Partial<CuentaYieldRow>) {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('cuentas_yield')
     .update(campos)
@@ -164,6 +191,7 @@ export async function updateCuentaYield(id: string, campos: Partial<CuentaYieldR
 }
 
 export async function deleteCuentaYield(id: string) {
+  const supabase = createClient();
   const { error } = await supabase
     .from('cuentas_yield')
     .delete()
@@ -172,46 +200,12 @@ export async function deleteCuentaYield(id: string) {
 }
 
 export async function moverDineroYield(id: string, montoDelta: number): Promise<void> {
-  const { data: yieldRow, error: fetchErr } = await supabase
-    .from('cuentas_yield')
-    .select('balance_inicial, interes_acumulado, apy, ultima_actualizacion')
-    .eq('id', id)
-    .single();
+  const supabase = createClient();
 
-  if (fetchErr) throw fetchErr;
-
-  const hoyDate = new Date();
-  const hoyT00 = new Date(hoyDate.getFullYear(), hoyDate.getMonth(), hoyDate.getDate()).getTime();
-  const fechaAct = new Date(yieldRow.ultima_actualizacion + 'T00:00:00').getTime();
-  const dias = Math.max(0, Math.floor((hoyT00 - fechaAct) / 86_400_000));
-  
-  const balanceIni = Number(yieldRow.balance_inicial);
-  const interesAcum = Number(yieldRow.interes_acumulado || 0);
-  const apy = Number(yieldRow.apy) / 100;
-  
-  const capitalBase = balanceIni + interesAcum;
-  let interesProyectado = 0;
-  if (apy > 0 && dias > 0) {
-    const balanceCapitalizado = capitalBase * Math.pow(1 + (apy / 365), dias);
-    interesProyectado = balanceCapitalizado - capitalBase;
-  }
-
-  const nuevoBalance = balanceIni + montoDelta;
-  const nuevoInteres = interesAcum + interesProyectado;
-  
-  const y = hoyDate.getFullYear();
-  const m = String(hoyDate.getMonth() + 1).padStart(2, '0');
-  const d = String(hoyDate.getDate()).padStart(2, '0');
-  const hoyStr = `${y}-${m}-${d}`;
-
-  const { error } = await supabase
-    .from('cuentas_yield')
-    .update({
-      balance_inicial: nuevoBalance,
-      interes_acumulado: nuevoInteres,
-      ultima_actualizacion: hoyStr
-    })
-    .eq('id', id);
+  const { error } = await supabase.rpc('mover_dinero_yield', {
+    p_id: id,
+    p_monto_delta: montoDelta
+  });
 
   if (error) throw error;
 }

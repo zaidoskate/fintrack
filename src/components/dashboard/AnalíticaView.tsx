@@ -77,7 +77,10 @@ const RANGOS: { value: Rango; label: string; days: number }[] = [
   { value: 'ytd',  label: 'Este año', days: 365 },
 ];
 
-function fechaDesde(days: number): string {
+function fechaDesde(days: number, rango: string): string {
+  if (rango === 'ytd') {
+    return `${new Date().getFullYear()}-01-01`;
+  }
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d.toISOString().substring(0, 10);
@@ -88,15 +91,28 @@ export function AnalíticaView() {
   const [rango, setRango] = useState<Rango>('90d');
   const days = RANGOS.find((r) => r.value === rango)!.days;
 
-  const { data: gastosCat = [], isLoading: loadCat } = useGastosPorCategoria(fechaDesde(days));
-  const { data: flujoMes = [], isLoading: loadMes } = useFlujoPorMes(fechaDesde(days));
+  const { data: gastosCat = [], isLoading: loadCat } = useGastosPorCategoria(fechaDesde(days, rango));
+  const { data: flujoMes = [], isLoading: loadMes } = useFlujoPorMes(fechaDesde(days, rango));
   
   const isLoading = loadCat || loadMes;
 
   const gastoTotal = useMemo(() => gastosCat.reduce((sum, item) => sum + item.total, 0), [gastosCat]);
-  const porCategoria = useMemo(() => gastosCat.slice(0, 8), [gastosCat]);
+  const ingresosTotal = useMemo(() => flujoMes.reduce((sum, item) => sum + item.ingresos, 0), [flujoMes]);
+  const tasaAhorro = ingresosTotal > 0 ? ((ingresosTotal - gastoTotal) / ingresosTotal) * 100 : 0;
+
+  const porCategoria = useMemo(() => {
+    const sorted = [...gastosCat].sort((a, b) => b.total - a.total);
+    if (sorted.length > 5) {
+      const top5 = sorted.slice(0, 5);
+      const others = sorted.slice(5).reduce((sum, c) => sum + c.total, 0);
+      top5.push({ categoria: 'Otros', total: others });
+      return top5;
+    }
+    return sorted;
+  }, [gastosCat]);
+
   const porMes = useMemo(() => 
-    flujoMes.slice(-6).map(item => ({ mes: mesLabel(item.mes + '-01'), total: item.gastos }))
+    flujoMes.slice(-6).map(item => ({ mes: mesLabel(item.mes + '-01'), gastos: item.gastos, ingresos: item.ingresos }))
   , [flujoMes]);
 
   return (
@@ -107,9 +123,21 @@ export function AnalíticaView() {
           <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '24px', color: 'var(--text-primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
             Flujo y Gastos
           </h1>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total gastado en el periodo</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '40px', color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.02em' }}>
-            {fmtMXN.format(gastoTotal)}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total gastado en el periodo</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '40px', color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                {fmtMXN.format(gastoTotal)}
+              </div>
+            </div>
+            {ingresosTotal > 0 && (
+              <div style={{ padding: '8px 12px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '12px', marginLeft: '12px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tasa de Ahorro</div>
+                <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--credito-verde)' }}>
+                  {tasaAhorro.toFixed(1)}%
+                </div>
+              </div>
+            )}
           </div>
         </div>
         
@@ -155,7 +183,13 @@ export function AnalíticaView() {
                   <YAxis hide />
                   <Tooltip content={<CustomTooltip />} />
                   <Line
-                    type="monotone" dataKey="total"
+                    type="monotone" dataKey="ingresos" name="Ingresos"
+                    stroke="var(--credito-verde)" strokeWidth={2}
+                    dot={{ fill: 'var(--credito-verde)', r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                  <Line
+                    type="monotone" dataKey="gastos" name="Gastos"
                     stroke="var(--brand)" strokeWidth={2}
                     dot={{ fill: 'var(--brand)', r: 3 }}
                     activeDot={{ r: 5 }}

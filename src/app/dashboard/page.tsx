@@ -33,8 +33,10 @@ import { TarjetaFormModal } from '@/components/dashboard/TarjetaFormModal';
 import { MovimientosTarjetaModal } from '@/components/dashboard/MovimientosTarjetaModal';
 import { ApartadoFormModal } from '@/components/dashboard/ApartadoFormModal';
 import { MoverDineroApartadoModal } from '@/components/dashboard/MoverDineroApartadoModal';
+import { AjusteSaldoModal } from '@/components/dashboard/AjusteSaldoModal';
+import { ImportarMovimientosModal } from '@/components/dashboard/ImportarMovimientosModal';
 import { GlassCard } from '@/components/ui';
-import { Plus, HelpCircle, LayoutGrid, List, Eye, EyeOff } from 'lucide-react';
+import { Plus, HelpCircle, LayoutGrid, List, Eye, EyeOff, UploadCloud } from 'lucide-react';
 import type { TarjetaConEstado } from '@/lib/types';
 
 export default function DashboardPage() {
@@ -52,6 +54,8 @@ export default function DashboardPage() {
   const [viewingCard, setViewingCard] = useState<TarjetaConEstado | null>(null);
   const [apartadoCard, setApartadoCard] = useState<TarjetaConEstado | null>(null);
   const [moveApartado, setMoveApartado] = useState<{ id: string, maxRetiro: number, maxIngreso: number } | null>(null);
+  const [ajustandoTarjeta, setAjustandoTarjeta] = useState<TarjetaConEstado | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   
   const [showFlags, setShowFlags] = useState(true);
   const [viewMode, setViewMode] = useState<'full' | 'compact'>('full');
@@ -345,6 +349,7 @@ export default function DashboardPage() {
                           onViewDetails={(t) => setViewingCard(t)}
                           onAddApartado={(t) => setApartadoCard(t)}
                           onMoveApartado={(id, maxRetiro, maxIngreso) => setMoveApartado({ id, maxRetiro, maxIngreso })}
+                          onAjustarSaldo={(t) => setAjustandoTarjeta(t)}
                         />
                       </SortableTarjeta>
                     );
@@ -355,25 +360,46 @@ export default function DashboardPage() {
           )}
 
           {/* Botón Agregar Tarjeta */}
-          <GlassCard
-            id="btn-add-card"
-            as="button"
-            onClick={() => handleOpenModal()}
-            style={{
-              width: '100%',
-              padding: '24px',
-              borderStyle: 'dashed',
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontSize: '15px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <Plus size={18} />
-              <span>Agregar tarjeta</span>
-            </div>
-          </GlassCard>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <GlassCard
+              id="btn-add-card"
+              as="button"
+              onClick={() => handleOpenModal()}
+              style={{
+                flex: 1,
+                padding: '24px',
+                borderStyle: 'dashed',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '15px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <Plus size={18} />
+                <span>Agregar tarjeta</span>
+              </div>
+            </GlassCard>
+
+            <GlassCard
+              as="button"
+              onClick={() => setImportModalOpen(true)}
+              style={{
+                flex: 1,
+                padding: '24px',
+                borderStyle: 'dashed',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '15px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <UploadCloud size={18} />
+                <span>Importar CSV</span>
+              </div>
+            </GlassCard>
+          </div>
 
           {/* Sección Salud Financiera */}
 
@@ -408,6 +434,17 @@ export default function DashboardPage() {
         apartadoId={moveApartado?.id || null}
         maxRetiro={moveApartado?.maxRetiro || 0}
         maxIngreso={moveApartado?.maxIngreso || 0}
+      />
+
+      <AjusteSaldoModal
+        isOpen={ajustandoTarjeta !== null}
+        onClose={() => setAjustandoTarjeta(null)}
+        tarjeta={ajustandoTarjeta}
+      />
+
+      <ImportarMovimientosModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
       />
 
       {/* Modal Detalles */}

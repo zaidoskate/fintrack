@@ -1,11 +1,12 @@
 import { GlassCard } from '@/components/ui';
 import type { Movimiento } from '@/lib/types';
+import { esGastoReal } from '@/lib/types';
 import { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
 
-const COLORS = ['var(--brand)', 'var(--credito-verde)', 'var(--credito-amarillo)', '#8b5cf6', '#ec4899', '#64748b'];
+const COLORS = ['var(--brand)', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'];
 
 export function ExpenseRadar({ movimientos }: { movimientos: Movimiento[] }) {
   const { data, totalGasto } = useMemo(() => {
@@ -14,7 +15,7 @@ export function ExpenseRadar({ movimientos }: { movimientos: Movimiento[] }) {
     const currentYear = ahora.getFullYear();
 
     const gastos = movimientos.filter((m) => {
-      if (m.tipo !== 'Gasto') return false;
+      if (!esGastoReal(m)) return false;
       const [yearStr, monthStr] = m.fecha.split('-');
       if (!yearStr || !monthStr) return false;
       const year = parseInt(yearStr, 10);

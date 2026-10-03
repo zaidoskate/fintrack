@@ -28,6 +28,9 @@ export function TarjetaFormModal({
   const [diaCorte, setDiaCorte] = useState(initialData?.diaCorte?.toString() || '');
   const [diaPago, setDiaPago] = useState(initialData?.diaPago?.toString() || '');
   const [rendimientoAnual, setRendimientoAnual] = useState(initialData?.rendimientoAnual?.toString() || '');
+  const [gastoInicialCiclo, setGastoInicialCiclo] = useState(initialData?.gastoInicialCiclo?.toString() || '');
+  
+  const isEditing = !!initialData;
 
   // Reset form when initialData changes
   useEffect(() => {
@@ -39,6 +42,7 @@ export function TarjetaFormModal({
       setDiaCorte(initialData?.diaCorte?.toString() || '');
       setDiaPago(initialData?.diaPago?.toString() || '');
       setRendimientoAnual(initialData?.rendimientoAnual?.toString() || '');
+      setGastoInicialCiclo(initialData?.gastoInicialCiclo?.toString() || '');
     }
   }, [isOpen, initialData]);
 
@@ -51,6 +55,7 @@ export function TarjetaFormModal({
       diaCorte: tipo === 'Crédito' ? parseInt(diaCorte, 10) : null,
       diaPago: tipo === 'Crédito' ? parseInt(diaPago, 10) : null,
       rendimientoAnual: tipo === 'Débito' ? (parseFloat(rendimientoAnual) || 0) : 0,
+      gastoInicialCiclo: tipo === 'Crédito' ? (parseFloat(gastoInicialCiclo) || 0) : 0,
     });
   };
 
@@ -115,6 +120,13 @@ export function TarjetaFormModal({
                   </button>
                 </div>
               </div>
+              
+              {/* Bloquear cambio de tipo si está editando */}
+              {isEditing && (
+                <div style={{ fontSize: '12px', color: 'var(--credito-amarillo)', marginTop: '-8px' }}>
+                  El tipo de tarjeta no se puede cambiar tras su creación.
+                </div>
+              )}
 
               <div>
                 <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Nombre</label>
@@ -126,12 +138,22 @@ export function TarjetaFormModal({
               </div>
 
               <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{tipo === 'Crédito' ? 'Límite de Crédito (MXN)' : 'Saldo Inicial (MXN)'}</label>
+                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {tipo === 'Crédito' ? 'Límite de Crédito (MXN)' : 'Saldo Inicial (MXN)'}
+                  {isEditing && tipo === 'Débito' && <span title="Bloqueado" style={{ fontSize: '14px' }}>🔒</span>}
+                </label>
                 <input
                   type="number" required min={tipo === 'Crédito' ? "1" : "0"} step="0.01" placeholder={tipo === 'Crédito' ? "20000" : "5000"}
                   value={limite} onChange={e => setLimite(e.target.value)}
                   className="glass-input"
+                  disabled={isEditing && tipo === 'Débito'}
+                  style={isEditing && tipo === 'Débito' ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
                 />
+                {isEditing && tipo === 'Débito' && (
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.3 }}>
+                    El saldo inicial no se puede modificar porque descuadraría tus transacciones históricas. Para sincronizar tu saldo real usa &apos;Ajustar saldo&apos;.
+                  </div>
+                )}
               </div>
 
               <AnimatePresence>
@@ -157,6 +179,26 @@ export function TarjetaFormModal({
                         value={diaPago} onChange={e => setDiaPago(e.target.value)}
                         className="glass-input"
                       />
+                    </div>
+                  </motion.div>
+                )}
+                {tipo === 'Crédito' && !isEditing && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      Gasto acumulado previo en este corte (opcional)
+                    </label>
+                    <input
+                      type="number" min="0" step="0.01" placeholder="Ej. 3500.00"
+                      value={gastoInicialCiclo} onChange={e => setGastoInicialCiclo(e.target.value)}
+                      className="glass-input"
+                    />
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.3 }}>
+                      Si ya usaste tu tarjeta en este ciclo, anota lo que llevas gastado para calibrar tu disponible al instante sin cargar compras pasadas.
                     </div>
                   </motion.div>
                 )}

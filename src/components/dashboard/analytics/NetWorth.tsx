@@ -16,7 +16,14 @@ export function NetWorth({ tarjetas, metas }: { tarjetas: TarjetaConEstado[], me
     let liabilities = 0;
 
     // Metas
-    metas.forEach(m => assets += m.montoActual);
+    metas.forEach(m => {
+      // Si el aporte proviene de un apartado de débito, ese saldo ya está sumado en tarjeta.apartados.
+      // Solo sumar el capital de aportes que NO provengan de apartados registrados.
+      const capitalFueraDeApartados = m.aportes
+        .filter(a => !a.apartadoId)
+        .reduce((sum, a) => sum + (a.monto + a.rendimientoGenerado), 0);
+      assets += capitalFueraDeApartados;
+    });
 
     // Tarjetas
     tarjetas.forEach(t => {

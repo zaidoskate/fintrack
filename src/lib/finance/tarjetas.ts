@@ -152,8 +152,7 @@ export function calcularEstadoTarjeta(
       .map(a => {
         const balanceIni = Number(a.balance_inicial);
         // 1. Usar el interés base guardado + el interés calculado por Postgres al vuelo
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const interesPostgres = Number((a as any).interes_dinamico_apartados || 0);
+        const interesPostgres = Number((a as ApartadoRow & { interes_dinamico_apartados?: number }).interes_dinamico_apartados || 0);
         const interesAcum = Number(a.interes_acumulado || 0) + interesPostgres;
         
         const capitalBase = balanceIni + interesAcum;
@@ -190,8 +189,8 @@ export function calcularEstadoTarjeta(
       gastosPeriodoActual: 0,
       disponible:          Math.round(saldo * 100) / 100 === 0 ? 0 : Math.round(saldo * 100) / 100, // Elimina -0
       porcentajeUso:       0,
-      estadoTermometro:    'verde',
-      etiquetaEstado:      'Saldo disponible',
+      estadoTermometro:    saldo < 0 ? 'rojo' : 'verde',
+      etiquetaEstado:      saldo < 0 ? 'Sobregiro' : 'Saldo disponible',
       proximoCorte:        null,
       proximoPago:         null,
       diasParaPago:        null,
@@ -203,7 +202,7 @@ export function calcularEstadoTarjeta(
   const periodo = getPeriodoVigente(tarjeta.dia_corte || 1, hoy);
 
   // Gastos e Ingresos históricos para la tarjeta (hasta el fin del periodo actual)
-  let gastosDelPeriodo = 0;
+  let gastosDelPeriodo = Number(tarjeta.gasto_inicial_ciclo || 0);
   let pagosDelPeriodo = 0;
 
   for (const mov of movimientos) {
@@ -286,6 +285,7 @@ export function calcularEstadoTarjeta(
     diaCorte:            tarjeta.dia_corte,
     diaPago:             tarjeta.dia_pago,
     rendimientoAnual:    Number(tarjeta.rendimiento_anual) || 0,
+    gastoInicialCiclo:   tarjeta.gasto_inicial_ciclo,
     gastosPeriodoActual,
     disponible,
     porcentajeUso,

@@ -7,6 +7,8 @@ import { GlassCard } from '@/components/ui';
 import { updateUserProfile, updateUserPassword } from '@/app/auth/actions';
 import { useShortcutToken } from '@/lib/hooks';
 import type { User } from '@supabase/supabase-js';
+import { ExportarDatos } from '@/components/dashboard/ExportarDatos';
+import { triggerHaptic } from '@/lib/ui/feedback';
 
 interface ProfileModalProps {
   user: User;
@@ -241,6 +243,16 @@ export function ProfileModal({ user, onClose, modo, setModo }: ProfileModalProps
 
             <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />
 
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)' }}>Exportar Datos</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Descarga todos tus movimientos en TSV</div>
+              </div>
+              <ExportarDatos />
+            </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />
+
             {/* Toggle Modo Patrimonial */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
@@ -249,6 +261,7 @@ export function ProfileModal({ user, onClose, modo, setModo }: ProfileModalProps
               </div>
               <button 
                 onClick={() => {
+                  triggerHaptic('light');
                   setModo(modo === 'diario' ? 'patrimonio' : 'diario');
                   onClose();
                 }}

@@ -110,7 +110,30 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
             </span>
           </div>
           
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '2px', marginRight: '8px' }}>
+              <button
+                onClick={() => setModo('diario')}
+                style={{
+                  padding: '6px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                  background: modo === 'diario' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                  color: modo === 'diario' ? '#fff' : 'var(--text-muted)'
+                }}
+              >
+                Diario
+              </button>
+              <button
+                onClick={() => setModo('patrimonio')}
+                style={{
+                  padding: '6px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                  background: modo === 'patrimonio' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                  color: modo === 'patrimonio' ? '#fff' : 'var(--text-muted)'
+                }}
+              >
+                Patrimonio
+              </button>
+            </div>
+            
             <button
               id="btn-settings"
               onClick={() => setShowSettings(!showSettings)}

@@ -81,28 +81,49 @@ export function calcularEstadoMeta(
 
   const faltante = costoObjetivo - montoActual;
 
-  // La proyección requiere un aporte mensual promedio.
-  // En v2.0 no hay tabla de aportes históricos — se deja null por ahora
-  // y se completa cuando el usuario ingrese un aporte mensual esperado (FR-backlog).
-  // La UI puede mostrar un input "¿Cuánto puedes ahorrar por mes?"
-  const aporteMensual = 0; // placeholder hasta FR que agregue el campo
-
+  let aporteMensual = 0;
   let mesesSinRendimiento: number | null = null;
   let mesesConRendimiento: number | null = null;
   let fechaEstimada: string | null = null;
 
-  if (aporteMensual > 0 && faltante > 0) {
-    mesesSinRendimiento = Math.ceil(faltante / aporteMensual);
-    // Para simplificar, la proyección futura usa una tasa promedio de 0% (se puede mejorar después si ligan una tarjeta base a la meta)
-    mesesConRendimiento = mesesSinRendimiento;
-    const fechaFin = new Date(hoy.getFullYear(), hoy.getMonth() + mesesSinRendimiento, hoy.getDate());
-    fechaEstimada = toISODate(fechaFin);
+  if (meta.fecha_objetivo) {
+    const fechaObj = new Date(meta.fecha_objetivo + 'T00:00:00');
+    const diffTime = Math.max(0, fechaObj.getTime() - hoyTime);
+    const mesesRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30.44));
+    
+    if (mesesRestantes > 0 && faltante > 0) {
+      aporteMensual = faltante / mesesRestantes;
+      mesesSinRendimiento = mesesRestantes;
+      mesesConRendimiento = mesesRestantes;
+      fechaEstimada = meta.fecha_objetivo;
+    } else if (faltante > 0) {
+      aporteMensual = faltante;
+      mesesSinRendimiento = 1;
+      mesesConRendimiento = 1;
+      fechaEstimada = meta.fecha_objetivo;
+    }
+  } else {
+    if (aportes.length > 0) {
+      const primerAporte = aportes[aportes.length - 1].fecha; // sorted desc
+      const fechaPrimer = new Date(primerAporte + 'T00:00:00').getTime();
+      const diffTime = Math.max(0, hoyTime - fechaPrimer);
+      const mesesTranscurridos = Math.max(1, diffTime / (1000 * 60 * 60 * 24 * 30.44));
+      aporteMensual = capitalAportado / mesesTranscurridos;
+    }
+
+    if (aporteMensual > 0 && faltante > 0) {
+      mesesSinRendimiento = Math.ceil(faltante / aporteMensual);
+      mesesConRendimiento = mesesSinRendimiento;
+      const fechaFin = new Date(hoy.getFullYear(), hoy.getMonth() + mesesSinRendimiento, hoy.getDate());
+      fechaEstimada = toISODate(fechaFin);
+    }
   }
 
   return {
     id:               meta.id,
     nombre:           meta.nombre,
     costoObjetivo,
+    fechaObjetivo:    meta.fecha_objetivo || undefined,
     montoActual,
     capitalAportado,
     rendimientoGenerado,

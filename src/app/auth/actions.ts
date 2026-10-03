@@ -10,7 +10,6 @@
  */
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 
 // ── Registro ─────────────────────────────────────────────────────────────────
@@ -22,14 +21,6 @@ export async function signUp(formData: FormData) {
   const password = formData.get('password') as string;
   const displayName = formData.get('displayName') as string;
 
-  const cookieStore = await cookies();
-  const signupAttempts = parseInt(cookieStore.get('signup_attempts')?.value || '0');
-  const signupLock = parseInt(cookieStore.get('signup_lock')?.value || '0');
-
-  if (Date.now() < signupLock) {
-    const waitSeconds = Math.ceil((signupLock - Date.now()) / 1000);
-    redirect(`/signup?error=${encodeURIComponent(`Demasiados intentos. Intenta de nuevo en ${waitSeconds} segundos.`)}`);
-  }
 
   const { error } = await supabase.auth.signUp({
     email,
@@ -40,23 +31,10 @@ export async function signUp(formData: FormData) {
   });
 
   if (error) {
-    const newAttempts = signupAttempts + 1;
     let msg = error.message;
     if (msg.includes('rate limit')) msg = 'Demasiados intentos de registro. Espera un momento.';
     else if (msg.includes('already registered')) msg = 'Este correo ya está registrado.';
-
-    if (newAttempts >= 5) {
-      // Bloquear por 1 minuto
-      cookieStore.set('signup_lock', (Date.now() + 60 * 1000).toString(), { maxAge: 60 });
-      cookieStore.set('signup_attempts', '0', { maxAge: 0 }); // reset
-      redirect(`/signup?error=${encodeURIComponent('Por seguridad, espera 1 minuto para volver a intentarlo.')}`);
-    } else {
-      cookieStore.set('signup_attempts', newAttempts.toString(), { maxAge: 60 * 60 });
-      redirect(`/signup?error=${encodeURIComponent(msg)}`);
-    }
-  } else {
-    cookieStore.delete('signup_attempts');
-    cookieStore.delete('signup_lock');
+    redirect(`/signup?error=${encodeURIComponent(msg)}`);
   }
 
   // Supabase envía un email de confirmación — redirigir a una página intermedia
@@ -72,35 +50,14 @@ export async function signIn(formData: FormData) {
   const password = formData.get('password') as string;
   const next = (formData.get('next') as string) || '/dashboard';
 
-  const cookieStore = await cookies();
-  const loginAttempts = parseInt(cookieStore.get('login_attempts')?.value || '0');
-  const loginLock = parseInt(cookieStore.get('login_lock')?.value || '0');
-
-  if (Date.now() < loginLock) {
-    const waitSeconds = Math.ceil((loginLock - Date.now()) / 1000);
-    redirect(`/login?error=${encodeURIComponent(`Demasiados intentos. Intenta de nuevo en ${waitSeconds} segundos.`)}`);
-  }
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    const newAttempts = loginAttempts + 1;
     let msg = error.message;
     if (msg.includes('rate limit')) msg = 'Demasiados intentos. Por favor espera un momento.';
     else if (msg.includes('Invalid login credentials')) msg = 'Correo o contraseña incorrectos.';
-
-    if (newAttempts >= 5) {
-      // Bloquear por 1 minuto
-      cookieStore.set('login_lock', (Date.now() + 60 * 1000).toString(), { maxAge: 60 });
-      cookieStore.set('login_attempts', '0', { maxAge: 0 }); // reset
-      redirect(`/login?error=${encodeURIComponent('Por seguridad de tu cuenta, intenta de nuevo en 1 minuto.')}`);
-    } else {
-      cookieStore.set('login_attempts', newAttempts.toString(), { maxAge: 60 * 60 });
-      redirect(`/login?error=${encodeURIComponent(msg)}`);
-    }
-  } else {
-    cookieStore.delete('login_attempts');
-    cookieStore.delete('login_lock');
+    redirect(`/login?error=${encodeURIComponent(msg)}`);
   }
 
   revalidatePath('/', 'layout');

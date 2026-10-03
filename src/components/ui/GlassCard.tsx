@@ -25,6 +25,7 @@ import type { CSSProperties, ReactNode } from 'react';
  *   children  → contenido de la card
  */
 
+import { forwardRef } from 'react';
 import { motion, type HTMLMotionProps } from 'motion/react';
 import { useMotionConfig } from '@/lib/motion/variants';
 
@@ -45,14 +46,14 @@ interface GlassCardProps extends HTMLMotionProps<'div'> {
   as?: 'div' | 'article' | 'section' | 'li' | 'button';
 }
 
-export function GlassCard({
+export const GlassCard = forwardRef<HTMLElement, GlassCardProps>(function GlassCard({
   glow = 'none',
   className = '',
   style,
   children,
   as = 'div',
   ...motionProps
-}: GlassCardProps) {
+}, ref) {
   const glowColor = GLOW_COLOR[glow];
   const hasGlow = glow !== 'none';
   const { interactiveProps } = useMotionConfig();
@@ -64,6 +65,7 @@ export function GlassCard({
 
   return (
     <MotionComponent
+      ref={ref}
       className={className}
       {...(isInteractive ? interactiveProps : {})}
       {...motionProps}
@@ -105,4 +107,4 @@ export function GlassCard({
       </div>
     </MotionComponent>
   );
-}
+});

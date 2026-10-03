@@ -19,9 +19,9 @@ import {
 import { getTarjetas, crearTarjeta, actualizarTarjeta, eliminarTarjeta }
   from '@/lib/api/tarjetas';
 import { crearApartado as apiCrearApartado, moverDineroApartado as apiMoverDineroApartado, eliminarApartado as apiEliminarApartado } from '@/lib/api/apartados';
-import { getMovimientos, crearMovimiento, editarMovimiento, eliminarMovimiento, getGastosPorCategoria, getFlujoPorMes }
+import { getMovimientos, crearMovimiento, editarMovimiento, eliminarMovimiento, getGastosPorCategoria, getFlujoPorMes, traspasoEfectivo }
   from '@/lib/api/movimientos';
-import { getMetas, crearMeta, aportarMeta, editarMeta, eliminarMeta }
+import { getMetas, crearMeta, aportarMeta, editarMeta, eliminarMeta, retirarDeMeta }
   from '@/lib/api/metas';
 import { getComprasMSI, crearCompraMSI, eliminarCompraMSI }
   from '@/lib/api/compras-msi';
@@ -47,9 +47,9 @@ import type {
 } from '@/lib/api-inputs';
 import { db } from '@/lib/offline/db';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handleOfflineError(action: string, payload: any, err: any) {
-  if (err?.message === 'Failed to fetch' || !navigator.onLine) {
+async function handleOfflineError(action: string, payload: unknown, err: unknown) {
+  const error = err as Error;
+  if (error?.message === 'Failed to fetch' || !navigator.onLine) {
     await db.outbox.add({
       action,
       payload,
@@ -92,7 +92,10 @@ export function useTarjetas(
 export function useCrearTarjeta() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: crearTarjeta,
+    mutationFn: async (payload: NuevaTarjetaInput) => {
+      try { return await crearTarjeta(payload); }
+      catch (err) { await handleOfflineError('crearTarjeta', payload, err); return payload as unknown as TarjetaConEstado; }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.tarjetas }),
   });
 }
@@ -100,8 +103,10 @@ export function useCrearTarjeta() {
 export function useActualizarTarjeta() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, campos }: { id: string; campos: Partial<NuevaTarjetaInput> }) =>
-      actualizarTarjeta(id, campos),
+    mutationFn: async ({ id, campos }: { id: string; campos: Partial<NuevaTarjetaInput> }) => {
+      try { return await actualizarTarjeta(id, campos); }
+      catch (err) { await handleOfflineError('actualizarTarjeta', { id, campos }, err); return { id, ...campos } as unknown as TarjetaConEstado; }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.tarjetas }),
   });
 }
@@ -109,7 +114,10 @@ export function useActualizarTarjeta() {
 export function useEliminarTarjeta() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: eliminarTarjeta,
+    mutationFn: async (id: string) => {
+      try { return await eliminarTarjeta(id); }
+      catch (err) { await handleOfflineError('eliminarTarjeta', { id }, err); return null; }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.tarjetas }),
   });
 }
@@ -236,7 +244,10 @@ export function useMetas(opts?: Partial<UseQueryOptions<MetaConEstado[]>>) {
 export function useCrearMeta() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: crearMeta,
+    mutationFn: async (payload: NuevaMetaInput) => {
+      try { return await crearMeta(payload); }
+      catch (err) { await handleOfflineError('crearMeta', payload, err); return payload as unknown as MetaConEstado; }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.metas }),
   });
 }
@@ -244,7 +255,10 @@ export function useCrearMeta() {
 export function useAportarMeta() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, monto, tarjetaId, apartadoId, fecha }: { id: string; monto: number, tarjetaId?: string, apartadoId?: string, fecha?: string }) => aportarMeta(id, monto, tarjetaId, apartadoId, fecha),
+    mutationFn: async (payload: { id: string; monto: number, tarjetaId?: string, apartadoId?: string, fecha?: string }) => {
+      try { return await aportarMeta(payload.id, payload.monto, payload.tarjetaId, payload.apartadoId, payload.fecha); }
+      catch (err) { await handleOfflineError('aportarMeta', payload, err); return null; }
+    },
     // Optimista: actualiza la cache antes de que el server confirme
     onMutate: async ({ id, monto }) => {
       await qc.cancelQueries({ queryKey: QK.metas });
@@ -279,6 +293,32 @@ export function useEliminarMeta() {
   return useMutation({
     mutationFn: eliminarMeta,
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.metas }),
+  });
+}
+
+export function useRetirarDeMeta() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { id: string; monto: number }) => {
+      try { return await retirarDeMeta(payload.id, payload.monto); }
+      catch (err) { await handleOfflineError('retirarDeMeta', payload, err); return null; }
+    },
+    onMutate: async ({ id, monto }) => {
+      await qc.cancelQueries({ queryKey: QK.metas });
+      const prev = qc.getQueryData<MetaConEstado[]>(QK.metas);
+      qc.setQueryData<MetaConEstado[]>(QK.metas, (old) =>
+        old?.map((m) =>
+          m.id === id
+            ? { ...m, montoActual: m.montoActual - monto, capitalAportado: (m.capitalAportado || 0) - monto }
+            : m,
+        ) ?? [],
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(QK.metas, ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: QK.metas }),
   });
 }
 
@@ -334,7 +374,10 @@ export function useAdelantarCompraMSI() {
 export function useCrearCompraMSI() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: crearCompraMSI,
+    mutationFn: async (payload: import('@/lib/api-inputs').NuevaCompraMSIInput) => {
+      try { return await crearCompraMSI(payload); }
+      catch (err) { await handleOfflineError('crearCompraMSI', payload, err); return payload as unknown as CompraMSI; }
+    },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: QK.msi(vars.tarjetaId) });
       qc.invalidateQueries({ queryKey: QK.msi() });
@@ -433,5 +476,17 @@ export function useShortcutToken() {
     queryKey: ['user', 'shortcut_token'],
     queryFn: getShortcutToken,
     staleTime: Infinity,
+  });
+}
+
+export function useTraspasoEfectivo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { tarjetaOrigenId: string; monto: number }) => traspasoEfectivo(data.tarjetaOrigenId, data.monto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.movimientos() });
+      qc.invalidateQueries({ queryKey: QK.tarjetas });
+    },
+    onError: (err, variables) => handleOfflineError('traspasoEfectivo', variables, err)
   });
 }

@@ -63,49 +63,46 @@ function todayISO(): string {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
+import { z } from 'zod';
+
+const shortcutSchema = z.object({
+  token: z.string().min(1, 'Token requerido.'),
+  tipo: z.enum(['Gasto', 'Ingreso']),
+  monto: z.number().positive('El monto debe ser > 0.'),
+  categoria: z.string().optional(),
+  comercio: z.string().optional(),
+  metodo: z.string().optional(),
+  esMeses: z.boolean().optional(),
+  meses: z.number().int().min(2).optional(),
+}).refine(data => {
+  if (data.esMeses && (!data.meses || data.meses < 2)) return false;
+  return true;
+}, {
+  message: 'Campo "meses" requerido y debe ser ≥ 2 para compras MSI.',
+  path: ['meses'],
+});
+
 export async function POST(req: NextRequest) {
-  // 1. Parsear body
-  let body: Record<string, unknown>;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { status: 'error', message: 'Body inválido — se esperaba JSON.' },
-      { status: 400 },
-    );
+    return NextResponse.json({ status: 'error', message: 'Body inválido — se esperaba JSON.' }, { status: 400 });
   }
 
-  // 2. Validar token (agents.md regla 2)
-  const { token, tipo, monto, categoria, comercio, metodo, esMeses, meses } = body as {
-    token?: string;
-    tipo?: string;
-    monto?: number;
-    categoria?: string;
-    comercio?: string;
-    metodo?: string;
-    esMeses?: boolean;
-    meses?: number;
-  };
-
-  if (!token) {
-    return NextResponse.json(
-      { status: 'error', message: 'Token requerido.' },
-      { status: 401 },
-    );
+  const parsed = shortcutSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({
+      status: 'error',
+      message: parsed.error.issues[0]?.message ?? 'Datos de entrada inválidos.'
+    }, { status: 400 });
   }
 
-  // 3. Validar campos mínimos
-  if (!tipo || typeof monto !== 'number' || monto <= 0) {
-    return NextResponse.json(
-      { status: 'error', message: 'Campos requeridos: tipo, monto (> 0).' },
-      { status: 400 },
-    );
-  }
+  const { token, tipo, monto, categoria, comercio, metodo, esMeses, meses } = parsed.data;
 
   const supabase = getServiceClient();
   const hoy = new Date();
 
-  // Buscar al usuario dueño del token
   const { data: config, error: configError } = await supabase
     .from('usuarios_config')
     .select('id')
@@ -120,16 +117,17 @@ export async function POST(req: NextRequest) {
   }
   const userId = config.id;
 
-  // Buscar tarjeta por nombre (metodo_pago → id en tabla tarjetas)
   const nombreTarjeta = (metodo ?? '').trim();
   let tarjetaId: string | null = null;
   
   if (nombreTarjeta && nombreTarjeta.toLowerCase() !== 'efectivo') {
+    // Sanitizar entrada para prevenir inyección en ilike (wildcards)
+    const sanitizedNombre = nombreTarjeta.replace(/[%_]/g, '\\$&');
     const { data: tarjeta, error: tarjetaError } = await supabase
       .from('tarjetas')
       .select('id')
       .eq('user_id', userId)
-      .ilike('nombre', nombreTarjeta)
+      .ilike('nombre', sanitizedNombre)
       .single();
       
     if (tarjetaError || !tarjeta) {

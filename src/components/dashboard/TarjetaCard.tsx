@@ -9,10 +9,10 @@
  * NFR-06b: ningún fetch directo aquí.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GlassCard, StatusPill, ConfirmModal } from '@/components/ui';
 import type { TarjetaConEstado, CompraMSI, MetaConEstado } from '@/lib/types';
-import { Pencil, Trash, ArrowRightLeft, FastForward } from 'lucide-react';
+import { Pencil, Trash, ArrowRightLeft, FastForward, RefreshCcw } from 'lucide-react';
 import { useAdelantarCompraMSI } from '@/lib/hooks';
 
 /* Formatea monto MXN (es-MX, formato moneda sin decimales si son .00) */
@@ -41,9 +41,10 @@ interface TarjetaCardProps {
   onViewDetails?: (tarjeta: TarjetaConEstado) => void;
   onAddApartado?: (tarjeta: TarjetaConEstado) => void;
   onMoveApartado?: (apartadoId: string, maxRetiro: number, maxIngreso: number) => void;
+  onAjustarSaldo?: (tarjeta: TarjetaConEstado) => void;
 }
 
-export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true, variant = 'full', showBalance = true, onEdit, onDelete, onViewDetails, onAddApartado, onMoveApartado }: TarjetaCardProps) {
+export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true, variant = 'full', showBalance = true, onEdit, onDelete, onViewDetails, onAddApartado, onMoveApartado, onAjustarSaldo }: TarjetaCardProps) {
   const [msiOpen, setMsiOpen] = useState(false);
   const [metasOpen, setMetasOpen] = useState(false);
   const [apartadosOpen, setApartadosOpen] = useState(false);
@@ -51,6 +52,43 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
   const [adelantarMSI, setAdelantarMSI] = useState<string | null>(null);
   const [adelantarMeses, setAdelantarMeses] = useState(1);
   const [adelantarDescuento, setAdelantarDescuento] = useState(0);
+
+  // Efecto Tilt 3D
+  const cardRef = useRef<HTMLElement>(null);
+  const [glarePos, setGlarePos] = useState({ x: 50, y: 50, opacity: 0 });
+
+  useEffect(() => {
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.gamma !== null && e.beta !== null) {
+        // gamma: izquierda/derecha (-90 a 90)
+        // beta: adelante/atrás (-180 a 180)
+        const x = Math.min(Math.max((e.gamma + 90) / 1.8, 0), 100);
+        const y = Math.min(Math.max((e.beta + 90) / 1.8, 0), 100);
+        setGlarePos({ x, y, opacity: 0.15 });
+      }
+    };
+
+    if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', handleOrientation);
+    }
+    return () => {
+      if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
+        window.removeEventListener('deviceorientation', handleOrientation);
+      }
+    };
+  }, []);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setGlarePos({ x, y, opacity: 0.2 });
+  };
+
+  const handleMouseLeave = () => {
+    setGlarePos(prev => ({ ...prev, opacity: 0 }));
+  };
 
   const { mutate: adelantar, isPending: isAdelantando } = useAdelantarCompraMSI();
 
@@ -78,6 +116,7 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
 
   return (
     <GlassCard
+      ref={cardRef}
       glow={(!showFlags || !esCredito) ? 'none' : tarjeta.estadoTermometro === 'verde' ? 'none' : tarjeta.estadoTermometro}
       as="article"
       style={{ 
@@ -85,10 +124,25 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
         cursor: onViewDetails ? 'pointer' : 'default',
         height: '100%',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        position: 'relative',
+        overflow: 'hidden'
       }}
       onClick={() => onViewDetails?.(tarjeta)}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
+      {/* Tilt Specular Reflection */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: `radial-gradient(circle at ${glarePos.x}% ${glarePos.y}%, rgba(255, 255, 255, 0.4), transparent 60%)`,
+        opacity: glarePos.opacity,
+        pointerEvents: 'none',
+        transition: 'opacity 0.3s ease',
+        zIndex: 0
+      }} />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Cabecera: nombre + chip decorativo */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: variant === 'compact' ? '16px' : '28px' }}>
         <span style={{
@@ -112,6 +166,16 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
               >
                 <Pencil size={16} />
+              </button>
+            )}
+            {!esCredito && onAjustarSaldo && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onAjustarSaldo(tarjeta); }}
+                aria-label="Ajustar saldo"
+                title="Ajustar saldo"
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <RefreshCcw size={16} />
               </button>
             )}
             {onDelete && (
@@ -565,6 +629,7 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
         </div>
       )}
       
+      </div>
       </div>
     </GlassCard>
   );

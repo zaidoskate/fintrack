@@ -53,15 +53,16 @@ export function OnboardingWizard({ userName }: { userName: string }) {
           tipo: isCredit ? 'Crédito' : 'Débito',
           limite: isCredit ? parseFloat(creditData.limite) || 0 : 0,
           diaCorte: isCredit ? parseInt(creditData.diaCorte) || null : null,
-          diaPago: isCredit ? parseInt(creditData.diaPago) || null : null
+          diaPago: isCredit ? parseInt(creditData.diaPago) || null : null,
+          gastoInicialCiclo: isCredit ? saldo : undefined
         });
 
-        if (saldo > 0) {
+        if (saldo > 0 && !isCredit) {
           await crearMovimiento({
-            tipo: isCredit ? 'Gasto' : 'Ingreso',
+            tipo: 'Ingreso',
             monto: saldo,
-            categoria: isCredit ? 'Otros' : 'Ingreso',
-            comercio: isCredit ? 'Deuda Inicial' : 'Saldo Inicial',
+            categoria: 'Ingreso',
+            comercio: 'Saldo Inicial',
             fecha: today,
             tarjetaId: tarjeta.id
           });
@@ -277,7 +278,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
                         type="number" 
                         required={!(accountType === 'bank' && bankType === 'Crédito')}
                         step="0.01"
-                        placeholder="0.00"
+                        placeholder={accountType === 'bank' && bankType === 'Crédito' ? "Ej: 20000" : "0.00"}
                         value={accountType === 'bank' && bankType === 'Crédito' ? creditData.limite : formData.balance}
                         onChange={e => {
                           if (accountType === 'bank' && bankType === 'Crédito') {

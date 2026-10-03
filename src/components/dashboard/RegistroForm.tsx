@@ -17,11 +17,12 @@ import { GlassCard, GlassSelect } from '@/components/ui';
 import {
   useCrearMovimiento, useEditarMovimiento, useCrearCompraMSI, useTarjetas, QK,
 } from '@/lib/hooks';
+import { triggerHaptic, playSuccessChime } from '@/lib/ui/feedback';
 import type { Movimiento } from '@/lib/types';
 
 const CATEGORIAS_GASTO = [
   'Comida', 'Transporte', 'Entretenimiento', 'Salud',
-  'Ropa', 'Conveniencia', 'Servicios', 'Traspaso', 'Sin categoría',
+  'Ropa', 'Conveniencia', 'Servicios', 'Pago de tarjeta', 'Traspaso', 'Sin categoría',
 ];
 
 const CATEGORIAS_INGRESO = [
@@ -89,7 +90,12 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
           fechaPrimerCargo: fechaPrimerCargo || undefined,
         },
         {
-          onSuccess: () => { setExito(true); setTimeout(() => { setExito(false); resetForm(); onClose?.(); }, 1500); },
+          onSuccess: () => { 
+            triggerHaptic('success');
+            playSuccessChime();
+            setExito(true); 
+            setTimeout(() => { setExito(false); resetForm(); onClose?.(); }, 1500); 
+          },
           onError:   (err) => setError(err.message),
         },
       );
@@ -127,6 +133,8 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
     const payload = { tipo, monto: montoNum, categoria, comercio: comercio || 'N/A', tarjetaId };
     const mutationOpts = {
       onSuccess: () => {
+        triggerHaptic('success');
+        playSuccessChime();
         setExito(true);
         setTimeout(() => { setExito(false); resetForm(); onClose?.(); }, 1200);
       },

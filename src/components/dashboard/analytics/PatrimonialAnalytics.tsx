@@ -10,7 +10,7 @@ interface HistData {
   currency: string;
 }
 
-export function PatrimonialAnalytics({ activos, yields, tarjetas = [], displayCurrency, rates }: { activos: PortafolioActivo[]; yields: CuentaYield[]; tarjetas?: TarjetaConEstado[]; displayCurrency: string; rates: Record<string, number> }) {
+export function PatrimonialAnalytics({ activos, yields, tarjetas = [], balanceEfectivo = 0, displayCurrency, rates }: { activos: PortafolioActivo[]; yields: CuentaYield[]; tarjetas?: TarjetaConEstado[]; balanceEfectivo?: number; displayCurrency: string; rates: Record<string, number> }) {
   const getConvertedValue = (valMXN: number) => {
     if (displayCurrency === 'USD' && rates['MXN=X']) return valMXN / rates['MXN=X'];
     if (displayCurrency === 'EUR' && rates['EURMXN=X']) return valMXN / rates['EURMXN=X'];
@@ -80,6 +80,9 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], displayCu
   const [assetFilter, setAssetFilter] = useState<'ambas' | 'cripto' | 'renta_variable'>('ambas');
   const [rawData, setRawData] = useState<Record<string, HistData>>({});
   const [loadingHist, setLoadingHist] = useState(false);
+  const [activePoint, setActivePoint] = useState<{ value: number; timestamp: number } | null>(null);
+
+  const activosKey = useMemo(() => activos.map(a => `${a.simbolo}:${a.cantidad}`).join(','), [activos]);
 
   useEffect(() => {
     if (activos.length === 0) return;
@@ -107,7 +110,8 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], displayCu
       .catch(console.error)
       .finally(() => setLoadingHist(false));
 
-  }, [range, activos]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, activosKey]);
 
   const histData = useMemo(() => {
     if (!rawData || Object.keys(rawData).length === 0) return [];
@@ -129,8 +133,22 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], displayCu
       return lastPx;
     };
 
+    let flatBaselineMXN = 0;
+    if (assetFilter === 'ambas') {
+      flatBaselineMXN += balanceEfectivo;
+      yields.forEach(y => { flatBaselineMXN += (y.valorTotalMXN || y.balanceActual); });
+      tarjetas.forEach(t => { 
+        if (t.tipo === 'Débito') {
+          flatBaselineMXN += t.disponible;
+          if (t.apartados) {
+            t.apartados.forEach(a => { flatBaselineMXN += a.balanceCalculado; });
+          }
+        }
+      });
+    }
+
     return sortedTimestamps.map(ts => {
-      let totalMXN = 0;
+      let totalMXN = flatBaselineMXN;
       const mxnRate = getPriceAt(rawData['MXN=X']?.timestamps || [], rawData['MXN=X']?.prices || [], ts) || 19.5;
 
       activos.forEach(a => {
@@ -164,9 +182,19 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], displayCu
 
       return { timestamp: ts, timeLabel, total: totalConverted };
     });
-  }, [rawData, assetFilter, activos, range, displayCurrency, rates]);
+  }, [rawData, assetFilter, activos, range, displayCurrency, rates, yields, tarjetas, balanceEfectivo]);
 
   const totalDist = distData.reduce((sum, d) => sum + d.value, 0);
+
+  const initialValue = histData.length > 0 ? histData[0].total : 0;
+  const lastValue = histData.length > 0 ? histData[histData.length - 1].total : 0;
+  
+  const displayValue = activePoint ? activePoint.value : lastValue;
+  const diff = displayValue - initialValue;
+  const diffPct = initialValue > 0 ? (diff / initialValue) * 100 : 0;
+  const isPositive = lastValue >= initialValue;
+  
+  const strokeColor = isPositive ? 'var(--credito-verde)' : 'var(--brand)';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
@@ -225,7 +253,28 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], displayCu
           </div>
         </div>
 
-        <div style={{ height: '120px', width: '100%' }}>
+        <div style={{ height: '180px', width: '100%' }}>
+          <div style={{ padding: '0 0 12px 4px' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
+              {formatConverted(displayValue, 2)}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 500, color: diff >= 0 ? 'var(--credito-verde)' : 'var(--credito-rojo)' }}>
+                {diff >= 0 ? '+' : ''}{formatConverted(diff, 2)} ({diff >= 0 ? '+' : ''}{diffPct.toFixed(2)}%)
+              </div>
+              {activePoint && (
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  • {(() => {
+                    const d = new Date(activePoint.timestamp * 1000);
+                    if (range === '12h' || range === '1d') return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+                    if (range === '1w') return `${d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })}, ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
+                    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+
           {loadingHist ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'scale(0.8)' }}>
                <Loader label="Actualizando histórico..." />
@@ -236,19 +285,41 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], displayCu
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={histData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <AreaChart 
+                data={histData} 
+                margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                onMouseMove={(e: any) => {
+                  if (e && e.activePayload && e.activePayload.length > 0) {
+                    setActivePoint({
+                      value: e.activePayload[0].payload.total,
+                      timestamp: e.activePayload[0].payload.timestamp
+                    });
+                  }
+                }}
+                onMouseLeave={() => setActivePoint(null)}
+              >
                 <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--brand)" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="var(--brand)" stopOpacity={0}/>
+                    <stop offset="5%" stopColor={strokeColor} stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor={strokeColor} stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <XAxis 
-                  dataKey="timeLabel" 
+                  dataKey="timestamp" 
                   axisLine={false} 
                   tickLine={false} 
                   tick={{ fontSize: 10, fill: 'var(--text-muted)' }} 
-                  minTickGap={20}
+                  minTickGap={30}
+                  tickFormatter={(val) => {
+                    const d = new Date(val * 1000);
+                    if (range === '12h' || range === '1d') return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+                    if (range === '1w') {
+                      const day = d.toLocaleDateString('es-MX', { weekday: 'short' });
+                      return `${day.charAt(0).toUpperCase() + day.slice(1)} ${d.getDate()}`;
+                    }
+                    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+                  }}
                 />
                 <YAxis 
                   hide={false} 
@@ -260,17 +331,14 @@ export function PatrimonialAnalytics({ activos, yields, tarjetas = [], displayCu
                   width={60}
                 />
                 <Tooltip 
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(val: any) => [formatConverted(val), '']}
-                  labelStyle={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}
-                  contentStyle={{ background: 'rgba(20,20,20,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', padding: '8px 12px' }}
-                  itemStyle={{ color: 'var(--brand)', fontWeight: 600, fontSize: '14px', padding: 0 }}
-                  separator=""
+                  cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1, strokeDasharray: '3 3' }}
+                  isAnimationActive={false}
+                  content={<></>} 
                 />
                 <Area 
                   type="monotone" 
                   dataKey="total" 
-                  stroke="var(--brand)" 
+                  stroke={strokeColor} 
                   strokeWidth={2}
                   fillOpacity={1} 
                   fill="url(#colorTotal)" 
