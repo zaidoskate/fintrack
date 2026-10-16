@@ -84,7 +84,7 @@ async function processAction(item: OutboxRequest) {
     case 'crearPrestamo':
       return await crearPrestamo(item.payload as Parameters<typeof crearPrestamo>[0]);
     case 'actualizarPrestamo':
-      return await actualizarPrestamo({ id: (item.payload as { id: string }).id, campos: (item.payload as { campos: any }).campos });
+      return await actualizarPrestamo({ id: (item.payload as { id: string }).id, campos: (item.payload as { campos: Parameters<typeof actualizarPrestamo>[0]['campos'] }).campos });
     case 'eliminarPrestamo':
       return await eliminarPrestamo((item.payload as { id: string }).id);
 

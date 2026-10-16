@@ -101,7 +101,6 @@ export function simularAbonoCapital(
 
   // 1. Mantener cuota, reducir plazo
   let nMesesReducido = 0;
-  let sRed = nuevoSaldo;
   let interesReducido = 0;
   
   if (r === 0) {

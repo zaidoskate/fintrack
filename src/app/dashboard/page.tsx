@@ -20,10 +20,9 @@ import {
 import {
   SortableContext,
   arrayMove,
-  rectSortingStrategy,
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useTarjetas, useComprasMSI, useMetas, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta, useMovimientos } from '@/lib/hooks';
+import { useTarjetas, useComprasMSI, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta, useMovimientos } from '@/lib/hooks';
 import { calcularSaldoEfectivo } from '@/lib/finance/efectivo';
 import { TarjetaCard } from '@/components/dashboard/TarjetaCard';
 import { EfectivoCard } from '@/components/dashboard/EfectivoCard';
@@ -38,13 +37,12 @@ import { ImportarMovimientosModal } from '@/components/dashboard/ImportarMovimie
 import { CuentasPorCobrarCard } from '@/components/dashboard/CuentasPorCobrarCard';
 import { MsiApartadosPanel } from '@/components/dashboard/MsiApartadosPanel';
 import { GlassCard } from '@/components/ui';
-import { Plus, HelpCircle, LayoutGrid, List, Eye, EyeOff, UploadCloud } from 'lucide-react';
+import { Plus, HelpCircle, Eye, EyeOff, UploadCloud } from 'lucide-react';
 import type { TarjetaConEstado } from '@/lib/types';
 
 export default function DashboardPage() {
   const { data: tarjetas, isLoading: loadT, error: errT } = useTarjetas();
   const { data: comprasMSI = [], isLoading: loadM } = useComprasMSI();
-  const { data: metas = [] } = useMetas();
   const { data: movimientos = [] } = useMovimientos();
   
   const { mutate: crear } = useCrearTarjeta();

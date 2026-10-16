@@ -40,8 +40,6 @@ import type {
   PortafolioActivo,
   CuentaYield,
   CuentaYieldRow,
-  CuentaPorCobrar,
-  Prestamo
 } from '@/lib/types';
 import type {
   NuevaTarjetaInput,

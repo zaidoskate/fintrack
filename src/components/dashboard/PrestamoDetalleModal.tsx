@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { GlassCard } from '@/components/ui';
 import { X, TrendingDown, Clock, Info } from 'lucide-react';
 import type { Prestamo } from '@/lib/types';

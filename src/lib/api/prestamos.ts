@@ -13,8 +13,8 @@ export async function getPrestamos(): Promise<Prestamo[]> {
   return data.map(row => ({
     id: row.id,
     nombre: row.nombre,
-    tipo: row.tipo as any,
-    direccion: row.direccion as any,
+    tipo: row.tipo as Prestamo['tipo'],
+    direccion: row.direccion as Prestamo['direccion'],
     montoOriginal: Number(row.monto_original),
     saldoInsoluto: Number(row.saldo_insoluto),
     tasaAnual: Number(row.tasa_anual),
@@ -54,7 +54,7 @@ export async function crearPrestamo(input: Omit<Prestamo, 'id'>) {
 
 export async function actualizarPrestamo({ id, campos }: { id: string; campos: Partial<Prestamo> }) {
   const supabase = createClient();
-  const payload: any = {};
+  const payload: Record<string, unknown> = {};
   if (campos.nombre !== undefined) payload.nombre = campos.nombre;
   if (campos.saldoInsoluto !== undefined) payload.saldo_insoluto = campos.saldoInsoluto;
   if (campos.mesesPagados !== undefined) payload.meses_pagados = campos.mesesPagados;

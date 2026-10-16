@@ -20,6 +20,7 @@ import {
 } from '@/lib/hooks';
 import { triggerHaptic, playSuccessChime } from '@/lib/ui/feedback';
 import type { Movimiento } from '@/lib/types';
+import type { NuevoMovimientoInput } from '@/lib/api/movimientos';
 
 const CATEGORIAS_GASTO = [
   'Comida', 'Transporte', 'Entretenimiento', 'Salud',
@@ -118,7 +119,6 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
     }
 
     /* ── Rama normal — Sincronización Optimista (FR-06/07) ─────── */
-    // eslint-disable-next-line react-hooks/purity
     const tempId = `temp-${Date.now()}`;
     const horaText = new Date().toTimeString().substring(0, 5);
 
@@ -146,7 +146,7 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
     });
 
     const tarjetaId = metodo === 'Efectivo' ? null : tarjetas.find(t => t.nombre === metodo)?.id || null;
-    const payload: any = { tipo, monto: montoNum, categoria, comercio: comercio || 'N/A', tarjetaId, esGastoDeTercero: tipo === 'Gasto' && esGastoDeTercero };
+    const payload: Omit<NuevoMovimientoInput, 'fecha'> = { tipo, monto: montoNum, categoria, comercio: comercio || 'N/A', tarjetaId, esGastoDeTercero: tipo === 'Gasto' && esGastoDeTercero };
 
     if (tipo === 'Gasto' && gastoCompartido && !esGastoDeTercero) {
       const miConsumoNum = parseFloat(miConsumo.replace(/[,$\s]/g, ''));
@@ -185,14 +185,6 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
     } else {
       crearMov({ fecha: hoyISO, ...payload }, mutationOpts);
     }
-  };
-
-  const resetForm = () => {
-    setMonto(''); setTipo('Gasto');
-    setCat(CATEGORIAS_GASTO[0]);
-    setMetodo('Efectivo'); setEsMeses(false); setMeses(3);
-    setTipo('Gasto'); setError(null);
-    setEsGastoDeTercero(false); setGastoCompartido(false); setMiConsumo(''); setDeudor(''); setConceptoDeuda('');
   };
 
   /* ── UI ───────────────────────────────────────────────────────── */

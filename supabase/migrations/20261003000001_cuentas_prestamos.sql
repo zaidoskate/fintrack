@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.cuentas_por_cobrar (
 );
 
 ALTER TABLE public.cuentas_por_cobrar ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage their own cuentas por cobrar" ON public.cuentas_por_cobrar;
 CREATE POLICY "Users manage their own cuentas por cobrar" ON public.cuentas_por_cobrar
   FOR ALL USING (auth.uid() = user_id);
 
@@ -38,5 +39,6 @@ CREATE TABLE IF NOT EXISTS public.prestamos (
 );
 
 ALTER TABLE public.prestamos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage their own prestamos" ON public.prestamos;
 CREATE POLICY "Users manage their own prestamos" ON public.prestamos
   FOR ALL USING (auth.uid() = user_id);

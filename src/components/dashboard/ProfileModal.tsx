@@ -8,7 +8,6 @@ import { updateUserProfile, updateUserPassword } from '@/app/auth/actions';
 import { useShortcutToken } from '@/lib/hooks';
 import type { User } from '@supabase/supabase-js';
 import { ExportarDatos } from '@/components/dashboard/ExportarDatos';
-import { triggerHaptic } from '@/lib/ui/feedback';
 
 interface ProfileModalProps {
   user: User;

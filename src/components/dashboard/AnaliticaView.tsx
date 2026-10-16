@@ -4,7 +4,7 @@ import { XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, 
 import { useMemo, useState } from 'react';
 import { useGastosPorCategoria, useFlujoPorMes } from '@/lib/hooks';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, PieChart as PieChartIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 
 const CATEGORIA_COLOR: Record<string, string> = {
   'Comida':           '#818cf8',
@@ -33,20 +33,23 @@ function mesLabel(iso: string): string {
   return `${meses[parseInt(m) - 1]} '${y.slice(2)}`;
 }
 
-function CustomTooltip({ active, payload, label, showTotal }: any) {
+interface TooltipEntry { name?: string; value?: number | string; color?: string; payload?: { categoria?: string; fill?: string } }
+interface CustomTooltipProps { active?: boolean; payload?: TooltipEntry[]; label?: string; showTotal?: boolean }
+
+function CustomTooltip({ active, payload, label, showTotal }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
-  const total = payload.reduce((s: number, p: any) => s + (Number(p.value) || 0), 0);
+  const total = payload.reduce((s: number, p) => s + (Number(p.value) || 0), 0);
   return (
     <div className="bg-zinc-900/95 backdrop-blur-md border border-white/10 rounded-xl p-3 shadow-2xl min-w-[150px]">
       <strong className="text-zinc-300 text-xs">{label ?? payload[0]?.payload?.categoria}</strong>
       <div className="mt-2 flex flex-col gap-1">
-        {payload.map((p: any, i: number) => (
+        {payload.map((p, i) => (
           <div key={i} className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full" style={{ background: p.color || p.payload?.fill }} />
               <span className="text-xs text-zinc-400">{p.name}</span>
             </div>
-            <span className="text-sm font-mono tabular-nums text-white font-medium">{fmtMXN.format(p.value)}</span>
+            <span className="text-sm font-mono tabular-nums text-white font-medium">{fmtMXN.format(Number(p.value))}</span>
           </div>
         ))}
         {showTotal && payload.length > 1 && (

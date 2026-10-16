@@ -7,8 +7,8 @@ import {
   useEditarMeta, useEliminarMeta, useTarjetas, useRetirarDeMeta
 } from '@/lib/hooks';
 import { GlassCard, ConfirmModal, GlassSelect } from '@/components/ui';
-import type { MetaConEstado } from '@/lib/types';
-import { Pencil, Trash, Calculator, Plus, Car, Home, Plane, ShieldCheck, Flag, X, ArrowDown, ArrowUp } from 'lucide-react';
+import type { MetaConEstado, TarjetaConEstado } from '@/lib/types';
+import { Trash, Calculator, Plus, Car, Home, Plane, ShieldCheck, Flag, X, ArrowDown, ArrowUp } from 'lucide-react';
 import { triggerHaptic, playSuccessChime } from '@/lib/ui/feedback';
 import { CalculadoraMetaModal } from '@/components/dashboard/CalculadoraMetaModal';
 
@@ -28,7 +28,7 @@ function getMetaColorAndIcon(nombre: string) {
 function AporteRapidoModal({
   isOpen, onClose, meta, tarjetasDebito
 }: {
-  isOpen: boolean; onClose: () => void; meta: MetaConEstado | null; tarjetasDebito: any[]
+  isOpen: boolean; onClose: () => void; meta: MetaConEstado | null; tarjetasDebito: TarjetaConEstado[]
 }) {
   const [montoAporte, setMontoAporte] = useState('');
   const [fechaAporte, setFechaAporte] = useState('');
@@ -41,6 +41,7 @@ function AporteRapidoModal({
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMontoAporte('');
       setFechaAporte(new Date().toISOString().split('T')[0]);
       setTarjetaOrigen('');
@@ -170,7 +171,7 @@ function AporteRapidoModal({
                   onChange={(val) => setApartadoId(val)}
                   options={[
                     { value: '', label: 'Balance general' },
-                    ...apartadosDeTarjeta.map((a: any) => ({
+                    ...apartadosDeTarjeta.map((a) => ({
                       value: a.id,
                       label: `${a.nombre}`
                     }))
@@ -205,6 +206,7 @@ function EditarMetaModal({ isOpen, onClose, meta }: { isOpen: boolean; onClose: 
 
   useEffect(() => {
     if (isOpen && meta) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNombre(meta.nombre);
       setCosto(String(meta.costoObjetivo));
       setFechaObj(meta.fechaObjetivo || '');
@@ -347,6 +349,7 @@ function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNombre('');
       setCosto('');
       setFechaObj('');
@@ -445,7 +448,7 @@ export function MetasView() {
       )}
 
       <div className="flex flex-col gap-0">
-        {metas.map((m, i) => (
+        {metas.map((m) => (
           <MetaRow 
             key={m.id} 
             meta={m} 

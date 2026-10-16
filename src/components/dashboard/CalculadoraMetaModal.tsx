@@ -56,8 +56,8 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
       const ultimo = meta.aportes[0];
       const srcId = ultimo.apartadoId || ultimo.tarjetaOrigenId;
       if (srcId && opcionesFuentes.some(o => o.value === srcId)) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setFuenteId(srcId);
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setFuenteId(srcId);
       }
     }
   }, [isOpen, meta.aportes, opcionesFuentes]);
@@ -68,9 +68,7 @@ export function CalculadoraMetaModal({ isOpen, onClose, meta, tarjetasDebito }: 
     if (isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTargetDate(meta.fechaObjetivo || '');
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAporteCantidad('');
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAporteFrecuencia('mensual');
     }
   }, [isOpen, meta.fechaObjetivo]);
