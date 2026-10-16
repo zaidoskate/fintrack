@@ -1,11 +1,5 @@
 'use client';
 
-/**
- * MetasView — Motor de Metas FR-15 a FR-19 con CRUD completo.
- * GlassCard por meta, progreso circular, aportes y creación/edición/eliminación.
- * Usa useMetas(), useCrearMeta(), useAportarMeta(), useEliminarMeta() — NFR-06b.
- */
-
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -14,359 +8,333 @@ import {
 } from '@/lib/hooks';
 import { GlassCard, ConfirmModal, GlassSelect } from '@/components/ui';
 import type { MetaConEstado } from '@/lib/types';
-import { Pencil, Trash, Calculator } from 'lucide-react';
+import { Pencil, Trash, Calculator, Plus, Car, Home, Plane, ShieldCheck, Flag, X, ArrowDown, ArrowUp } from 'lucide-react';
 import { triggerHaptic, playSuccessChime } from '@/lib/ui/feedback';
 import { CalculadoraMetaModal } from '@/components/dashboard/CalculadoraMetaModal';
 
 const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 });
 
-/* ── Barra de progreso ──────────────────────────────────────────────────────── */
-function ProgressBar({ pct }: { pct: number }) {
-  const clipped = Math.min(pct, 100);
-  const color = clipped >= 100 ? 'var(--credito-verde)' : clipped >= 50 ? 'var(--brand)' : 'var(--credito-amarillo)';
-  return (
-    <div style={{ position: 'relative', height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden', margin: '12px 0 6px' }}>
-      <div style={{ height: '100%', width: `${clipped}%`, background: color, borderRadius: '3px', transition: 'width 0.6s ease' }} />
-    </div>
-  );
+// Avatar color map based on goal name
+function getMetaColorAndIcon(nombre: string) {
+  const n = nombre.toLowerCase();
+  if (n.includes('auto') || n.includes('coche') || n.includes('moto')) return { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: Car };
+  if (n.includes('casa') || n.includes('hogar') || n.includes('depa')) return { bg: 'bg-emerald-500/10', text: 'text-emerald-400', icon: Home };
+  if (n.includes('viaje') || n.includes('vuelo') || n.includes('vacaciones')) return { bg: 'bg-amber-500/10', text: 'text-amber-400', icon: Plane };
+  if (n.includes('emergencia') || n.includes('salud') || n.includes('fondo')) return { bg: 'bg-rose-500/10', text: 'text-rose-400', icon: ShieldCheck };
+  return { bg: 'bg-purple-500/10', text: 'text-purple-400', icon: Flag };
 }
 
-/* ── Card individual de meta ────────────────────────────────────────────────── */
-function MetaCard({ meta, onOpenCalculadora }: { meta: MetaConEstado; onOpenCalculadora: (m: MetaConEstado) => void }) {
-  const [aportando, setAportando] = useState(false);
+/* ── Modal rápido de Aporte ────────────────────────────────────────────────── */
+function AporteRapidoModal({
+  isOpen, onClose, meta, tarjetasDebito
+}: {
+  isOpen: boolean; onClose: () => void; meta: MetaConEstado | null; tarjetasDebito: any[]
+}) {
   const [montoAporte, setMontoAporte] = useState('');
-  const [editando, setEditando] = useState(false);
-  const [nombreEdit, setNombreEdit] = useState(meta.nombre);
-  const [costoEdit, setCostoEdit] = useState(String(meta.costoObjetivo));
-  const [fechaObjEdit, setFechaObjEdit] = useState(meta.fechaObjetivo || '');
+  const [fechaAporte, setFechaAporte] = useState('');
+  const [tarjetaOrigen, setTarjetaOrigen] = useState('');
+  const [apartadoId, setApartadoId] = useState('');
   const [modoAccion, setModoAccion] = useState<'Aportar' | 'Retirar'>('Aportar');
 
   const { mutate: aportar, isPending: aportaPending } = useAportarMeta();
   const { mutate: retirar, isPending: retiraPending } = useRetirarDeMeta();
-  const { mutate: editar, isPending: editPending } = useEditarMeta();
-  const { mutate: eliminar } = useEliminarMeta();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   useEffect(() => {
-    if (!editando) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setNombreEdit(meta.nombre);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCostoEdit(String(meta.costoObjetivo));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFechaObjEdit(meta.fechaObjetivo || '');
+    if (isOpen) {
+      setMontoAporte('');
+      setFechaAporte(new Date().toISOString().split('T')[0]);
+      setTarjetaOrigen('');
+      setApartadoId('');
+      setModoAccion('Aportar');
     }
-  }, [meta, editando]);
-  
-  const { data: tarjetas = [] } = useTarjetas();
-  const tarjetasDebito = tarjetas.filter(t => t.tipo === 'Débito');
-  
-  const [tarjetaOrigen, setTarjetaOrigen] = useState('');
-  const [apartadoId, setApartadoId] = useState('');
-  const [fechaAporte, setFechaAporte] = useState(new Date().toISOString().split('T')[0]);
+  }, [isOpen, meta]);
+
+  if (!isOpen || !meta) return null;
 
   const tarjetaSeleccionada = tarjetasDebito.find(t => t.id === tarjetaOrigen);
   const apartadosDeTarjeta = tarjetaSeleccionada?.apartados || [];
 
-  return (
-    <GlassCard
-      glow={meta.progreso >= 100 ? 'verde' : 'none'}
-      as="article"
-      style={{ overflow: 'visible', padding: '20px 24px', marginBottom: '16px' }}
-    >
-      {/* Cabecera */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        {editando ? (
-          <input
-            value={nombreEdit}
-            onChange={(e) => setNombreEdit(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '8px', padding: '4px 10px', color: 'var(--text-primary)', fontSize: '15px', flex: 1, marginRight: '8px' }}
-          />
-        ) : (
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: '16px', color: 'var(--text-primary)' }}>
-            {meta.nombre}
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button 
-            onClick={() => onOpenCalculadora(meta)} 
-            style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', padding: '4px' }} 
-            title="Simulador de ahorro"
-            aria-label="Simulador de ahorro"
-          >
-            <Calculator size={16} />
-          </button>
-          <button 
-            onClick={() => setEditando((v) => !v)} 
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} 
-            title="Editar"
-            aria-label="Editar meta"
-          >
-            <Pencil size={16} />
-          </button>
-          <button 
-            onClick={() => setShowDeleteConfirm(true)} 
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} 
-            title="Eliminar"
-            aria-label="Eliminar meta"
-          >
-            <Trash size={16} />
-          </button>
-        </div>
-      </div>
-
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        title={`¿Eliminar la meta ${meta.nombre}?`}
-        message="Esta acción no se puede deshacer y borrará todo el progreso registrado."
-        confirmText="Eliminar"
-        onConfirm={() => eliminar(meta.id)}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
-
-
-
-      {/* Barra de progreso */}
-      <ProgressBar pct={meta.progreso} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', flexWrap: 'wrap', gap: '8px' }}>
-        <span>{meta.progreso.toFixed(1)}% completado</span>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span>Meta: {editando ? (
-            <input
-              type="number"
-              value={costoEdit}
-              onChange={(e) => setCostoEdit(e.target.value)}
-              style={{ width: '80px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '6px', padding: '2px 6px', color: 'var(--text-primary)', fontSize: '11px', textAlign: 'right' }}
-            />
-          ) : fmt.format(meta.costoObjetivo)}</span>
-          
-          {editando && (
-            <input
-              type="date"
-              value={fechaObjEdit}
-              onChange={(e) => setFechaObjEdit(e.target.value)}
-              style={{ width: '110px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)', borderRadius: '6px', padding: '2px 6px', color: 'var(--text-primary)', fontSize: '11px' }}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Ahorro sugerido normal / Pill de simulador */}
-      {!editando && meta.progreso < 100 && (
-        <>
-          {meta.fechaObjetivo && meta.proyeccion.aportesMensualesPromedio > 0 ? (
-            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
-              Ahorro sugerido: {fmt.format(meta.proyeccion.aportesMensualesPromedio)}/mes 
-              {meta.proyeccion.fechaEstimadaCumplimiento && ` para alcanzarla el ${meta.proyeccion.fechaEstimadaCumplimiento}`}
-            </div>
-          ) : !meta.fechaObjetivo ? (
-            <button
-              onClick={() => onOpenCalculadora(meta)}
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px dashed var(--border-glass)',
-                borderRadius: '8px',
-                padding: '6px 10px',
-                fontSize: '11px',
-                color: 'var(--brand)',
-                cursor: 'pointer',
-                marginTop: '8px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Calculator size={12} /> Calcular plan de ahorro sugerido
-            </button>
-          ) : null}
-        </>
-      )}
-
-      {/* Ahorro sugerido dinámico (durante edición) */}
-      {editando && (
-        <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--brand)' }}>
-          {(() => {
-            const costoObjetivoNum = parseFloat(costoEdit) || 0;
-            const faltanteEdit = Math.max(0, costoObjetivoNum - meta.montoActual);
-            let sugerenciaMensualEdit = faltanteEdit;
-            let mesesStr = '';
-            
-            if (fechaObjEdit) {
-              const fechaObj = new Date(fechaObjEdit + 'T00:00:00');
-              const hoyTime = new Date().getTime();
-              const diffTime = Math.max(0, fechaObj.getTime() - hoyTime);
-              const mesesRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30.44));
-              if (mesesRestantes > 0) {
-                sugerenciaMensualEdit = faltanteEdit / mesesRestantes;
-                mesesStr = ` (en ${mesesRestantes} mes${mesesRestantes > 1 ? 'es' : ''})`;
-              }
-            }
-            
-            if (sugerenciaMensualEdit > 0 && faltanteEdit > 0) {
-              return <>Proyección ajustada: {fmt.format(sugerenciaMensualEdit)}/mes{mesesStr}</>;
-            }
-            return null;
-          })()}
-        </div>
-      )}
-
-      {/* Montos consolidados y compactos */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '12px' }}>
-        <div>
-          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '2px' }}>Ahorrado Total</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '18px', color: 'var(--text-primary)' }}>
-            {fmt.format(meta.montoActual)}
-          </div>
-        </div>
-        
-        {meta.rendimientoGenerado > 0 && (
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '2px' }}>Capital depositado</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              {fmt.format(meta.capitalAportado)}
-              <span style={{ color: 'var(--credito-verde)', marginLeft: '6px', fontWeight: 600 }}>
-                +{fmt.format(meta.rendimientoGenerado)}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Guardar edición */}
-      {editando && (
-        <button
-          onClick={() => {
-            editar({ id: meta.id, campos: { nombre: nombreEdit, costoObjetivo: parseFloat(costoEdit), fechaObjetivo: fechaObjEdit || null } });
-            setEditando(false);
+  const handleConfirm = () => {
+    const monto = parseFloat(montoAporte);
+    if (monto > 0) {
+      if (modoAccion === 'Aportar') {
+        aportar(
+          { id: meta.id, monto, tarjetaId: tarjetaOrigen || undefined, apartadoId: apartadoId || undefined, fecha: fechaAporte }, 
+          { onSuccess: () => { 
+              triggerHaptic('success');
+              playSuccessChime();
+              onClose();
+          } }
+        );
+      } else {
+        retirar(
+          { id: meta.id, monto },
+          { onSuccess: () => {
+              triggerHaptic('success');
+              onClose();
           }}
-          disabled={editPending}
-          style={{ ...btnPrimary, marginTop: '12px', width: '100%' }}
-        >
-          {editPending ? 'Guardando…' : 'Guardar cambios'}
-        </button>
-      )}
+        )
+      }
+    }
+  };
 
-      {/* Sección de aporte */}
-      {!editando && meta.progreso < 100 && (
-        <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
-          {aportando ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px', textAlign: 'center' }}>
-                {modoAccion === 'Aportar' ? 'Aportar a Meta' : 'Retirar de Meta'}
-              </div>
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      >
+        <div className="absolute inset-0" onClick={onClose} />
+        <motion.div
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+          className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-3xl sm:rounded-3xl p-5 shadow-2xl"
+        >
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-semibold text-white">
+              Movimiento a {meta.nombre}
+            </h3>
+            <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="flex bg-zinc-950 p-1 rounded-xl mb-5">
+            <button
+              onClick={() => setModoAccion('Aportar')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${modoAccion === 'Aportar' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-500'}`}
+            >
+              <ArrowUp size={16} /> Aportar
+            </button>
+            <button
+              onClick={() => setModoAccion('Retirar')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${modoAccion === 'Retirar' ? 'bg-rose-500/20 text-rose-400' : 'text-zinc-500'}`}
+            >
+              <ArrowDown size={16} /> Retirar
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-xs text-zinc-400 ml-1 mb-1 block">Monto</label>
               <input
                 type="number"
-                placeholder={modoAccion === 'Aportar' ? "Monto a aportar" : "Monto a retirar"}
+                placeholder="0.00"
                 value={montoAporte}
                 onChange={(e) => setMontoAporte(e.target.value)}
-                style={inputStyle}
+                className="w-full bg-zinc-800/50 border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 outline-none focus:border-brand/50"
                 min="1"
                 max={modoAccion === 'Retirar' ? meta.montoActual : undefined}
               />
+            </div>
+
+            <div>
+              <label className="text-xs text-zinc-400 ml-1 mb-1 block">Fecha</label>
               <input
                 type="date"
                 value={fechaAporte}
                 onChange={(e) => setFechaAporte(e.target.value)}
-                style={inputStyle}
+                className="w-full bg-zinc-800/50 border border-white/5 rounded-xl px-4 py-3 text-white outline-none focus:border-brand/50 [color-scheme:dark]"
               />
-              {modoAccion === 'Aportar' && tarjetasDebito.length > 0 && (
-                <div style={{ position: 'relative', zIndex: 30 }}>
-                  <GlassSelect
-                    value={tarjetaOrigen}
-                    onChange={(val) => {
-                      setTarjetaOrigen(val);
-                      setApartadoId(''); // reset apartado al cambiar de tarjeta
-                    }}
-                    options={[
-                      { value: '', label: 'Sin tarjeta (efectivo)' },
-                      ...tarjetasDebito.map(t => ({
-                        value: t.id,
-                        label: `${t.nombre} ${t.rendimientoAnual > 0 ? `(${t.rendimientoAnual}% APY)` : ''}`
-                      }))
-                    ]}
-                    placeholder="Selecciona tarjeta"
-                  />
-                </div>
-              )}
-              {modoAccion === 'Aportar' && apartadosDeTarjeta.length > 0 && (
-                <div style={{ position: 'relative', zIndex: 20 }}>
-                  <GlassSelect
-                    value={apartadoId}
-                    onChange={(val) => setApartadoId(val)}
-                    options={[
-                      { value: '', label: 'Balance general (sin apartado)' },
-                      ...apartadosDeTarjeta.map(a => ({
-                        value: a.id,
-                        label: `${a.nombre} (${a.rendimientoAnual}% APY)`
-                      }))
-                    ]}
-                    placeholder="Selecciona apartado"
-                  />
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                <button
-                  onClick={() => {
-                    const monto = parseFloat(montoAporte);
-                    if (monto > 0) {
-                      if (modoAccion === 'Aportar') {
-                        aportar(
-                          { id: meta.id, monto, tarjetaId: tarjetaOrigen || undefined, apartadoId: apartadoId || undefined, fecha: fechaAporte }, 
-                          { onSuccess: () => { 
-                              triggerHaptic('success');
-                              playSuccessChime();
-                              setAportando(false); 
-                              setMontoAporte(''); 
-                              setTarjetaOrigen(''); 
-                              setApartadoId(''); 
-                          } }
-                        );
-                      } else {
-                        retirar(
-                          { id: meta.id, monto },
-                          { onSuccess: () => {
-                              triggerHaptic('success');
-                              setAportando(false);
-                              setMontoAporte('');
-                          }}
-                        )
-                      }
-                    }
+            </div>
+
+            {modoAccion === 'Aportar' && tarjetasDebito.length > 0 && (
+              <div className="relative z-30">
+                <label className="text-xs text-zinc-400 ml-1 mb-1 block">Origen</label>
+                <GlassSelect
+                  value={tarjetaOrigen}
+                  onChange={(val) => {
+                    setTarjetaOrigen(val);
+                    setApartadoId('');
                   }}
-                  disabled={(modoAccion === 'Aportar' ? aportaPending : retiraPending) || !montoAporte}
-                  style={{ ...btnPrimary, flex: 1, background: modoAccion === 'Retirar' ? 'var(--text-primary)' : 'var(--brand)' }}
-                >
-                  {(modoAccion === 'Aportar' ? aportaPending : retiraPending) ? '…' : (modoAccion === 'Aportar' ? 'Confirmar Aporte' : 'Confirmar Retiro')}
-                </button>
-                <button onClick={() => setAportando(false)} style={btnMuted}>Cancelar</button>
+                  options={[
+                    { value: '', label: 'Efectivo / Sin tarjeta' },
+                    ...tarjetasDebito.map(t => ({
+                      value: t.id,
+                      label: `${t.nombre} ${t.rendimientoAnual > 0 ? `(${t.rendimientoAnual}% APY)` : ''}`
+                    }))
+                  ]}
+                  placeholder="Selecciona origen"
+                />
               </div>
+            )}
+            
+            {modoAccion === 'Aportar' && apartadosDeTarjeta.length > 0 && (
+              <div className="relative z-20">
+                <GlassSelect
+                  value={apartadoId}
+                  onChange={(val) => setApartadoId(val)}
+                  options={[
+                    { value: '', label: 'Balance general' },
+                    ...apartadosDeTarjeta.map((a: any) => ({
+                      value: a.id,
+                      label: `${a.nombre}`
+                    }))
+                  ]}
+                  placeholder="Selecciona apartado"
+                />
+              </div>
+            )}
+
+            <button
+              onClick={handleConfirm}
+              disabled={(modoAccion === 'Aportar' ? aportaPending : retiraPending) || !montoAporte}
+              className={`w-full py-3.5 rounded-xl text-zinc-950 font-bold text-[15px] transition-opacity mt-2 ${modoAccion === 'Retirar' ? 'bg-rose-400' : 'bg-brand'} ${(aportaPending || retiraPending || !montoAporte) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {(modoAccion === 'Aportar' ? aportaPending : retiraPending) ? 'Procesando…' : (modoAccion === 'Aportar' ? 'Confirmar Aporte' : 'Confirmar Retiro')}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+/* ── Modal de Edición ───────────────────────────────────────────────────────── */
+function EditarMetaModal({ isOpen, onClose, meta }: { isOpen: boolean; onClose: () => void; meta: MetaConEstado | null }) {
+  const [nombre, setNombre] = useState('');
+  const [costo, setCosto] = useState('');
+  const [fechaObj, setFechaObj] = useState('');
+  const { mutate: editar, isPending } = useEditarMeta();
+  const { mutate: eliminar } = useEliminarMeta();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && meta) {
+      setNombre(meta.nombre);
+      setCosto(String(meta.costoObjetivo));
+      setFechaObj(meta.fechaObjetivo || '');
+      setShowDeleteConfirm(false);
+    }
+  }, [isOpen, meta]);
+
+  if (!isOpen || !meta) return null;
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nombre || !costo) return;
+    editar(
+      { id: meta.id, campos: { nombre, costoObjetivo: parseFloat(costo), fechaObjetivo: fechaObj || null } },
+      { onSuccess: onClose }
+    );
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      >
+        <div className="absolute inset-0" onClick={onClose} />
+        <GlassCard className="relative w-full max-w-sm p-6 z-10">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="font-display text-lg text-white">Editar Meta</h2>
+            <button onClick={() => setShowDeleteConfirm(true)} className="p-2 bg-rose-500/10 text-rose-400 rounded-full">
+              <Trash size={16} />
+            </button>
+          </div>
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <input required placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none" />
+            <input required type="number" placeholder="Costo" value={costo} onChange={(e) => setCosto(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none" min="1" />
+            <div>
+              <label className="text-xs text-zinc-400 ml-1 mb-1 block">Fecha objetivo</label>
+              <input type="date" value={fechaObj} onChange={(e) => setFechaObj(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none [color-scheme:dark]" />
             </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                onClick={() => { setModoAccion('Aportar'); setAportando(true); }} 
-                style={{ ...btnSecondary, flex: 1, background: 'rgba(250, 104, 111, 0.1)', color: 'var(--brand)', border: '1px solid var(--brand)' }}
-              >
-                Aportar
+            <div className="flex gap-3 mt-2">
+              <button type="submit" disabled={isPending} className="flex-1 bg-brand text-zinc-950 font-bold py-3 rounded-xl">
+                {isPending ? 'Guardando…' : 'Guardar'}
               </button>
-              {meta.montoActual > 0 && (
-                <button 
-                  onClick={() => { setModoAccion('Retirar'); setAportando(true); }} 
-                  style={{ ...btnSecondary, flex: 1 }}
-                >
-                  Retirar
-                </button>
-              )}
+              <button type="button" onClick={onClose} className="flex-1 bg-white/5 text-zinc-300 font-medium py-3 rounded-xl border border-white/10">Cancelar</button>
             </div>
-          )}
+          </form>
+        </GlassCard>
+
+        {showDeleteConfirm && (
+          <ConfirmModal
+            isOpen={true}
+            title={`¿Eliminar ${meta.nombre}?`}
+            message="Esta acción no se puede deshacer y borrará todo el progreso."
+            confirmText="Eliminar"
+            isDestructive
+            onConfirm={() => {
+              eliminar(meta.id);
+              setShowDeleteConfirm(false);
+              onClose();
+            }}
+            onCancel={() => setShowDeleteConfirm(false)}
+          />
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+/* ── Card modular de meta (74px) ────────────────────────────────────────────── */
+function MetaRow({ meta, onAporte, onEdit, onCalculadora }: { meta: MetaConEstado; onAporte: (m: MetaConEstado) => void; onEdit: (m: MetaConEstado) => void; onCalculadora: (m: MetaConEstado) => void }) {
+  const { bg, text, icon: Icon } = getMetaColorAndIcon(meta.nombre);
+  const isCompleted = meta.progreso >= 100;
+  
+  return (
+    <div className="h-[74px] px-4 rounded-2xl bg-zinc-900/60 border border-white/10 flex items-center justify-between gap-3 mb-2.5 backdrop-blur-md overflow-hidden relative">
+      {/* ProgressBar inside Row */}
+      <div className="absolute bottom-0 left-0 h-1 bg-zinc-800/50 w-full">
+        <div className={`h-full ${isCompleted ? 'bg-emerald-400' : 'bg-brand'}`} style={{ width: `${Math.min(meta.progreso, 100)}%` }} />
+      </div>
+
+      <div className="flex items-center gap-3 overflow-hidden flex-1" onClick={() => onEdit(meta)}>
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${bg} ${text}`}>
+          <Icon size={20} />
         </div>
-      )}
-      {!editando && meta.progreso >= 100 && (
-        <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--credito-verde)' }}>
-          Meta cumplida
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="text-sm font-semibold text-zinc-100 truncate">
+            {meta.nombre}
+          </div>
+          <div className="text-xs text-zinc-400 truncate">
+            {meta.proyeccion.aportesMensualesPromedio > 0 
+              ? `Sugerido: ${fmt.format(meta.proyeccion.aportesMensualesPromedio)}/mes`
+              : `${meta.progreso.toFixed(1)}% completado`
+            }
+            {meta.fechaObjetivo && meta.proyeccion.fechaEstimadaCumplimiento && ` • Hasta ${meta.proyeccion.fechaEstimadaCumplimiento.substring(0,3)}`}
+          </div>
         </div>
-      )}
-    </GlassCard>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-col items-end mr-1">
+          <div className="font-mono tabular-nums text-sm font-medium text-zinc-100 flex items-baseline gap-1">
+            {fmt.format(meta.capitalAportado)}
+            {meta.rendimientoGenerado > 0 && (
+              <span className="text-sm font-medium text-emerald-400">+ {fmt.format(meta.rendimientoGenerado)}</span>
+            )}
+          </div>
+          <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1">
+            de {fmt.format(meta.costoObjetivo)}
+          </div>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onCalculadora(meta); }}
+          aria-label="Simular meta"
+          className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 text-zinc-300 flex items-center justify-center transition-all shrink-0"
+        >
+          <Calculator size={16} />
+        </button>
+        {!isCompleted && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAporte(meta); }}
+            aria-label="Aporte rápido"
+            className="w-8 h-8 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 text-emerald-400 flex items-center justify-center transition-all shrink-0"
+          >
+            <Plus size={16} />
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -379,7 +347,6 @@ function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 
   useEffect(() => {
     if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNombre('');
       setCosto('');
       setFechaObj('');
@@ -402,36 +369,23 @@ function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-            background: 'rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(4px)',
-          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         >
-          <div style={{ position: 'absolute', inset: 0 }} onClick={onClose} />
-          
-          <GlassCard style={{ width: '100%', maxWidth: '380px', padding: '24px', zIndex: 1, marginBottom: 0 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', color: 'var(--text-primary)', marginBottom: '20px' }}>
-              Nueva meta
-            </h2>
-            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <input required placeholder="Nombre de la meta" value={nombre} onChange={(e) => setNombre(e.target.value)} style={inputStyle} />
-              <input required type="number" placeholder="Costo objetivo (MXN)" value={costo} onChange={(e) => setCosto(e.target.value)} style={inputStyle} min="1" />
+          <div className="absolute inset-0" onClick={onClose} />
+          <GlassCard className="relative w-full max-w-sm p-6 z-10">
+            <h2 className="font-display text-lg text-white mb-5">Nueva meta</h2>
+            <form onSubmit={submit} className="flex flex-col gap-4">
+              <input required placeholder="Nombre de la meta" value={nombre} onChange={(e) => setNombre(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none" />
+              <input required type="number" placeholder="Costo objetivo (MXN)" value={costo} onChange={(e) => setCosto(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none" min="1" />
               <div>
-                <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Fecha objetivo (Opcional)</label>
-                <input type="date" value={fechaObj} onChange={(e) => setFechaObj(e.target.value)} style={inputStyle} />
+                <label className="text-xs text-zinc-400 ml-1 mb-1 block">Fecha objetivo (Opcional)</label>
+                <input type="date" value={fechaObj} onChange={(e) => setFechaObj(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none [color-scheme:dark]" />
               </div>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button type="submit" disabled={isPending} style={{ ...btnPrimary, flex: 1 }}>
+              <div className="flex gap-3 mt-2">
+                <button type="submit" disabled={isPending} className="flex-1 bg-brand text-zinc-950 font-bold py-3 rounded-xl">
                   {isPending ? 'Creando…' : 'Crear meta'}
                 </button>
-                <button type="button" onClick={onClose} style={{ ...btnSecondary, flex: 1 }}>Cancelar</button>
+                <button type="button" onClick={onClose} className="flex-1 bg-white/5 text-zinc-300 font-medium py-3 rounded-xl border border-white/10">Cancelar</button>
               </div>
             </form>
           </GlassCard>
@@ -444,38 +398,63 @@ function NuevaMetaForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 /* ── Vista principal ────────────────────────────────────────────────────────── */
 export function MetasView() {
   const [creando, setCreando] = useState(false);
+  const [metaAporte, setMetaAporte] = useState<MetaConEstado | null>(null);
+  const [metaEdit, setMetaEdit] = useState<MetaConEstado | null>(null);
   const [metaParaSimulador, setMetaParaSimulador] = useState<MetaConEstado | null>(null);
   const { data: metas = [], isLoading, error } = useMetas();
   const { data: tarjetas = [] } = useTarjetas();
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: '26px', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            Metas
-          </h1>
-        </div>
-        <button onClick={() => setCreando(true)} style={btnPrimary}>+ Nueva</button>
+    <div className="pb-8">
+      <div className="flex justify-between items-end mb-6">
+        <h1 className="font-display font-medium text-[26px] tracking-tight text-white">
+          Metas
+        </h1>
+        <button onClick={() => setCreando(true)} className="bg-brand text-zinc-950 font-semibold px-4 py-2 rounded-xl text-sm">
+          + Nueva
+        </button>
       </div>
 
       <NuevaMetaForm isOpen={creando} onClose={() => setCreando(false)} />
+      
+      <AporteRapidoModal 
+        isOpen={metaAporte !== null} 
+        onClose={() => setMetaAporte(null)} 
+        meta={metaAporte} 
+        tarjetasDebito={tarjetas.filter(t => t.tipo === 'Débito')} 
+      />
 
-      {isLoading && <div style={{ height: '120px', borderRadius: '22px', background: 'var(--surface-glass)', border: '1px solid var(--border-glass)', animation: 'pulse 1.5s ease-in-out infinite' }} />}
+      <EditarMetaModal
+        isOpen={metaEdit !== null}
+        onClose={() => setMetaEdit(null)}
+        meta={metaEdit}
+      />
 
-      {error && <GlassCard glow="rojo" style={{ padding: '16px 20px' }}><p style={{ color: 'var(--credito-rojo)', fontSize: '14px' }}>Error: {error.message}</p></GlassCard>}
+      {isLoading && <div className="h-20 rounded-2xl bg-zinc-900/50 border border-white/5 animate-pulse" />}
+
+      {error && (
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4">
+          <p className="text-rose-400 text-sm">Error: {error.message}</p>
+        </div>
+      )}
 
       {!isLoading && !error && metas.length === 0 && !creando && (
-        <GlassCard style={{ padding: '40px 24px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Aún no tienes metas. Toca <strong>+ Nueva</strong> para empezar.</p>
+        <GlassCard className="p-10 text-center">
+          <p className="text-zinc-400 text-sm">Aún no tienes metas. Toca <strong className="text-white">+ Nueva</strong> para empezar.</p>
         </GlassCard>
       )}
 
-      {metas.map((m, i) => (
-        <div key={m.id} style={{ position: 'relative', zIndex: metas.length - i }}>
-          <MetaCard meta={m} onOpenCalculadora={(m) => setMetaParaSimulador(m)} />
-        </div>
-      ))}
+      <div className="flex flex-col gap-0">
+        {metas.map((m, i) => (
+          <MetaRow 
+            key={m.id} 
+            meta={m} 
+            onAporte={setMetaAporte} 
+            onEdit={setMetaEdit} 
+            onCalculadora={setMetaParaSimulador} 
+          />
+        ))}
+      </div>
 
       {metaParaSimulador && (
         <CalculadoraMetaModal
@@ -488,45 +467,3 @@ export function MetasView() {
     </div>
   );
 }
-
-/* ── Estilos comunes ─────────────────────────────────────────────────────────── */
-const inputStyle: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid var(--border-glass)',
-  borderRadius: '10px',
-  padding: '10px 14px',
-  color: 'var(--text-primary)',
-  fontSize: '14px',
-  outline: 'none',
-  flex: 1,
-};
-
-const btnPrimary: React.CSSProperties = {
-  background: 'var(--brand)',
-  border: 'none',
-  borderRadius: '10px',
-  padding: '10px 18px',
-  color: '#1a0a0b',
-  fontSize: '14px',
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const btnSecondary: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid var(--border-glass)',
-  borderRadius: '10px',
-  padding: '10px 16px',
-  color: 'var(--text-secondary)',
-  fontSize: '14px',
-  cursor: 'pointer',
-};
-
-const btnMuted: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: 'var(--text-muted)',
-  cursor: 'pointer',
-  fontSize: '15px',
-  padding: '2px 4px',
-};

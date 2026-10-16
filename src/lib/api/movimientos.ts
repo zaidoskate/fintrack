@@ -19,6 +19,8 @@ function rowToMovimiento(row: MovimientoRow): Movimiento {
     hora:       row.hora.substring(0, 5), // HH:MM
     tipo:       row.tipo,
     monto:      Number(row.monto),
+    montoPropio: row.monto_propio != null ? Number(row.monto_propio) : undefined,
+    esGastoDeTercero: row.es_gasto_de_tercero ?? false,
     categoria:  row.categoria,
     comercio:   row.comercio,
     metodoPago: row.tarjetas?.nombre ?? 'Efectivo',
@@ -66,8 +68,9 @@ export async function getGastosPorCategoria(desde: string) {
   const movs = await getMovimientos({ desde, limit: 5000 });
   const map: Record<string, number> = {};
   for (const m of movs) {
-    if (m.tipo === 'Gasto' && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria)) {
-      map[m.categoria] = (map[m.categoria] || 0) + m.monto;
+    if (m.tipo === 'Gasto' && !m.esGastoDeTercero && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria)) {
+      const valorGasto = m.montoPropio ?? m.monto;
+      map[m.categoria] = (map[m.categoria] || 0) + valorGasto;
     }
   }
   return Object.entries(map)
@@ -77,18 +80,25 @@ export async function getGastosPorCategoria(desde: string) {
 
 export async function getFlujoPorMes(desde: string) {
   const movs = await getMovimientos({ desde, limit: 5000 });
-  const map: Record<string, { ingresos: number; gastos: number }> = {};
+  const map: Record<string, { ingresos: number; gastos: number; gastosFijos: number; gastosVariables: number }> = {};
+  const fijosCat = ['Vivienda', 'Servicios', 'Suscripciones', 'Deudas', 'Seguros'];
   for (const m of movs) {
     const mes = m.fecha.substring(0, 7); // YYYY-MM
-    if (!map[mes]) map[mes] = { ingresos: 0, gastos: 0 };
+    if (!map[mes]) map[mes] = { ingresos: 0, gastos: 0, gastosFijos: 0, gastosVariables: 0 };
     if (m.tipo === 'Ingreso' && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria)) {
       map[mes].ingresos += m.monto;
-    } else if (m.tipo === 'Gasto' && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria)) {
-      map[mes].gastos += m.monto;
+    } else if (m.tipo === 'Gasto' && !m.esGastoDeTercero && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria)) {
+      const valorGasto = m.montoPropio ?? m.monto;
+      map[mes].gastos += valorGasto;
+      if (fijosCat.includes(m.categoria)) {
+        map[mes].gastosFijos += valorGasto;
+      } else {
+        map[mes].gastosVariables += valorGasto;
+      }
     }
   }
   return Object.entries(map)
-    .map(([mes, vals]) => ({ mes, ingresos: vals.ingresos, gastos: vals.gastos }))
+    .map(([mes, vals]) => ({ mes, ingresos: vals.ingresos, gastos: vals.gastos, gastosFijos: vals.gastosFijos, gastosVariables: vals.gastosVariables }))
     .sort((a, b) => a.mes.localeCompare(b.mes));
 }
 
@@ -98,9 +108,16 @@ export interface NuevoMovimientoInput {
   fecha: string;
   tipo: 'Gasto' | 'Ingreso';
   monto: number;
+  montoPropio?: number | null;
+  esGastoDeTercero?: boolean;
   categoria: string;
   comercio: string;
   tarjetaId: string | null;
+  cuentaPorCobrar?: {
+    deudor: string;
+    concepto: string;
+    montoTotal: number;
+  };
 }
 
 /** Crea un movimiento para el usuario autenticado. */
@@ -115,12 +132,28 @@ export async function crearMovimiento(mov: NuevoMovimientoInput) {
     hora: new Date().toTimeString().substring(0, 8),
     tipo: mov.tipo,
     monto: mov.monto,
+    monto_propio: mov.montoPropio ?? null,
+    es_gasto_de_tercero: mov.esGastoDeTercero ?? false,
     categoria: mov.categoria,
     comercio: mov.comercio,
     tarjeta_id: mov.tarjetaId,
   }).select('*, tarjetas(nombre)').single();
 
   if (error) throw error;
+
+  if (mov.cuentaPorCobrar) {
+    await supabase.from('cuentas_por_cobrar').insert({
+      user_id: user.id,
+      movimiento_id: data.id,
+      deudor: mov.cuentaPorCobrar.deudor,
+      concepto: mov.cuentaPorCobrar.concepto,
+      monto_total: mov.cuentaPorCobrar.montoTotal,
+      monto_saldado: 0,
+      estado: 'pendiente',
+      fecha: mov.fecha
+    });
+  }
+
   return rowToMovimiento(data);
 }
 
@@ -128,6 +161,7 @@ export interface EditarMovimientoInput {
   fecha?: string;
   tipo?: 'Gasto' | 'Ingreso';
   monto?: number;
+  esGastoDeTercero?: boolean;
   categoria?: string;
   comercio?: string;
   tarjetaId?: string | null;
@@ -137,6 +171,10 @@ export interface EditarMovimientoInput {
 export async function editarMovimiento(id: string, mov: EditarMovimientoInput) {
   const supabase = createClient();
   const updatePayload: Record<string, unknown> = { ...mov };
+  if ('esGastoDeTercero' in mov) {
+    updatePayload.es_gasto_de_tercero = mov.esGastoDeTercero ?? false;
+    delete updatePayload.esGastoDeTercero;
+  }
   if ('tarjetaId' in mov) {
     updatePayload.tarjeta_id = mov.tarjetaId;
     delete updatePayload.tarjetaId;

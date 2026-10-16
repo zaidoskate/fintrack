@@ -1,19 +1,17 @@
 'use client';
 
 /**
- * TarjetaCard — FR-09 a FR-14 + FR-31.
- * Muestra el termómetro de crédito de una tarjeta con GlassCard + StatusPill.
- * Incluye sección expandible de compras MSI activas de esa tarjeta (FR-31).
+ * TarjetaCard — FR-09 a FR-14.
+ * Tarjeta minimalista: nombre + acciones, saldo actual, disponible y termómetro de uso.
+ * MSI y apartados se muestran en el submenú de la vista principal (MsiApartadosPanel).
  *
- * Toda la data viene del hook useTarjetas() + useComprasMSI() —
- * NFR-06b: ningún fetch directo aquí.
+ * Toda la data viene del hook useTarjetas() — NFR-06b: ningún fetch directo aquí.
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { GlassCard, StatusPill, ConfirmModal } from '@/components/ui';
-import type { TarjetaConEstado, CompraMSI, MetaConEstado } from '@/lib/types';
-import { Pencil, Trash, ArrowRightLeft, FastForward, RefreshCcw } from 'lucide-react';
-import { useAdelantarCompraMSI } from '@/lib/hooks';
+import { GlassCard, ConfirmModal } from '@/components/ui';
+import type { TarjetaConEstado } from '@/lib/types';
+import { Pencil, Trash, RefreshCcw } from 'lucide-react';
 
 /* Formatea monto MXN (es-MX, formato moneda sin decimales si son .00) */
 const fmt = new Intl.NumberFormat('es-MX', {
@@ -31,27 +29,19 @@ function fmtFecha(iso: string): string {
 
 interface TarjetaCardProps {
   tarjeta: TarjetaConEstado;
-  comprasMSI: CompraMSI[];
-  metas?: MetaConEstado[];
   showFlags?: boolean;
   variant?: 'full' | 'compact';
   showBalance?: boolean;
   onEdit?: (tarjeta: TarjetaConEstado) => void;
   onDelete?: (tarjetaId: string) => void;
   onViewDetails?: (tarjeta: TarjetaConEstado) => void;
-  onAddApartado?: (tarjeta: TarjetaConEstado) => void;
-  onMoveApartado?: (apartadoId: string, maxRetiro: number, maxIngreso: number) => void;
   onAjustarSaldo?: (tarjeta: TarjetaConEstado) => void;
 }
 
-export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true, variant = 'full', showBalance = true, onEdit, onDelete, onViewDetails, onAddApartado, onMoveApartado, onAjustarSaldo }: TarjetaCardProps) {
-  const [msiOpen, setMsiOpen] = useState(false);
-  const [metasOpen, setMetasOpen] = useState(false);
-  const [apartadosOpen, setApartadosOpen] = useState(false);
+const iconBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' };
+
+export function TarjetaCard({ tarjeta, showFlags = true, variant = 'full', showBalance = true, onEdit, onDelete, onViewDetails, onAjustarSaldo }: TarjetaCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [adelantarMSI, setAdelantarMSI] = useState<string | null>(null);
-  const [adelantarMeses, setAdelantarMeses] = useState(1);
-  const [adelantarDescuento, setAdelantarDescuento] = useState(0);
 
   // Efecto Tilt 3D
   const cardRef = useRef<HTMLElement>(null);
@@ -60,8 +50,6 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
   useEffect(() => {
     const handleOrientation = (e: DeviceOrientationEvent) => {
       if (e.gamma !== null && e.beta !== null) {
-        // gamma: izquierda/derecha (-90 a 90)
-        // beta: adelante/atrás (-180 a 180)
         const x = Math.min(Math.max((e.gamma + 90) / 1.8, 0), 100);
         const y = Math.min(Math.max((e.beta + 90) / 1.8, 0), 100);
         setGlarePos({ x, y, opacity: 0.15 });
@@ -90,43 +78,22 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
     setGlarePos(prev => ({ ...prev, opacity: 0 }));
   };
 
-  const { mutate: adelantar, isPending: isAdelantando } = useAdelantarCompraMSI();
-
-  const msiActivas = comprasMSI.filter((m) => m.mesesRestantes > 0);
   const esCredito = tarjeta.tipo === 'Crédito';
-  const apartados = tarjeta.apartados || [];
-
-  let totalAportado = 0;
-  const desgloseMetas: { metaNombre: string; monto: number; id: string }[] = [];
-
-  if (!esCredito && metas.length > 0) {
-    metas.forEach(meta => {
-      let aportadoAEstaMeta = 0;
-      meta.aportes.forEach(aporte => {
-        if (aporte.tarjetaOrigenId === tarjeta.id) {
-          aportadoAEstaMeta += aporte.monto;
-          totalAportado += aporte.monto;
-        }
-      });
-      if (aportadoAEstaMeta > 0) {
-        desgloseMetas.push({ metaNombre: meta.nombre, monto: aportadoAEstaMeta, id: meta.id });
-      }
-    });
-  }
+  const saldoActual = esCredito ? tarjeta.gastosPeriodoActual : tarjeta.disponible;
+  const mask = (n: number) => (showBalance ? fmt.format(n) : '••••');
 
   return (
     <GlassCard
       ref={cardRef}
       glow={(!showFlags || !esCredito) ? 'none' : tarjeta.estadoTermometro === 'verde' ? 'none' : tarjeta.estadoTermometro}
       as="article"
-      style={{ 
-        padding: variant === 'compact' ? '16px' : '24px', 
+      className="w-full relative rounded-2xl border border-white/15 shadow-2xl transition-transform h-[190px] overflow-hidden"
+      style={{
+        background: `linear-gradient(135deg, ${tarjeta.color === 'blue' ? '#0f172a, #1e3a8a' : tarjeta.color === 'green' ? '#064e3b, #047857' : tarjeta.color === 'purple' ? '#2e1065, #581c87' : tarjeta.color === 'red' ? '#450a0a, #991b1b' : '#09090b, #18181b'})`,
+        padding: '16px 20px',
         cursor: onViewDetails ? 'pointer' : 'default',
-        height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        position: 'relative',
-        overflow: 'hidden'
       }}
       onClick={() => onViewDetails?.(tarjeta)}
       onMouseMove={handleMouseMove}
@@ -140,61 +107,91 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
         opacity: glarePos.opacity,
         pointerEvents: 'none',
         transition: 'opacity 0.3s ease',
-        zIndex: 0
+        zIndex: 0,
       }} />
+
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Cabecera: nombre + chip decorativo */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: variant === 'compact' ? '16px' : '28px' }}>
-        <span style={{
-          fontFamily: 'var(--font-display)',
-          fontWeight: 500,
-          fontSize: variant === 'compact' ? '15px' : '16px',
-          color: 'var(--text-primary)',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          maxWidth: '85%'
-        }}>
-          {tarjeta.nombre}
-        </span>
-        {variant !== 'compact' && (
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {onEdit && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onEdit(tarjeta); }}
-                aria-label="Editar tarjeta"
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-              >
-                <Pencil size={16} />
-              </button>
-            )}
-            {!esCredito && onAjustarSaldo && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onAjustarSaldo(tarjeta); }}
-                aria-label="Ajustar saldo"
-                title="Ajustar saldo"
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-              >
-                <RefreshCcw size={16} />
-              </button>
-            )}
-            {onDelete && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowDeleteConfirm(true);
-                }}
-                aria-label="Eliminar tarjeta"
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-              >
-                <Trash size={16} />
-              </button>
+        {/* Bloque primario: nombre + acciones */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+          <span style={{
+            fontFamily: 'var(--font-display)',
+            fontWeight: 600,
+            fontSize: '20px',
+            color: 'rgba(255,255,255,0.95)',
+            letterSpacing: '0.01em',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            minWidth: 0,
+          }}>
+            {tarjeta.nombre}
+          </span>
+          {variant !== 'compact' && (
+            <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+              {onEdit && (
+                <button onClick={(e) => { e.stopPropagation(); onEdit(tarjeta); }} aria-label="Editar tarjeta" style={iconBtn}>
+                  <Pencil size={16} />
+                </button>
+              )}
+              {!esCredito && onAjustarSaldo && (
+                <button onClick={(e) => { e.stopPropagation(); onAjustarSaldo(tarjeta); }} aria-label="Ajustar saldo" title="Ajustar saldo" style={iconBtn}>
+                  <RefreshCcw size={16} />
+                </button>
+              )}
+              {onDelete && (
+                <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }} aria-label="Eliminar tarjeta" style={iconBtn}>
+                  <Trash size={16} />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Bloque secundario: saldo actual, disponible y barra de uso */}
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 700,
+            fontSize: '14px',
+            fontVariantNumeric: 'tabular-nums',
+            color: !esCredito && tarjeta.disponible < 0 ? '#f87171' : '#fff',
+          }}>
+            <span style={{ fontFamily: 'inherit', fontWeight: 400, color: 'rgba(255,255,255,0.6)', marginRight: '6px' }}>Saldo actual</span>
+            {mask(saldoActual)}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
+            {esCredito ? (
+              <>
+                <span>Disponible {mask(tarjeta.disponible)}</span>
+                {tarjeta.proximoPago && <span>Pago {fmtFecha(tarjeta.proximoPago)} ({tarjeta.diasParaPago}d)</span>}
+              </>
+            ) : tarjeta.disponible < 0 ? (
+              showFlags && <span style={{ color: 'var(--credito-rojo)', fontWeight: 600 }}>Sobregiro</span>
+            ) : tarjeta.rendimientoAnual > 0 ? (
+              <span style={{ color: 'var(--credito-verde)' }}>{tarjeta.rendimientoAnual}% rendimientos</span>
+            ) : (
+              <span>Disponible {mask(tarjeta.disponible)}</span>
             )}
           </div>
-        )}
-      </div>
 
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden', marginTop: '2px' }}>
+            {esCredito && (
+              <div style={{
+                height: '100%',
+                width: `${Math.min(tarjeta.porcentajeUso, 100)}%`,
+                background: tarjeta.estadoTermometro === 'verde'
+                  ? 'var(--credito-verde)'
+                  : tarjeta.estadoTermometro === 'amarillo'
+                  ? 'var(--credito-amarillo)'
+                  : 'var(--credito-rojo)',
+                borderRadius: '2px',
+                transition: 'width 0.6s ease',
+              }} />
+            )}
+          </div>
+        </div>
+      </div>
 
       {showDeleteConfirm && (
         <ConfirmModal
@@ -211,438 +208,6 @@ export function TarjetaCard({ tarjeta, comprasMSI, metas = [], showFlags = true,
           onCancel={() => setShowDeleteConfirm(false)}
         />
       )}
-
-      {adelantarMSI && (
-        <ConfirmModal
-          isOpen={true}
-          title="Adelantar Mensualidades"
-          message={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-              <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                ¿Cuántos meses deseas adelantar?
-                <input 
-                  type="number" 
-                  min="1" 
-                  max="48"
-                  value={adelantarMeses}
-                  onChange={(e) => setAdelantarMeses(Number(e.target.value))}
-                  style={{ width: '100%', padding: '10px', marginTop: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px' }}
-                />
-              </label>
-              <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Descuento ofrecido por el banco (MXN, opcional)
-                <input 
-                  type="number" 
-                  min="0"
-                  step="0.01"
-                  value={adelantarDescuento}
-                  onChange={(e) => setAdelantarDescuento(Number(e.target.value))}
-                  style={{ width: '100%', padding: '10px', marginTop: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px' }}
-                />
-              </label>
-            </div>
-          }
-          confirmText={isAdelantando ? "Guardando..." : "Confirmar Adelanto"}
-          cancelText="Cancelar"
-          onConfirm={() => {
-            adelantar({ id: adelantarMSI, meses: adelantarMeses, descuento: adelantarDescuento }, {
-              onSuccess: () => setAdelantarMSI(null)
-            });
-          }}
-          onCancel={() => setAdelantarMSI(null)}
-        />
-      )}
-
-      {/* Fila inferior: disponible + pill */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: variant === 'compact' ? 'flex-start' : 'space-between', 
-        alignItems: variant === 'compact' ? 'flex-start' : 'flex-end',
-        flexDirection: variant === 'compact' ? 'column' : 'row',
-        gap: variant === 'compact' ? '6px' : '0'
-      }}>
-        <div>
-          <div style={{
-            fontSize: '11px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            color: 'var(--text-muted)',
-            marginBottom: '4px',
-          }}>
-            {esCredito ? 'Disponible' : 'Saldo actual'}
-          </div>
-          <div style={{
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 700,
-            fontSize: variant === 'compact' ? '18px' : '22px',
-            color: !esCredito && tarjeta.disponible < 0 ? 'var(--credito-rojo)' : 'var(--text-primary)',
-            fontVariantNumeric: 'tabular-nums',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            {showBalance ? fmt.format(tarjeta.disponible) : '••••••••'}
-          </div>
-        </div>
-
-        {showFlags && esCredito && variant === 'full' && (
-          <StatusPill
-            mode="thermometer"
-            variant={tarjeta.estadoTermometro}
-            label={tarjeta.etiquetaEstado}
-          />
-        )}
-        {showFlags && esCredito && variant === 'compact' && (
-          <div style={{
-            fontSize: '12px',
-            fontWeight: 600,
-            color: tarjeta.estadoTermometro === 'verde'
-                  ? 'var(--credito-verde)'
-                  : tarjeta.estadoTermometro === 'amarillo'
-                  ? 'var(--credito-amarillo)'
-                  : 'var(--credito-rojo)',
-          }}>
-            {tarjeta.porcentajeUso.toFixed(0)}% uso
-          </div>
-        )}
-        {showFlags && !esCredito && tarjeta.disponible < 0 && variant === 'full' && (
-          <StatusPill
-            mode="thermometer"
-            variant="rojo"
-            label="Sobregiro"
-          />
-        )}
-        {showFlags && !esCredito && tarjeta.disponible < 0 && variant === 'compact' && (
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--credito-rojo)' }}>
-            Sobregiro
-          </div>
-        )}
-        {!esCredito && tarjeta.rendimientoAnual > 0 && tarjeta.disponible >= 0 && variant === 'full' && (
-          <StatusPill
-            mode="thermometer"
-            variant="verde"
-            label={`${tarjeta.rendimientoAnual}% rendimientos`}
-          />
-        )}
-        {!esCredito && tarjeta.rendimientoAnual > 0 && tarjeta.disponible >= 0 && variant === 'compact' && (
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--credito-verde)' }}>
-            {tarjeta.rendimientoAnual}% rendimientos
-          </div>
-        )}
-      </div>
-
-      {/* Solo Crédito: Termómetro visual y Desglose */}
-      {esCredito && (
-        <>
-          <div style={{ marginTop: variant === 'compact' ? '12px' : '20px' }}>
-            <div style={{
-              height: '4px',
-              borderRadius: '2px',
-              background: 'rgba(255,255,255,0.08)',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%',
-                width: `${Math.min(tarjeta.porcentajeUso, 100)}%`,
-                background: tarjeta.estadoTermometro === 'verde'
-                  ? 'var(--credito-verde)'
-                  : tarjeta.estadoTermometro === 'amarillo'
-                  ? 'var(--credito-amarillo)'
-                  : 'var(--credito-rojo)',
-                borderRadius: '2px',
-                transition: 'width 0.6s ease',
-              }} />
-            </div>
-            {variant === 'full' && (
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginTop: '6px',
-                fontSize: '11px',
-                color: 'var(--text-muted)',
-              }}>
-                <span>{tarjeta.porcentajeUso.toFixed(1)}% del límite</span>
-                <span>Pago: {tarjeta.proximoPago ? fmtFecha(tarjeta.proximoPago) : ''} ({tarjeta.diasParaPago}d)</span>
-              </div>
-            )}
-          </div>
-
-          {variant === 'full' && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginTop: '14px',
-              padding: '12px 0 0',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-            }}>
-              <span>Gastado: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmt.format(tarjeta.gastosPeriodoActual)}</strong></span>
-              <span>Límite: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmt.format(tarjeta.limite)}</strong></span>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Spacer para Débito en modo compacto para igualar altura con Crédito */}
-      {!esCredito && variant === 'compact' && (
-        <div style={{ marginTop: '12px', height: '4px' }} />
-      )}
-
-      {/* Sección MSI expandible — FR-31 */}
-      {variant === 'full' && msiActivas.length > 0 && (
-        <div style={{ marginTop: '14px' }}>
-          <button
-            onClick={(e) => { e.stopPropagation(); setMsiOpen((v) => !v); }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          >
-            <span style={{
-              display: 'inline-block',
-              transform: msiOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-            }}>▶</span>
-            {msiActivas.length} MSI activa{msiActivas.length !== 1 ? 's' : ''}
-          </button>
-
-          {msiOpen && (
-            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {msiActivas.map((msi) => (
-                <div
-                  key={msi.id}
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '12px',
-                    padding: '10px 14px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {msi.comercio}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {msi.mesesRestantes} mes{msi.mesesRestantes !== 1 ? 'es' : ''} restante{msi.mesesRestantes !== 1 ? 's' : ''}
-                      {' · '}total {fmt.format(msi.montoTotal)}
-                      {msi.mesesAdelantados > 0 && ` (Adelantados: ${msi.mesesAdelantados})`}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      fontSize: '15px',
-                      color: 'var(--credito-amarillo)',
-                      textAlign: 'right',
-                    }}>
-                      {fmt.format(msi.cuotaMensual)}
-                      <div style={{ fontSize: '10px', fontWeight: 400, color: 'var(--text-muted)' }}>/mes</div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAdelantarMSI(msi.id);
-                        setAdelantarMeses(1);
-                        setAdelantarDescuento(0);
-                      }}
-                      title="Adelantar mensualidades"
-                      style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '6px',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <FastForward size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Sección Metas expandible (Débito) */}
-      {!esCredito && variant === 'full' && desgloseMetas.length > 0 && (
-        <div style={{ marginTop: '14px' }}>
-          <button
-            onClick={(e) => { e.stopPropagation(); setMetasOpen((v) => !v); }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              fontSize: '12px',
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          >
-            <span style={{
-              display: 'inline-block',
-              transform: metasOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-            }}>▶</span>
-            {fmt.format(totalAportado)} aportados a metas
-          </button>
-
-          {metasOpen && (
-            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {desgloseMetas.map((m) => (
-                <div
-                  key={m.id}
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '12px',
-                    padding: '10px 14px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
-                    {m.metaNombre}
-                  </div>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    fontSize: '15px',
-                    color: 'var(--credito-verde)',
-                    textAlign: 'right',
-                  }}>
-                    {fmt.format(m.monto)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Sección Apartados expandible (Débito) */}
-      {!esCredito && variant === 'full' && (
-        <div style={{ marginTop: '14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            {apartados.length > 0 ? (
-              <button
-                onClick={(e) => { e.stopPropagation(); setApartadosOpen((v) => !v); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                <span style={{
-                  display: 'inline-block',
-                  transform: apartadosOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.2s ease',
-                }}>▶</span>
-                {apartados.length} Apartado{apartados.length !== 1 ? 's' : ''} con rendimiento
-              </button>
-            ) : (
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Sin apartados</span>
-            )}
-            
-            {onAddApartado && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onAddApartado(tarjeta); }}
-                style={{
-                  background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px',
-                  color: 'var(--text-primary)', fontSize: '11px', padding: '2px 6px', cursor: 'pointer'
-                }}
-              >
-                + Nuevo apartado
-              </button>
-            )}
-          </div>
-
-          {apartadosOpen && (
-            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {apartados.map((a) => (
-                <div
-                  key={a.id}
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '12px',
-                    padding: '10px 14px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {a.nombre}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--credito-verde)', marginTop: '2px', display: 'flex', gap: '8px' }}>
-                      <span>{a.rendimientoAnual}% APY</span>
-                      <span>(+{fmt.format(a.balanceCalculado - a.balanceInicial)})</span>
-                    </div>
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <div style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      fontSize: '15px',
-                      color: 'var(--text-primary)',
-                      textAlign: 'right',
-                    }}>
-                      {fmt.format(a.balanceCalculado)}
-                    </div>
-                    {onMoveApartado && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onMoveApartado(a.id, a.balanceCalculado, tarjeta.disponible); }}
-                        style={{
-                          background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px',
-                          color: 'var(--text-primary)', padding: '6px', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}
-                        title="Transferir a saldo"
-                      >
-                        <ArrowRightLeft size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      
-      </div>
-      </div>
     </GlassCard>
   );
 }

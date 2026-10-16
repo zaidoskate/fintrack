@@ -141,25 +141,17 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
           </div>
         </header>
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '19px' }}>
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '2px' }}>
+        <div className="flex justify-center mb-5">
+          <div className="flex bg-white/5 rounded-xl p-1 h-[34px]">
             <button
               onClick={() => setModo('diario')}
-              style={{
-                padding: '6px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                background: modo === 'diario' ? 'rgba(255,255,255,0.12)' : 'transparent',
-                color: modo === 'diario' ? '#fff' : 'var(--text-muted)'
-              }}
+              className={`h-full px-4 rounded-lg text-xs font-semibold transition-all ${ modo === 'diario' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200' }`}
             >
               Diario
             </button>
             <button
               onClick={() => setModo('patrimonio')}
-              style={{
-                padding: '6px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                background: modo === 'patrimonio' ? 'rgba(255,255,255,0.12)' : 'transparent',
-                color: modo === 'patrimonio' ? '#fff' : 'var(--text-muted)'
-              }}
+              className={`h-full px-4 rounded-lg text-xs font-semibold transition-all ${ modo === 'patrimonio' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200' }`}
             >
               Patrimonio
             </button>
@@ -172,8 +164,6 @@ export function LayoutContent({ children, userName, user }: { children: React.Re
             <ProfileModal
               user={user}
               onClose={() => setShowSettings(false)}
-              modo={modo}
-              setModo={setModo}
             />
           )}
         </AnimatePresence>

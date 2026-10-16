@@ -100,9 +100,6 @@ export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                Monto a retirar
-              </label>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>$</span>
                 <input
@@ -110,7 +107,8 @@ export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
                   step="0.01"
                   value={monto}
                   onChange={e => setMonto(e.target.value)}
-                  placeholder="0.00"
+                  placeholder="Monto a retirar en efectivo"
+                  aria-label="Monto a retirar en efectivo"
                   required
                   style={{
                     width: '100%',
@@ -135,7 +133,7 @@ export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
                 color: '#000',
                 border: 'none',
                 borderRadius: '12px',
-                padding: '16px',
+                padding: '0 16px',
                 fontSize: '15px',
                 fontWeight: 600,
                 marginTop: '8px',
@@ -144,6 +142,7 @@ export function RetiroCajeroModal({ onClose }: RetiroCajeroModalProps) {
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
+                height: '40px',
                 gap: '8px',
                 transition: 'opacity 0.2s'
               }}

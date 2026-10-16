@@ -1,5 +1,5 @@
 import { GlassCard } from '@/components/ui';
-import type { TarjetaConEstado, MetaConEstado } from '@/lib/types';
+import type { TarjetaConEstado, MetaConEstado, Prestamo } from '@/lib/types';
 import { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -10,7 +10,7 @@ const fmt = new Intl.NumberFormat('es-MX', {
   maximumFractionDigits: 0,
 });
 
-export function NetWorth({ tarjetas, metas }: { tarjetas: TarjetaConEstado[], metas: MetaConEstado[] }) {
+export function NetWorth({ tarjetas, metas, prestamos = [] }: { tarjetas: TarjetaConEstado[], metas: MetaConEstado[], prestamos?: Prestamo[] }) {
   const { assets, liabilities, netWorth } = useMemo(() => {
     let assets = 0;
     let liabilities = 0;
@@ -39,8 +39,17 @@ export function NetWorth({ tarjetas, metas }: { tarjetas: TarjetaConEstado[], me
       }
     });
 
+    // Préstamos
+    prestamos.forEach(p => {
+      if (p.direccion === 'pasivo') {
+        liabilities += p.saldoInsoluto;
+      } else if (p.direccion === 'activo') {
+        assets += p.saldoInsoluto;
+      }
+    });
+
     return { assets, liabilities, netWorth: assets - liabilities };
-  }, [tarjetas, metas]);
+  }, [tarjetas, metas, prestamos]);
 
   const data = [
     { name: 'Activos', value: assets, color: 'var(--credito-verde)' },

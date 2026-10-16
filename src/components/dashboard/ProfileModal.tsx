@@ -13,11 +13,9 @@ import { triggerHaptic } from '@/lib/ui/feedback';
 interface ProfileModalProps {
   user: User;
   onClose: () => void;
-  modo: string;
-  setModo: (modo: 'diario' | 'patrimonio') => void;
 }
 
-export function ProfileModal({ user, onClose, modo, setModo }: ProfileModalProps) {
+export function ProfileModal({ user, onClose }: ProfileModalProps) {
   const isGoogle = user.app_metadata?.providers?.includes('google') || user.app_metadata?.provider === 'google';
   
   const [name, setName] = useState(user.user_metadata?.full_name || '');
@@ -249,44 +247,6 @@ export function ProfileModal({ user, onClose, modo, setModo }: ProfileModalProps
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Descarga todos tus movimientos en TSV</div>
               </div>
               <ExportarDatos />
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />
-
-            {/* Toggle Modo Patrimonial */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)' }}>Modo Patrimonial</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Ver portafolio de inversiones</div>
-              </div>
-              <button 
-                onClick={() => {
-                  triggerHaptic('light');
-                  setModo(modo === 'diario' ? 'patrimonio' : 'diario');
-                  onClose();
-                }}
-                style={{
-                  width: '44px',
-                  height: '24px',
-                  borderRadius: '12px',
-                  background: modo === 'patrimonio' ? 'var(--brand)' : 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  position: 'relative',
-                  cursor: 'pointer',
-                  transition: 'background 0.3s'
-                }}
-              >
-                <div style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: '#fff',
-                  position: 'absolute',
-                  top: '2px',
-                  left: modo === 'patrimonio' ? '22px' : '2px',
-                  transition: 'left 0.3s'
-                }} />
-              </button>
             </div>
 
           </div>

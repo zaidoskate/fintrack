@@ -28,6 +28,8 @@ import { getComprasMSI, crearCompraMSI, eliminarCompraMSI }
 import { getActivos, addActivo,  updateActivo, deleteActivo,
   getCuentasYield, addCuentaYield, updateCuentaYield, deleteCuentaYield, moverDineroYield
 } from '@/lib/api/inversiones';
+import { getCuentasPorCobrar, saldarCuentaPorCobrar } from '@/lib/api/cuentas_cobrar';
+import { getPrestamos, crearPrestamo, actualizarPrestamo, eliminarPrestamo } from '@/lib/api/prestamos';
 import { getShortcutToken } from '@/lib/api/user';
 import type {
   FiltrosMovimientos,
@@ -37,7 +39,9 @@ import type {
   CompraMSI,
   PortafolioActivo,
   CuentaYield,
-  CuentaYieldRow
+  CuentaYieldRow,
+  CuentaPorCobrar,
+  Prestamo
 } from '@/lib/types';
 import type {
   NuevaTarjetaInput,
@@ -491,5 +495,79 @@ export function useTraspasoEfectivo() {
       qc.invalidateQueries({ queryKey: QK.tarjetas });
     },
     onError: (err, variables) => handleOfflineError('traspasoEfectivo', variables, err)
+  });
+}
+
+// ── Cuentas por Cobrar ──────────────────────────────────────────────────────────
+
+export function useCuentasPorCobrar() {
+  return useQuery({
+    queryKey: ['cuentas_por_cobrar'],
+    queryFn: getCuentasPorCobrar,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useSaldarCuenta() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: saldarCuentaPorCobrar,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cuentas_por_cobrar'] });
+      qc.invalidateQueries({ queryKey: QK.movimientos() });
+      qc.invalidateQueries({ queryKey: QK.tarjetas });
+    },
+    onError: (err, variables) => handleOfflineError('saldarCuenta', variables, err)
+  });
+}
+
+export function useAsumirDeudaCompleta() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { cuentaId: string; movimientoId: string | null }) => {
+      const { asumirDeudaCompleta } = await import('@/lib/api/cuentas_cobrar');
+      return asumirDeudaCompleta(vars);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cuentas_por_cobrar'] });
+      qc.invalidateQueries({ queryKey: QK.movimientos() });
+    },
+  });
+}
+
+// ── Préstamos ─────────────────────────────────────────────────────────────────
+
+export function usePrestamos() {
+  return useQuery({
+    queryKey: ['prestamos'],
+    queryFn: getPrestamos,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useCrearPrestamo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: crearPrestamo,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['prestamos'] }),
+    onError: (err, variables) => handleOfflineError('crearPrestamo', variables, err)
+  });
+}
+
+export function useActualizarPrestamo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: actualizarPrestamo,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['prestamos'] }),
+    onError: (err, variables) => handleOfflineError('actualizarPrestamo', variables, err)
+  });
+}
+
+export function useEliminarPrestamo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: eliminarPrestamo,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['prestamos'] }),
+    onError: (err, variables) => handleOfflineError('eliminarPrestamo', variables, err)
   });
 }

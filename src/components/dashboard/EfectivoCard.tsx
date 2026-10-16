@@ -1,7 +1,5 @@
 import { useState } from 'react';
-
-import { Wallet, ArrowRightLeft } from 'lucide-react';
-import { GlassCard } from '@/components/ui';
+import { Banknote, Minus } from 'lucide-react';
 import { RetiroCajeroModal } from './RetiroCajeroModal';
 
 interface EfectivoCardProps {
@@ -11,81 +9,36 @@ interface EfectivoCardProps {
   onClick?: () => void;
 }
 
-export function EfectivoCard({ saldo, variant = 'full', showBalance = true, onClick }: EfectivoCardProps) {
+export function EfectivoCard({ saldo, showBalance = true, onClick }: EfectivoCardProps) {
   const [showRetiro, setShowRetiro] = useState(false);
   const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
   return (
     <>
-      <GlassCard
-        className="efectivo-card"
+      <div
         onClick={onClick}
-        as={onClick ? "button" : "div"}
-        style={{
-          padding: variant === 'compact' ? '16px' : '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          minHeight: variant === 'compact' ? 'auto' : '180px',
-          height: '100%',
-          width: '100%',
-          boxSizing: 'border-box',
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          cursor: onClick ? 'pointer' : 'default',
-          textAlign: 'left'
-        }}
+        className={`h-[52px] min-h-[52px] px-4 flex items-center justify-between rounded-2xl bg-zinc-900/60 border border-white/10 backdrop-blur-md ${onClick ? 'cursor-pointer active:scale-[0.98] transition-transform' : ''}`}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: variant === 'compact' ? '16px' : '0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              width: '40px', height: '40px', borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.1)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', color: '#fff' 
-            }}>
-              <Wallet size={20} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: variant === 'compact' ? '15px' : '18px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Efectivo</h3>
-              {variant === 'full' && (
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>Billetera física</p>
-              )}
-            </div>
+        <div className="flex items-center">
+          <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+            <Banknote size={16} />
           </div>
-          
-          {variant === 'full' && (
-            <button
-            onClick={(e) => { e.stopPropagation(); setShowRetiro(true); }}
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'var(--text-primary)',
-              borderRadius: '20px',
-              padding: '6px 12px',
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-          >
-              <ArrowRightLeft size={14} /> Retiro de cajero
-            </button>
-          )}
+          <span className="text-xs font-semibold text-zinc-200 ml-2.5">Efectivo</span>
         </div>
 
-        <div style={{ marginTop: variant === 'compact' ? 'auto' : '24px' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
-            Saldo Disponible
-          </div>
-          <div style={{ fontSize: variant === 'compact' ? '18px' : '22px', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center gap-3">
+          <span className="font-mono tabular-nums text-sm sm:text-base font-semibold text-emerald-400 mr-3">
             {showBalance ? fmt.format(saldo) : '••••••••'}
-          </div>
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowRetiro(true); }}
+            aria-label="Registrar retiro de efectivo"
+            className="w-9 h-9 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 text-emerald-400 border border-emerald-500/20 flex items-center justify-center transition-all shrink-0"
+          >
+            <Minus size={16} />
+          </button>
         </div>
-      </GlassCard>
+      </div>
 
       {showRetiro && (
         <RetiroCajeroModal onClose={() => setShowRetiro(false)} />

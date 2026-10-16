@@ -21,7 +21,7 @@ import {
   SortableContext,
   arrayMove,
   rectSortingStrategy,
-  verticalListSortingStrategy,
+  horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useTarjetas, useComprasMSI, useMetas, useCrearTarjeta, useActualizarTarjeta, useEliminarTarjeta, useMovimientos } from '@/lib/hooks';
 import { calcularSaldoEfectivo } from '@/lib/finance/efectivo';
@@ -35,6 +35,8 @@ import { ApartadoFormModal } from '@/components/dashboard/ApartadoFormModal';
 import { MoverDineroApartadoModal } from '@/components/dashboard/MoverDineroApartadoModal';
 import { AjusteSaldoModal } from '@/components/dashboard/AjusteSaldoModal';
 import { ImportarMovimientosModal } from '@/components/dashboard/ImportarMovimientosModal';
+import { CuentasPorCobrarCard } from '@/components/dashboard/CuentasPorCobrarCard';
+import { MsiApartadosPanel } from '@/components/dashboard/MsiApartadosPanel';
 import { GlassCard } from '@/components/ui';
 import { Plus, HelpCircle, LayoutGrid, List, Eye, EyeOff, UploadCloud } from 'lucide-react';
 import type { TarjetaConEstado } from '@/lib/types';
@@ -58,7 +60,6 @@ export default function DashboardPage() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   
   const [showFlags, setShowFlags] = useState(true);
-  const [viewMode, setViewMode] = useState<'full' | 'compact'>('full');
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [cardOrder, setCardOrder] = useState<string[]>([]);
   const [isEditingOrder, setIsEditingOrder] = useState(false);
@@ -78,10 +79,6 @@ export default function DashboardPage() {
     if (savedFlags !== null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowFlags(savedFlags === 'true');
-    }
-    const savedView = localStorage.getItem('fintrack_card_view_mode');
-    if (savedView === 'compact' || savedView === 'full') {
-      setViewMode(savedView);
     }
     const savedBalances = localStorage.getItem('fintrack_show_balances');
     if (savedBalances !== null) {
@@ -169,24 +166,7 @@ export default function DashboardPage() {
             </button>
           )}
 
-          <button
-            onClick={() => {
-              setViewMode((prev) => {
-                const next = prev === 'full' ? 'compact' : 'full';
-                localStorage.setItem('fintrack_card_view_mode', next);
-                return next;
-              });
-            }}
-            style={{
-              background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text-primary)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '32px', height: '32px', borderRadius: '50%',
-              transition: 'background 0.2s',
-            }}
-            aria-label="Cambiar vista de tarjetas"
-          >
-            {viewMode === 'full' ? <LayoutGrid size={16} /> : <List size={16} />}
-          </button>
+
 
           <button
             onClick={() => {
@@ -277,6 +257,23 @@ export default function DashboardPage() {
 
       {!isLoading && !errT && tarjetas && (
         <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+            <EfectivoCard 
+              saldo={calcularSaldoEfectivo(movimientos)} 
+              showBalance={showBalances}
+              onClick={() => setViewingCard({
+                id: 'efectivo',
+                nombre: 'Efectivo',
+                tipo: 'Débito', // Fake tipo para omitir lógicas de crédito
+                disponible: calcularSaldoEfectivo(movimientos),
+                limite: 0,
+                marca: 'Mastercard',
+                color: 'blue'
+              } as unknown as TarjetaConEstado)}
+            />
+            <CuentasPorCobrarCard />
+          </div>
+
           {tarjetas.length === 0 ? (
             <GlassCard style={{ padding: '40px 24px', textAlign: 'center', marginBottom: '20px' }}>
               <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
@@ -290,68 +287,34 @@ export default function DashboardPage() {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={cardOrder}
-                strategy={viewMode === 'compact' ? rectSortingStrategy : verticalListSortingStrategy}
+                items={cardOrder.filter(id => id !== 'efectivo')}
+                strategy={horizontalListSortingStrategy}
               >
-                <div style={viewMode === 'compact' ? {
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                  gap: '16px',
-                  marginBottom: '20px'
-                } : {
-                  display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px'
-                }}>
+                <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4 hide-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
                   {cardOrder.map((id) => {
-                    if (id === 'efectivo') {
-                      return (
-                        <SortableTarjeta 
-                          key="efectivo" 
-                          id="efectivo"
-                          isEditing={isEditingOrder}
-                          onLongPress={() => setIsEditingOrder(true)}
-                        >
-                          <EfectivoCard 
-                            saldo={calcularSaldoEfectivo(movimientos)} 
-                            variant={viewMode}
-                            showBalance={showBalances}
-                            onClick={() => setViewingCard({
-                              id: 'efectivo',
-                              nombre: 'Efectivo',
-                              tipo: 'Débito', // Fake tipo para omitir lógicas de crédito
-                              disponible: calcularSaldoEfectivo(movimientos),
-                              limite: 0,
-                              marca: 'Mastercard',
-                              color: 'blue'
-                            } as unknown as TarjetaConEstado)}
-                          />
-                        </SortableTarjeta>
-                      );
-                    }
+                    if (id === 'efectivo') return null;
 
                     const t = tarjetas.find(card => card.id === id);
                     if (!t) return null;
                     return (
-                      <SortableTarjeta 
-                        key={t.id} 
-                        id={t.id}
-                        isEditing={isEditingOrder}
-                        onLongPress={() => setIsEditingOrder(true)}
-                      >
+                      <div key={t.id} className="min-w-[280px] max-w-[340px] flex-1 snap-center">
+                        <SortableTarjeta 
+                          id={t.id}
+                          isEditing={isEditingOrder}
+                          onLongPress={() => setIsEditingOrder(true)}
+                        >
                         <TarjetaCard
                           tarjeta={t}
-                          comprasMSI={comprasMSI.filter((m) => m.tarjetaId === t.id)}
-                          metas={metas}
                           showFlags={showFlags}
-                          variant={viewMode}
+                          variant="full"
                           showBalance={showBalances}
                           onEdit={(t) => setEditingCard(t)}
                           onDelete={eliminar}
                           onViewDetails={(t) => setViewingCard(t)}
-                          onAddApartado={(t) => setApartadoCard(t)}
-                          onMoveApartado={(id, maxRetiro, maxIngreso) => setMoveApartado({ id, maxRetiro, maxIngreso })}
                           onAjustarSaldo={(t) => setAjustandoTarjeta(t)}
                         />
-                      </SortableTarjeta>
+                        </SortableTarjeta>
+                      </div>
                     );
                   })}
                 </div>
@@ -359,46 +322,60 @@ export default function DashboardPage() {
             </DndContext>
           )}
 
+          {tarjetas.length > 0 && (
+            <MsiApartadosPanel
+              tarjetas={tarjetas}
+              comprasMSI={comprasMSI}
+              showBalance={showBalances}
+              onAddApartado={(t) => setApartadoCard(t)}
+              onMoveApartado={(id, maxRetiro, maxIngreso) => setMoveApartado({ id, maxRetiro, maxIngreso })}
+            />
+          )}
+
           {/* Botón Agregar Tarjeta */}
           <div style={{ display: 'flex', gap: '16px' }}>
-            <GlassCard
+            <button
               id="btn-add-card"
-              as="button"
               onClick={() => handleOpenModal()}
               style={{
                 flex: 1,
-                padding: '24px',
-                borderStyle: 'dashed',
+                height: '40px',
+                padding: '0 16px',
+                borderRadius: '12px',
+                border: '1px dashed var(--border-glass)',
                 background: 'transparent',
                 color: 'var(--text-secondary)',
                 cursor: 'pointer',
-                fontSize: '15px',
+                fontSize: '13px',
+                fontWeight: 500,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <Plus size={18} />
+                <Plus size={16} />
                 <span>Agregar tarjeta</span>
               </div>
-            </GlassCard>
+            </button>
 
-            <GlassCard
-              as="button"
+            <button
               onClick={() => setImportModalOpen(true)}
               style={{
                 flex: 1,
-                padding: '24px',
-                borderStyle: 'dashed',
+                height: '40px',
+                padding: '0 16px',
+                borderRadius: '12px',
+                border: '1px dashed var(--border-glass)',
                 background: 'transparent',
                 color: 'var(--text-secondary)',
                 cursor: 'pointer',
-                fontSize: '15px',
+                fontSize: '13px',
+                fontWeight: 500,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <UploadCloud size={18} />
+                <UploadCloud size={16} />
                 <span>Importar CSV</span>
               </div>
-            </GlassCard>
+            </button>
           </div>
 
           {/* Sección Salud Financiera */}

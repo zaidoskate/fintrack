@@ -13,6 +13,7 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'motion/react';
 import { GlassCard, GlassSelect } from '@/components/ui';
 import {
   useCrearMovimiento, useEditarMovimiento, useCrearCompraMSI, useTarjetas, QK,
@@ -45,16 +46,23 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
   const { data: tarjetas = [] } = useTarjetas();
 
   /* ── Estado del formulario ─────────────────────────────────────── */
-  const [tipo,       setTipo]      = useState<'Gasto' | 'Ingreso'>(initialData?.tipo || 'Gasto');
-  const [monto,      setMonto]     = useState(initialData?.monto.toString() || '');
-  const [categoria,  setCat]       = useState(initialData?.categoria || CATEGORIAS_GASTO[0]);
-  const [comercio,   setCom]       = useState(initialData?.comercio || '');
-  const [metodo,     setMetodo]    = useState(initialData?.metodoPago || 'Efectivo');
-  const [esMeses,    setEsMeses]   = useState(false);
-  const [meses,      setMeses]     = useState(3);
+  const [tipo, setTipo] = useState<'Gasto' | 'Ingreso'>(initialData?.tipo || 'Gasto');
+  const [monto, setMonto] = useState(initialData?.monto.toString() || '');
+  const [categoria, setCat] = useState(initialData?.categoria || CATEGORIAS_GASTO[0]);
+  const [comercio, setCom] = useState(initialData?.comercio || '');
+  const [metodo, setMetodo] = useState(initialData?.metodoPago || 'Efectivo');
+  const [esMeses, setEsMeses] = useState(false);
+  const [meses, setMeses] = useState(3);
   const [fechaPrimerCargo, setFechaPrimerCargo] = useState('');
-  const [error,      setError]     = useState<string | null>(null);
-  const [exito,      setExito]     = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [exito, setExito] = useState(false);
+
+  /* ── Gasto compartido ─────────────────────────────────────────── */
+  const [esGastoDeTercero, setEsGastoDeTercero] = useState(initialData?.esGastoDeTercero ?? false);
+  const [gastoCompartido, setGastoCompartido] = useState(false);
+  const [miConsumo, setMiConsumo] = useState('');
+  const [deudor, setDeudor] = useState('');
+  const [conceptoDeuda, setConceptoDeuda] = useState('');
 
   /* ── Nombres de tarjetas para el selector de método ─────────────── */
   const nombresTarjetas = tarjetas.map((t) => t.nombre);
@@ -71,7 +79,14 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
     e.preventDefault();
     setError(null);
     const montoNum = parseFloat(monto.replace(/[,$\s]/g, ''));
-    if (!montoNum || montoNum <= 0) { setError('El monto debe ser mayor a 0.'); return; }
+    if (!monto || isNaN(montoNum) || montoNum <= 0) {
+      setError('Por favor ingresa un monto válido mayor a 0.');
+      return;
+    }
+    if (!comercio.trim()) {
+      setError('Por favor ingresa un comercio o concepto.');
+      return;
+    }
 
     const hoyISO = new Date().toISOString().substring(0, 10);
 
@@ -82,21 +97,21 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
 
       crearMSI(
         {
-          tarjetaId:    tarjeta.id,
-          comercio:     comercio || 'N/A',
+          tarjetaId: tarjeta.id,
+          comercio: comercio || 'N/A',
           categoria,
-          montoTotal:   montoNum,
+          montoTotal: montoNum,
           mesesTotales: meses,
           fechaPrimerCargo: fechaPrimerCargo || undefined,
         },
         {
-          onSuccess: () => { 
+          onSuccess: () => {
             triggerHaptic('success');
             playSuccessChime();
-            setExito(true); 
-            setTimeout(() => { setExito(false); resetForm(); onClose?.(); }, 1500); 
+            setExito(true);
+            setTimeout(() => { onClose?.(); }, 900);
           },
-          onError:   (err) => setError(err.message),
+          onError: (err) => setError(err.message),
         },
       );
       return;
@@ -106,16 +121,17 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
     // eslint-disable-next-line react-hooks/purity
     const tempId = `temp-${Date.now()}`;
     const horaText = new Date().toTimeString().substring(0, 5);
-    
+
     const optimisticMov: Movimiento = {
-      id:         tempId,
-      fecha:      hoyISO,
-      hora:       horaText,
+      id: tempId,
+      fecha: hoyISO,
+      hora: horaText,
       tipo,
-      monto:      montoNum,
+      monto: montoNum,
       categoria,
-      comercio:   comercio || 'N/A',
+      comercio: comercio || 'N/A',
       metodoPago: metodo,
+      esGastoDeTercero: tipo === 'Gasto' && esGastoDeTercero,
     };
 
     // Snapshot para rollback
@@ -130,13 +146,32 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
     });
 
     const tarjetaId = metodo === 'Efectivo' ? null : tarjetas.find(t => t.nombre === metodo)?.id || null;
-    const payload = { tipo, monto: montoNum, categoria, comercio: comercio || 'N/A', tarjetaId };
+    const payload: any = { tipo, monto: montoNum, categoria, comercio: comercio || 'N/A', tarjetaId, esGastoDeTercero: tipo === 'Gasto' && esGastoDeTercero };
+
+    if (tipo === 'Gasto' && gastoCompartido && !esGastoDeTercero) {
+      const miConsumoNum = parseFloat(miConsumo.replace(/[,$\s]/g, ''));
+      if (!miConsumoNum || miConsumoNum <= 0 || miConsumoNum >= montoNum) {
+        setError('Tu consumo debe ser mayor a 0 y menor al total.');
+        return;
+      }
+      if (!deudor.trim()) {
+        setError('Indica quién te debe.');
+        return;
+      }
+      payload.montoPropio = miConsumoNum;
+      payload.cuentaPorCobrar = {
+        deudor,
+        concepto: conceptoDeuda || (comercio || 'Gasto compartido'),
+        montoTotal: montoNum - miConsumoNum,
+      };
+    }
+
     const mutationOpts = {
       onSuccess: () => {
         triggerHaptic('success');
         playSuccessChime();
         setExito(true);
-        setTimeout(() => { setExito(false); resetForm(); onClose?.(); }, 1200);
+        setTimeout(() => { onClose?.(); }, 900);
       },
       onError: (err: Error) => {
         // Rollback
@@ -153,10 +188,11 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
   };
 
   const resetForm = () => {
-    setMonto('');    setTipo('Gasto');
+    setMonto(''); setTipo('Gasto');
     setCat(CATEGORIAS_GASTO[0]);
     setMetodo('Efectivo'); setEsMeses(false); setMeses(3);
     setTipo('Gasto'); setError(null);
+    setEsGastoDeTercero(false); setGastoCompartido(false); setMiConsumo(''); setDeudor(''); setConceptoDeuda('');
   };
 
   /* ── UI ───────────────────────────────────────────────────────── */
@@ -169,7 +205,7 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
         </p>
         {esMeses && monto && (
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
-            {meses} cuotas de {fmt.format(parseFloat(monto.replace(/[,$\s]/g,'')) / meses)}
+            {meses} cuotas de {fmt.format(parseFloat(monto.replace(/[,$\s]/g, '')) / meses)}
           </p>
         )}
       </GlassCard>
@@ -188,7 +224,7 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
         {/* Tipo */}
         <div style={{ display: 'flex', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-glass)' }}>
@@ -219,8 +255,8 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
 
         {/* Monto */}
         <input
-          required type="number" step="0.01" min="0.01"
-          placeholder="Monto (MXN)" value={monto}
+          type="number" step="0.01" min="0.01"
+          placeholder="Monto total" value={monto}
           onChange={(e) => setMonto(e.target.value)}
           style={inputStyle}
           inputMode="decimal"
@@ -228,14 +264,13 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
 
         {/* Comercio */}
         <input
-          placeholder="Comercio o descripción" value={comercio}
+          placeholder="Comercio o concepto" value={comercio}
           onChange={(e) => setCom(e.target.value)}
           style={inputStyle}
         />
 
         {/* Categoría */}
-        <div>
-          <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Categoría</label>
+        <div style={{ zIndex: 30, position: 'relative' }}>
           <GlassSelect
             value={categoria}
             onChange={setCat}
@@ -290,18 +325,17 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
             </div>
             {monto && (
               <p style={{ fontSize: '12px', color: 'var(--credito-amarillo)', marginTop: '8px' }}>
-                Cuota: {fmt.format(parseFloat(monto.replace(/[,$\s]/g,'')) / meses)}/mes
+                Cuota: {fmt.format(parseFloat(monto.replace(/[,$\s]/g, '')) / meses)}/mes
               </p>
             )}
-            
-            <label style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '6px', display: 'block' }}>
-              Mes del primer cargo (Opcional)
-            </label>
+
             <input
               type="date"
+              placeholder="Primer cargo (YYYY-MM-DD)"
               value={fechaPrimerCargo}
               onChange={(e) => setFechaPrimerCargo(e.target.value)}
               style={inputStyle}
+              aria-label="Mes del primer cargo"
             />
             <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
               Si lo dejas en blanco, se calculará automáticamente según tu fecha de corte.
@@ -309,13 +343,93 @@ export function RegistroForm({ onClose, initialData }: RegistroFormProps) {
           </div>
         )}
 
+        {/* Gasto de un tercero (excluido de analíticas) */}
+        {tipo === 'Gasto' && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Gasto de un tercero (se reembolsará)</span>
+            <div
+              role="switch"
+              aria-checked={esGastoDeTercero}
+              aria-label="Gasto de un tercero"
+              onClick={() => setEsGastoDeTercero(!esGastoDeTercero)}
+              style={{
+                width: '44px', height: '24px', flexShrink: 0,
+                background: esGastoDeTercero ? 'var(--brand)' : 'rgba(255,255,255,0.1)',
+                borderRadius: '12px', display: 'flex', alignItems: 'center', padding: '2px',
+                cursor: 'pointer', transition: 'background 0.3s', boxSizing: 'border-box',
+              }}
+            >
+              <motion.div
+                layout
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                style={{ width: '20px', height: '20px', background: '#fff', borderRadius: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', marginLeft: esGastoDeTercero ? 'auto' : '0' }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Gasto Compartido / Me deben */}
+        {tipo === 'Gasto' && !initialData && !esGastoDeTercero && (
+          <div style={{ marginTop: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>¿Gasto compartido / Me deben?</span>
+              <div
+                onClick={() => setGastoCompartido(!gastoCompartido)}
+                style={{
+                  width: '44px',
+                  height: '24px',
+                  background: gastoCompartido ? 'var(--brand)' : 'rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '2px',
+                  cursor: 'pointer',
+                  transition: 'background 0.3s',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <motion.div
+                  layout
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    background: '#fff',
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    marginLeft: gastoCompartido ? 'auto' : '0'
+                  }}
+                />
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {gastoCompartido && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border-glass)' }}>
+                    <input type="text" inputMode="decimal" placeholder="Mi parte (ej. $600.00)" value={miConsumo} onChange={(e) => setMiConsumo(e.target.value)} style={inputStyle} aria-label="Mi consumo real" />
+
+                    {monto && miConsumo && parseFloat(monto) - parseFloat(miConsumo) > 0 && (
+                      <div style={{ color: 'var(--credito-verde)', fontSize: '13px', fontWeight: 600 }}>Por cobrar a terceros: {fmt.format(parseFloat(monto) - parseFloat(miConsumo))}</div>
+                    )}
+
+                    <input type="text" placeholder="¿Quién te debe? (ej. Amigos cena, Carlos)" value={deudor} onChange={(e) => setDeudor(e.target.value)} style={{ ...inputStyle, marginTop: '8px' }} aria-label="Deudor" />
+
+                    <input type="text" placeholder="Concepto de la deuda (opcional)" value={conceptoDeuda} onChange={(e) => setConceptoDeuda(e.target.value)} style={{ ...inputStyle, marginTop: '8px' }} aria-label="Concepto de deuda" />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
         {/* Botones */}
         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-          <button type="submit" style={{ ...btnPrimary, flex: 1 }}>
-            {initialData ? 'Guardar cambios' : esMeses ? `Registrar ${meses} meses` : `Registrar ${tipo.toLowerCase()}`}
+          <button type="submit" style={{ ...btnPrimary, flex: 1, height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {initialData ? 'Guardar' : esMeses ? `Registrar MSI` : `Guardar gasto`}
           </button>
           {onClose && (
-            <button type="button" onClick={onClose} style={btnSecondary}>Cancelar</button>
+            <button type="button" onClick={onClose} style={{ ...btnSecondary, height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Cancelar</button>
           )}
         </div>
       </form>

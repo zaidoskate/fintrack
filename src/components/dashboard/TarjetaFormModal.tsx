@@ -92,7 +92,6 @@ export function TarjetaFormModal({
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Tipo de Tarjeta</label>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                   <button
                     type="button"
@@ -129,23 +128,19 @@ export function TarjetaFormModal({
               )}
 
               <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Nombre</label>
                 <input
-                  type="text" required placeholder={tipo === 'Crédito' ? "Ej. Nu Bank" : "Ej. Débito BBVA"}
+                  type="text" required placeholder={tipo === 'Crédito' ? "Nombre de la tarjeta (ej. Nu, BBVA)" : "Nombre de la tarjeta (ej. Nu, BBVA)"}
                   value={nombre} onChange={e => setNombre(e.target.value)}
-                  className="glass-input"
+                  className="glass-input" aria-label="Nombre de la tarjeta"
                 />
               </div>
 
               {!(isEditing && tipo === 'Débito') && (
                 <div>
-                  <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {tipo === 'Crédito' ? 'Límite de Crédito (MXN)' : 'Saldo Inicial (MXN)'}
-                  </label>
                   <input
-                    type="number" required min={tipo === 'Crédito' ? "1" : "0"} step="0.01" placeholder={tipo === 'Crédito' ? "20000" : "5000"}
+                    type="number" required min={tipo === 'Crédito' ? "1" : "0"} step="0.01" placeholder={tipo === 'Crédito' ? "Límite de crédito (ej. 20,000)" : "Saldo disponible inicial"}
                     value={limite} onChange={e => setLimite(e.target.value)}
-                    className="glass-input"
+                    className="glass-input" aria-label={tipo === 'Crédito' ? 'Límite de Crédito (MXN)' : 'Saldo Inicial (MXN)'}
                   />
                 </div>
               )}
@@ -153,43 +148,40 @@ export function TarjetaFormModal({
               <AnimatePresence>
                 {tipo === 'Crédito' && (
                   <motion.div
+                    key="credito-fechas"
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     style={{ display: 'flex', gap: '14px', overflow: 'hidden' }}
                   >
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Día de Corte</label>
                       <input
-                        type="number" required min="1" max="31" placeholder="15"
+                        type="number" required min="1" max="31" placeholder="Día de corte (1 - 31)"
                         value={diaCorte} onChange={e => setDiaCorte(e.target.value)}
-                        className="glass-input"
+                        className="glass-input" aria-label="Día de corte"
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Día de Pago</label>
                       <input
-                        type="number" required min="1" max="31" placeholder="5"
+                        type="number" required min="1" max="31" placeholder="Día de pago (1 - 31)"
                         value={diaPago} onChange={e => setDiaPago(e.target.value)}
-                        className="glass-input"
+                        className="glass-input" aria-label="Día de pago"
                       />
                     </div>
                   </motion.div>
                 )}
                 {tipo === 'Crédito' && !isEditing && (
                   <motion.div
+                    key="credito-previo"
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     style={{ overflow: 'hidden' }}
                   >
-                    <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                      Gasto acumulado previo en este corte (opcional)
-                    </label>
                     <input
-                      type="number" min="0" step="0.01" placeholder="Ej. 3500.00"
+                      type="number" min="0" step="0.01" placeholder="Gasto acumulado previo (opcional)"
                       value={gastoInicialCiclo} onChange={e => setGastoInicialCiclo(e.target.value)}
-                      className="glass-input"
+                      className="glass-input" aria-label="Gasto acumulado previo en este corte"
                     />
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.3 }}>
                       Si ya usaste tu tarjeta en este ciclo, anota lo que llevas gastado para calibrar tu disponible al instante sin cargar compras pasadas.
@@ -198,16 +190,16 @@ export function TarjetaFormModal({
                 )}
                 {tipo === 'Débito' && (
                   <motion.div
+                    key="debito-rend"
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     style={{ overflow: 'hidden' }}
                   >
-                    <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Rendimiento Anual / TNA % (Opcional)</label>
                     <input
-                      type="number" min="0" step="0.1" placeholder="Ej. 15.0"
+                      type="number" min="0" step="0.1" placeholder="Rendimiento Anual / TNA % (ej. 13.5)"
                       value={rendimientoAnual} onChange={e => setRendimientoAnual(e.target.value)}
-                      className="glass-input"
+                      className="glass-input" aria-label="Rendimiento Anual"
                     />
                   </motion.div>
                 )}
@@ -218,9 +210,9 @@ export function TarjetaFormModal({
                   type="submit"
                   disabled={isPending}
                   style={{
-                    flex: 1, padding: '12px', borderRadius: '10px', border: 'none',
+                    flex: 1, padding: '0 16px', borderRadius: '10px', border: 'none',
                     background: 'var(--brand)', color: '#1a0a0b', fontWeight: 600,
-                    cursor: 'pointer'
+                    cursor: 'pointer', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}
                 >
                   {isPending ? 'Guardando...' : 'Guardar'}
@@ -229,9 +221,9 @@ export function TarjetaFormModal({
                   type="button"
                   onClick={onClose}
                   style={{
-                    flex: 1, padding: '12px', borderRadius: '10px',
+                    flex: 1, padding: '0 16px', borderRadius: '10px',
                     background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-glass)',
-                    color: 'var(--text-secondary)', cursor: 'pointer'
+                    color: 'var(--text-secondary)', cursor: 'pointer', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}
                 >
                   Cancelar

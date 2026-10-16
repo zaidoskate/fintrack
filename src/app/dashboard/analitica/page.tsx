@@ -1,7 +1,7 @@
-import { AnalíticaView } from '@/components/dashboard/AnalíticaView';
+import { AnaliticaView } from '@/components/dashboard/AnaliticaView';
 
-export const metadata = { title: 'Analítica' };
+export const dynamic = 'force-dynamic';
 
-export default function AnalíticaPage() {
-  return <AnalíticaView />;
+export default function AnaliticaPage() {
+  return <AnaliticaView />;
 }

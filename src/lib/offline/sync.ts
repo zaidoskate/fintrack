@@ -3,6 +3,8 @@ import { crearMovimiento, editarMovimiento, eliminarMovimiento, traspasoEfectivo
 import { crearTarjeta, actualizarTarjeta, eliminarTarjeta } from '@/lib/api/tarjetas';
 import { crearMeta, editarMeta, eliminarMeta, aportarMeta } from '@/lib/api/metas';
 import { crearCompraMSI, eliminarCompraMSI } from '@/lib/api/compras-msi';
+import { saldarCuentaPorCobrar } from '@/lib/api/cuentas_cobrar';
+import { crearPrestamo, actualizarPrestamo, eliminarPrestamo } from '@/lib/api/prestamos';
 import { QueryClient } from '@tanstack/react-query';
 
 
@@ -40,6 +42,8 @@ export async function forceSync(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['tarjetas'] });
   queryClient.invalidateQueries({ queryKey: ['metas'] });
   queryClient.invalidateQueries({ queryKey: ['compras-msi'] });
+  queryClient.invalidateQueries({ queryKey: ['cuentas_por_cobrar'] });
+  queryClient.invalidateQueries({ queryKey: ['prestamos'] });
 }
 
 async function processAction(item: OutboxRequest) {
@@ -74,6 +78,16 @@ async function processAction(item: OutboxRequest) {
     case 'eliminarCompraMSI':
       return await eliminarCompraMSI((item.payload as { id: string }).id);
       
+    case 'saldarCuenta':
+      return await saldarCuentaPorCobrar(item.payload as Parameters<typeof saldarCuentaPorCobrar>[0]);
+      
+    case 'crearPrestamo':
+      return await crearPrestamo(item.payload as Parameters<typeof crearPrestamo>[0]);
+    case 'actualizarPrestamo':
+      return await actualizarPrestamo({ id: (item.payload as { id: string }).id, campos: (item.payload as { campos: any }).campos });
+    case 'eliminarPrestamo':
+      return await eliminarPrestamo((item.payload as { id: string }).id);
+
     default:
       console.warn('Acción desconocida en el outbox:', item.action);
   }

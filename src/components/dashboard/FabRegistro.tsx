@@ -72,7 +72,9 @@ export function FabRegistro() {
       {/* FAB Button */}
       <motion.button
         id="fab-registro"
-        onClick={() => {
+        className="pointer-events-auto"
+        onClick={(e) => {
+          e.stopPropagation();
           triggerHaptic('light');
           if (isHidden && !isOpen) {
             setIsHidden(false);

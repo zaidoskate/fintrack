@@ -27,6 +27,8 @@ export interface MovimientoRow {
   hora: string;         // HH:MM:SS
   tipo: 'Gasto' | 'Ingreso';
   monto: number;
+  monto_propio?: number | null;
+  es_gasto_de_tercero?: boolean;
   categoria: string;
   comercio: string;
   tarjeta_id: string | null;
@@ -126,6 +128,10 @@ export interface TarjetaConEstado {
   proximoPago: string | null;   // YYYY-MM-DD
   diasParaPago: number | null;
   apartados?: ApartadoConEstado[];
+  color?: string;
+  corte?: string;
+  pago?: string;
+  marca?: string;
 }
 
 /** Estado de un apartado (Cajita) calculado con rendimientos al día de hoy */
@@ -147,6 +153,9 @@ export interface Movimiento {
   hora: string;
   tipo: 'Gasto' | 'Ingreso';
   monto: number;
+  montoPropio?: number | null;
+  /** Compra hecha con mi tarjeta pero pagada/reembolsada por otra persona. Excluida de analíticas. */
+  esGastoDeTercero?: boolean;
   categoria: string;
   comercio: string;
   metodoPago: string;
@@ -233,7 +242,34 @@ export interface FiltrosMovimientos {
   offset?: number;
 }
 
-export const CATEGORIAS_TRANSFERENCIA = ['Pago de tarjeta', 'Traspaso', 'Ajuste de balance'] as const;
+export const CATEGORIAS_TRANSFERENCIA = ['Pago de tarjeta', 'Traspaso', 'Ajuste de balance', 'Cobro de deuda'] as const;
 
-export const esGastoReal = (m: { tipo: string; categoria?: string }) => 
-  m.tipo === 'Gasto' && m.categoria && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria);
+export const esGastoReal = (m: { tipo: string; categoria?: string; esGastoDeTercero?: boolean }) => 
+  m.tipo === 'Gasto' && !m.esGastoDeTercero && m.categoria && !(CATEGORIAS_TRANSFERENCIA as readonly string[]).includes(m.categoria);
+
+export interface CuentaPorCobrar {
+  id: string;
+  movimientoId: string | null;
+  deudor: string;
+  concepto: string;
+  montoTotal: number;
+  montoSaldado: number;
+  estado: 'pendiente' | 'saldado';
+  fecha: string;
+}
+
+export interface Prestamo {
+  id: string;
+  nombre: string;
+  tipo: 'hipoteca' | 'automotriz' | 'personal_bancario' | 'p2p_debo' | 'p2p_me_deben';
+  direccion: 'pasivo' | 'activo';
+  montoOriginal: number;
+  saldoInsoluto: number;
+  tasaAnual: number;
+  plazoMesesTotales: number;
+  mesesPagados: number;
+  cuotaMensual: number;
+  diaPago: number;
+  fechaInicio: string;
+  contacto?: string | null;
+}
